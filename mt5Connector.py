@@ -155,13 +155,14 @@ class MT5Connector:
             print(f"Пара {symbol} Ордер {result.order} цена {result.price}")
         return {"order":result.order,"price":result.price,"symbol":symbol,"targetType":type}
     
-    def orderOpenWithoutSLTP(self,symbol,type,comment):
+    def orderOpenForAlligayorMain(self,symbol,type,comment):
         symbol_info = mt5.symbol_info(symbol) 
         if not symbol_info.visible:
             if not mt5.symbol_select(symbol,True):
                 print("symbol_select({}}) failed, exit",symbol)        
         volume = 0.01
         deviation = 20
+        point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).ask
         result = None
         if type == TargetType.LONG:            
@@ -170,6 +171,7 @@ class MT5Connector:
                 "symbol": symbol,
                 "volume": volume,
                 "type": mt5.ORDER_TYPE_BUY,
+                "sl": price - 400 * point,
                 "price": price,                
                 "deviation": deviation,
                 "comment": str(comment),
@@ -182,6 +184,7 @@ class MT5Connector:
                 "symbol": symbol,
                 "volume": volume,
                 "type": mt5.ORDER_TYPE_SELL,
+                "sl": price - 400 * point,
                 "price": price,                
                 "deviation": deviation,
                 "comment": str(comment),

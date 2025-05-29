@@ -67,7 +67,7 @@ dictLipsCandleDiff = {
     "EURAUDrfd": 175,
     "GBPCHFrfd": 135,
     "EURCADrfd": 210,
-    "GBPCADrfd": 160,
+    "GBPCADrfd": 40,
     "XAUUSDrfd": 1500,
     "GBPJPYrfd": 195,
     "XAGUSDrfd": 1700,
@@ -129,12 +129,12 @@ def checkOpen(jaw, teeth, lips, angle, candlediff, pair):
         #Уже есть ордер по данной паре и данному индикатору
         return
     if lips > teeth and lips > jaw and angle >= 10 and candlediff <= dictLipsCandleDiff.get(pair, 35):
-        mt5Connector.orderOpenWithoutSLTP(pair,TargetType.LONG,IndicatorType.ALLIGATOR_MAIN)
+        mt5Connector.orderOpenForAlligayorMain(pair,TargetType.LONG,IndicatorType.ALLIGATOR_MAIN)
         with open(LOG_FILE, "a") as f:
             f.write(f"\nordder LONG open \npair: {pair}, jaw: {last_jaw}, teeth: {last_teeth}, lips: {last_lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{get_server_time(pair)}")
 
     if lips < teeth and lips < jaw and angle <= -10 and candlediff <= dictLipsCandleDiff.get(pair, 35):
-        mt5Connector.orderOpenWithoutSLTP(pair,TargetType.SHORT,IndicatorType.ALLIGATOR_MAIN)
+        mt5Connector.orderOpenForAlligayorMain(pair,TargetType.SHORT,IndicatorType.ALLIGATOR_MAIN)
         with open(LOG_FILE, "a") as f:
             f.write(f"\nordder SHORT open \npair: {pair}, jaw: {last_jaw}, teeth: {last_teeth}, lips: {last_lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{get_server_time(pair)}")
     
