@@ -157,6 +157,10 @@ class MT5Connector:
     
     def orderOpenForAlligayorMain(self,symbol,type,comment):
         symbol_info = mt5.symbol_info(symbol) 
+        if symbol == 'XAGUSDrfd':
+            stopLossPoint = 6000
+        else:
+            stopLossPoint = 300
         if not symbol_info.visible:
             if not mt5.symbol_select(symbol,True):
                 print("symbol_select({}}) failed, exit",symbol)        
@@ -171,7 +175,7 @@ class MT5Connector:
                 "symbol": symbol,
                 "volume": volume,
                 "type": mt5.ORDER_TYPE_BUY,
-                "sl": price - 400 * point,
+                "sl": price - stopLossPoint * point,
                 "price": price,                
                 "deviation": deviation,
                 "comment": str(comment),
@@ -184,7 +188,7 @@ class MT5Connector:
                 "symbol": symbol,
                 "volume": volume,
                 "type": mt5.ORDER_TYPE_SELL,
-                "sl": price - 400 * point,
+                "sl": price + stopLossPoint * point,
                 "price": price,                
                 "deviation": deviation,
                 "comment": str(comment),

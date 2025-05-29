@@ -1,7 +1,6 @@
 from mt5Connector import MT5Connector
 import MetaTrader5 as mt5
-from anilizer import TargetType 
-from main import IndicatorType 
+from appEnum import TargetType,IndicatorType
 import time
 from datetime import  timedelta
 import math
@@ -68,9 +67,9 @@ dictLipsCandleDiff = {
     "GBPCHFrfd": 135,
     "EURCADrfd": 210,
     "GBPCADrfd": 40,
-    "XAUUSDrfd": 1500,
+    "XAUUSDrfd": 1000,
     "GBPJPYrfd": 195,
-    "XAGUSDrfd": 1700,
+    "XAGUSDrfd": 200,
     "USDSGDrfd": 135
     
 }

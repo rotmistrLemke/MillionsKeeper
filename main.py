@@ -13,25 +13,25 @@ settings = {
     "CCI_CoefficientLimit" : 0.3,    
     "Stochastic_CoefficientLimit" : 0.1
 }
-account1 = {"login":2000096507,"password":"x$Kz8CD7XB","server":"AlfaForexRU-Real"}
-account2 = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
+#account1 = {"login":2000096507,"password":"x$Kz8CD7XB","server":"AlfaForexRU-Real"}
+account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
 
-mt5Connector1 = MT5Connector(account1)
-mt5Connector2 = MT5Connector(account2)
+#mt5Connector1 = MT5Connector(account1)
+mt5Connector = MT5Connector(account)
 zeroIntersection = ZeroIntersection()
 hundredIntersection = HundredIntersection()
 extremum = Extremum(settings)
-aligator = Aligator(mt5Connector2)
+aligator = Aligator(mt5Connector)
 
 async def searching(update, context) :     
     while True:  
-        pairs = mt5Connector1.getSymbols(50)
+        pairs = mt5Connector.getSymbols(50)
         for pair in pairs:
             if "#JNJ" in pair:
                 continue
             print(f"\nПроверка пары CCI: {pair}")
 
-            jaw,teeth,lips,cci,signal,main = mt5Connector1.getData(pair,30)                        
+            jaw,teeth,lips,cci,signal,main = mt5Connector.getData(pair,30)                        
             resultExtremum = extremum.check(cci, signal)
             await ExtremumDisplay(resultExtremum, cci, update, pair)            
         await asyncio.sleep(5)
@@ -52,7 +52,7 @@ async def HundredIntersectionDisplay(result, cciValues, update, pair):
 async def ExtremumDisplay(result, cciValues, update, pair) :
     if not result["value"]:  
         return
-    if(mt5Connector1.symbolInPostions(pair,result["target"],IndicatorType.EXTREMUM_REVERSE)):
+    if(mt5Connector.symbolInPostions(pair,result["target"],IndicatorType.EXTREMUM_REVERSE)):
         print("Уже размещен заказ на данную пару")
         return  
           
@@ -62,14 +62,14 @@ async def ExtremumDisplay(result, cciValues, update, pair) :
     if result["target"] == TargetType.LONG:       
         # reply_markup = InlineKeyboardMarkup([[long_button]])
         # await update.message.reply_text(f"{pair}\nПерепроданность, лонгуем\nЗначение: {cciValues[0]}", reply_markup=reply_markup)
-        response = mt5Connector1.orderOpen(pair,TargetType.LONG,IndicatorType.EXTREMUM_REVERSE,100,700)
+        response = mt5Connector.orderOpen(pair,TargetType.LONG,IndicatorType.EXTREMUM_REVERSE,100,700)
         await update.message.reply_text(f"{pair}\nПерепроданность, ставлю ордер на лонг\nОрдер: {response["order"]}") 
         await createChart(cciValues,update)
         
     if result["target"] == TargetType.SHORT:                
         # reply_markup = InlineKeyboardMarkup([[short_button]])
         # await update.message.reply_text(f"{pair}\nПерекупленность, шортим\nЗначение: {cciValues[0]}", reply_markup=reply_markup)   
-        response = mt5Connector1.orderOpen(pair,TargetType.SHORT,IndicatorType.EXTREMUM_REVERSE,100,700)
+        response = mt5Connector.orderOpen(pair,TargetType.SHORT,IndicatorType.EXTREMUM_REVERSE,100,700)
         await update.message.reply_text(f"{pair}\nПерекупленность, ставлю ордер на шорт\nОрдер: {response["order"]}")   
         await createChart(cciValues,update)
 
@@ -88,11 +88,11 @@ async def ZeroIntersectionDisplay(result, cciValues, update, pair) :
 async def check_order(update,context) :
     data = json.loads(update.callback_query.data)    
     if int(data["targetType"]) == TargetType.LONG:
-        response = mt5Connector1.orderOpen(data["pair"],TargetType.LONG,data["indicator"],50,400)        
+        response = mt5Connector.orderOpen(data["pair"],TargetType.LONG,data["indicator"],50,400)        
         if response["order"]:
             await update.effective_message.reply_text(f"Ордер: {response['order']}\nПара: {response['symbol']}\nТип сделки: {response['targetType']}")
     if int(data["targetType"]) == TargetType.SHORT:
-        response = mt5Connector1.orderOpen(data["pair"],TargetType.SHORT,data["indicator"],50,400)        
+        response = mt5Connector.orderOpen(data["pair"],TargetType.SHORT,data["indicator"],50,400)        
         if response["order"]:
             await update.effective_message.reply_text(f"Ордер: {response['order']}\nПара: {response['symbol']}\nТип сделки: {response['targetType']}")
 
