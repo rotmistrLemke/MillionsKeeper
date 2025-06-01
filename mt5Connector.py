@@ -155,7 +155,7 @@ class MT5Connector:
             print(f"Пара {symbol} Ордер {result.order} цена {result.price}")
         return {"order":result.order,"price":result.price,"symbol":symbol,"targetType":type}
     
-    def orderOpenForAlligayorMain(self,symbol,type,comment):
+    def orderOpenForAlligatorMain(self,symbol,type,comment):
         symbol_info = mt5.symbol_info(symbol) 
         if symbol == 'XAGUSDrfd':
             stopLossPoint = 6000
@@ -175,7 +175,7 @@ class MT5Connector:
                 "symbol": symbol,
                 "volume": volume,
                 "type": mt5.ORDER_TYPE_BUY,
-                "sl": price - stopLossPoint * point,
+                #"sl": price - stopLossPoint * point,
                 "price": price,                
                 "deviation": deviation,
                 "comment": str(comment),
@@ -188,7 +188,7 @@ class MT5Connector:
                 "symbol": symbol,
                 "volume": volume,
                 "type": mt5.ORDER_TYPE_SELL,
-                "sl": price + stopLossPoint * point,
+                #"sl": price + stopLossPoint * point,
                 "price": price,                
                 "deviation": deviation,
                 "comment": str(comment),
