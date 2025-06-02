@@ -161,7 +161,7 @@ if __name__ == '__main__':
             # Проверяем, нужно ли записывать время
             if currentTime >= nextLogTime:
                 with open(LOG_FILE, "a") as f:
-                    f.write(f"\npair: {pair}, jaw: {last_jaw}, teeth: {last_teeth}, lips: {last_lips}, angle: {angle}, CandleDiff: {candleDiff}, LipsVsTeethDiff: {lipsVsTeethDiff}, time:{get_server_time(pair)}")
+                    f.write(f"\npair: {pair}, jaw: {lastJaw}, teeth: {lastTeeth}, lips: {lastLips}, angle: {angle}, CandleDiff: {candleDiff}, LipsVsTeethDiff: {lipsVsTeethDiff}, time:{mt5Connector.ServerTime(pair)}")
 
             
            
