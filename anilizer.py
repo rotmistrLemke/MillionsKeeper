@@ -1,8 +1,9 @@
-from typing import List, Dict, Optional
-from mt5Connector import MT5Connector
+import numpy as np
 from appEnum import IndicatorType,TargetType
 import math
 from decimal import Decimal
+import pandas as pd
+import MetaTrader5 as mt5
 
 
 class ZeroIntersection:    
@@ -103,7 +104,7 @@ class Aligator:
         self.mt5 = mt5    
 
     def checkOpen(self,jaw,teeth,lips,pair):
-        if self.mt5.symbolInPostions(pair,TargetType.LONG,IndicatorType.ALLIGATOR) or self.mt5.symbolInPostions(pair,TargetType.SHORT,IndicatorType.ALLIGATOR):
+        if self.mt5.symbolInPostions(pair,TargetType.LONG,IndicatorType.ALLIGATOR) or mt5.symbolInPostions(pair,TargetType.SHORT,IndicatorType.ALLIGATOR):
             #Уже есть ордер по данной паре и данному индикатору
             return
         if lips > teeth and lips > jaw:
@@ -121,7 +122,7 @@ class Aligator:
             if ticket:
                 self.mt5.orderClose(ticket,pair)
                 
-    def smma(data, period):
+    def smma(self, data, period):
         smma_values = []
         for i in range(len(data)):
             if i < period:
@@ -130,7 +131,7 @@ class Aligator:
                 smma_values.append(data[i-period:i].mean())
             else:
                 smma_values.append((smma_values[-1] * (period - 1) + data[i]) / period)
-        return smma_values
+        return pd.Series(smma_values)
     
     def angle(self,currentLipsValue, previousLipsValue, pair, pairXvalue, degrees=True):
         """
@@ -143,18 +144,18 @@ class Aligator:
         Возвращает:
             float: Угол в градусах или радианах.
         """
-        x = (currentLipsValue - previousLipsValue) / self.mt5.symbol_info(pair).point
+        x = (currentLipsValue - previousLipsValue) / mt5.symbol_info(pair).point
         angle_rad = math.atan2(x, pairXvalue/2)
         return math.degrees(angle_rad) if degrees else angle_rad
     
-    def CountDecimalPlace(self,pair):    
-        num = Decimal(str(self.mt5.symbol_info(pair).point))
+    def CountDecimalPlace(self, pair):    
+        num = Decimal(str(mt5.symbol_info(pair).point))
         return  abs(num.as_tuple().exponent)
     
     def getAlligatorVsCurrentCandelDiff(self, pair, alligatorValue):
         """Возвращает разницу между текущей ценой и индикатором аллигатор по модулю."""
-        return abs(alligatorValue - self.mt5.symbol_info_tick(pair).bid)/ self.mt5.symbol_info(pair).point
+        return abs(alligatorValue - mt5.symbol_info_tick(pair).bid)/ mt5.symbol_info(pair).point
     
     def getLipsVsTeethDiff(self, pair, lips, teeth):
         """Возвращает разницу между текущей ценой и индикатором аллигатор по модулю."""
-        return abs(lips - teeth)/ self.mt5.symbol_info(pair).point
+        return abs(lips - teeth)/ mt5.symbol_info(pair).point

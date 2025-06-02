@@ -3,7 +3,6 @@ import MetaTrader5 as mt5
 from appEnum import TargetType,IndicatorType
 import time
 import pandas as pd
-import numpy as np
 from anilizer import Aligator
 from logger import Logger
 
@@ -126,7 +125,7 @@ if __name__ == '__main__':
     
     while True:        
         for pair in pairs:
-            mt5Connector.getHistoricalData(pair,mt5.TIMEFRAME_H1,500)
+            #mt5Connector.getHistoricalData(pair,mt5.TIMEFRAME_H1,500)
             
             # Получаем данные цен (медианные цены HL/2)
             bars = mt5.copy_rates_from_pos(pair, mt5.TIMEFRAME_H1, 0, 500)
