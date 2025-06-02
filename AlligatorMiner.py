@@ -2,25 +2,16 @@ from mt5Connector import MT5Connector
 import MetaTrader5 as mt5
 from appEnum import TargetType,IndicatorType
 import time
-from datetime import  timedelta
-import math
 import pandas as pd
 import numpy as np
-from decimal import Decimal
+from anilizer import Aligator
+from logger import Logger
 
 account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
 mt5Connector = MT5Connector(account)
+aligator = Aligator(mt5Connector)
+logger = Logger()
 LOG_FILE = "logger.txt"  # Файл для записи
-INTERVAL_MINUTES = 10  # Интервал записи (10 минут)
-
-def get_server_time(pair):
-    tick = mt5.symbol_info_tick(pair)
-    return pd.to_datetime(tick.time, unit='s')
-
-def get_next_log_time(current_time):
-    next_time = current_time.replace(second=0, microsecond=0) + \
-                timedelta(minutes=INTERVAL_MINUTES - (current_time.minute % INTERVAL_MINUTES))
-    return next_time
 
 dictPairXvalue = {
     "EURUSDrfd": 100,
@@ -44,8 +35,7 @@ dictPairXvalue = {
     "XAUUSDrfd": 1005,
     "GBPJPYrfd": 195,
     "XAGUSDrfd": 1230,
-    "USDSGDrfd": 135
-    
+    "USDSGDrfd": 135    
 }
 
 dictLipsCandleDiff = {
@@ -70,58 +60,16 @@ dictLipsCandleDiff = {
     "XAUUSDrfd": 1000,
     "GBPJPYrfd": 195,
     "XAGUSDrfd": 200,
-    "USDSGDrfd": 135
-    
+    "USDSGDrfd": 135    
 }
 
-dictLipsTeethDiff = {
-    
+dictLipsTeethDiff = {    
     "XAUUSDrfd": 150,
     "XAGUSDrfd": 170,
     "AUDJPYrfd": 15,
     "USDSGDrfd": 15,
     "AUDUSDrfd": 15
 }
-
-def calculate_arctan(currentLipsValue, previousLipsValue, pair, pairXvalue, degrees=True):
-    """
-    Вычисляет arctg(x) и возвращает угол в градусах или радианах.
-
-    Параметры:
-        x (float): Число, для которого вычисляется арктангенс.
-        degrees (bool): Если True, возвращает угол в градусах, иначе в радианах.
-
-    Возвращает:
-        float: Угол в градусах или радианах.
-    """
-    x = (currentLipsValue - previousLipsValue) / mt5.symbol_info(pair).point
-    angle_rad = math.atan2(x, pairXvalue/2)
-    return math.degrees(angle_rad) if degrees else angle_rad
-
-def count_decimal_places(pair):
-    
-    num = Decimal(str(mt5.symbol_info(pair).point))
-    return  abs(num.as_tuple().exponent)
-    
-def getAlligatorVsCurrentCandelDiff(pair, alligatorValue):
-    """Возвращает разницу между текущей ценой и индикатором аллигатор по модулю."""
-    return abs(alligatorValue - mt5.symbol_info_tick(pair).bid)/ mt5.symbol_info(pair).point
-
-def getLipsVsTeethDiff(pair, lips, teeth):
-    """Возвращает разницу между текущей ценой и индикатором аллигатор по модулю."""
-    return abs(lips - teeth)/ mt5.symbol_info(pair).point
-
-# Функция для SMMA (Smoothed Moving Average)
-def smma(data, period):
-    smma_values = []
-    for i in range(len(data)):
-        if i < period:
-            smma_values.append(np.nan)
-        elif i == period:
-            smma_values.append(data[i-period:i].mean())
-        else:
-            smma_values.append((smma_values[-1] * (period - 1) + data[i]) / period)
-    return smma_values
 
 def checkOpen(jaw, teeth, lips, angle, candlediff, pair):
     if mt5Connector.symbolInPostions(pair,TargetType.LONG,IndicatorType.ALLIGATOR_MAIN) or mt5Connector.symbolInPostions(pair,TargetType.SHORT,IndicatorType.ALLIGATOR_MAIN):
@@ -169,11 +117,10 @@ if __name__ == '__main__':
     #pairs = mt5Connector.getSymbols(50)
     pairs = dictPairXvalue.keys()
     last_log_time = None
-    next_log_time = get_next_log_time(get_server_time('EURUSDrfd'))
+    nextLogTime = logger.getNextLogTime(mt5Connector.serverTime('EURUSDrfd'))
     prev_bar_time = None
     
-    while True:
-        
+    while True:        
         for pair in pairs:
             mt5Connector.getHistoricalData(pair,mt5.TIMEFRAME_H1,500)
             
@@ -183,48 +130,45 @@ if __name__ == '__main__':
                 print("Не удалось получить данные:", mt5.last_error())
 
             df = pd.DataFrame(bars)
-            df['median_price'] = (df['high'] + df['low']) / 2  # Медианная цена (HL/2)
+            medianPrice = (df['high'] + df['low']) / 2  # Медианная цена (HL/2)
 
             
             # Рассчитываем линии Аллигатора
-            df['jaw'] = smma(df['median_price'], 13)  # Челюсти (13)
-            df['teeth'] = smma(df['median_price'], 8)   # Зубы (8)
-            df['lips'] = smma(df['median_price'], 5)    # Губы (5)
+            jaw = aligator.smma(medianPrice, 13)  # Челюсти (13)
+            teeth = aligator.smma(medianPrice, 8)   # Зубы (8)
+            lips = aligator.smma(medianPrice, 5)    # Губы (5)
 
             # Смещаем линии  (бары 3, 1, -1)
-            df['jaw_shifted'] = df['jaw'].shift(3)
-            df['teeth_shifted'] = df['teeth'].shift(1)
-            df['lips_shifted'] = df['lips'].shift(-1)
-
-
+            jawShifted = jaw.shift(3)
+            teethShifted = teeth.shift(1)
+            lipsShifted = lips.shift(-1)
             
             # Последние значения
-            last_jaw = float(f"{df['jaw_shifted'].iloc[-2]:.{count_decimal_places(pair)}f}")
-            last_teeth =  float(f"{df['teeth_shifted'].iloc[-2]:.{count_decimal_places(pair)}f}")
-            last_lips = float(f"{df['lips_shifted'].iloc[-2]:.{count_decimal_places(pair)}f}")
-            prelast_lips = float(f"{df['lips_shifted'].iloc[-3]:.{count_decimal_places(pair)}f}")
-            angle = int(f"{calculate_arctan(last_lips,prelast_lips,pair,dictPairXvalue.get(pair, 100)):.0f}")
-            candleDiff = int(f"{getAlligatorVsCurrentCandelDiff(pair,last_lips):.0f}")
-            lipsVsTeethDiff = int(f"{getLipsVsTeethDiff(pair, last_lips, last_teeth):.0f}")
+            countDecimalPlace = aligator.CountDecimalPlace(pair)
+            lastJaw = float(f"{jawShifted.iloc[-2]:.{countDecimalPlace}f}")
+            lastTeeth =  float(f"{teethShifted.iloc[-2]:.{countDecimalPlace}f}")
+            lastLips = float(f"{lipsShifted.iloc[-2]:.{countDecimalPlace}f}")
+            prelastLips = float(f"{lipsShifted.iloc[-3]:.{countDecimalPlace}f}")
+            angle = int(f"{aligator.angle(lastLips,prelastLips,pair,dictPairXvalue.get(pair, 100)):.0f}")
+            candleDiff = int(f"{aligator.getAlligatorVsCurrentCandelDiff(pair,lastLips):.0f}")
+            lipsVsTeethDiff = int(f"{aligator.getLipsVsTeethDiff(pair, lastLips, lastTeeth):.0f}")
             
-            current_time = get_server_time(pair)
+            currentTime = mt5Connector.serverTime(pair)
         
             # Проверяем, нужно ли записывать время
-            if current_time >= next_log_time:
+            if currentTime >= nextLogTime:
                 with open(LOG_FILE, "a") as f:
-                    f.write(f"\npair: {pair}, jaw: {last_jaw}, teeth: {last_teeth}, lips: {last_lips}, angle: {angle}, CandleDiff: {candleDiff}, LipsVsTeethDiff: {lipsVsTeethDiff}, time:{get_server_time(pair)}")
-                print(f"Все в порядке, время:{get_server_time(pair)}")
-            
-           
+                    f.write(f"\npair: {pair}, jaw: {lastJaw}, teeth: {lastTeeth}, lips: {lastLips}, angle: {angle}, CandleDiff: {candleDiff}, LipsVsTeethDiff: {lipsVsTeethDiff}, time:{currentTime}")
+                print(f"Все в порядке, время:{currentTime}")              
             
             #print(f"\npair: {pair}, jaw: {last_jaw}, teeth: {last_teeth}, lips: {last_lips}, angle: {angle}, CandleDiff: {candleDiff}, LipsVsTeethDiff: {lipsVsTeethDiff}, time:{get_server_time(pair)}")
-            checkOpen(last_jaw, last_teeth, last_lips, angle, candleDiff, pair)    
-            checkClose(last_jaw, last_teeth, last_lips, angle, lipsVsTeethDiff, pair)    
+            checkOpen(lastJaw, lastTeeth, lastLips, angle, candleDiff, pair)    
+            checkClose(lastJaw, lastTeeth, lastLips, angle, lipsVsTeethDiff, pair)    
         # Обновляем время следующей записи
 
-        next_log_time = get_next_log_time(current_time)
+        nextLogTime = logger.getNextLogTime(currentTime)
         
-        print(f"Все в порядке, время:{get_server_time(pair)}")
+        print(f"Все в порядке, время:{mt5Connector.serverTime(pair)}")
         time.sleep(3600)
         
 

@@ -1,6 +1,8 @@
 from typing import List, Dict, Optional
 from mt5Connector import MT5Connector
 from appEnum import IndicatorType,TargetType
+import math
+from decimal import Decimal
 
 
 class ZeroIntersection:    
@@ -118,3 +120,41 @@ class Aligator:
             ticket = self.mt5.getTicket(pair,TargetType.LONG,IndicatorType.ALLIGATOR)
             if ticket:
                 self.mt5.orderClose(ticket,pair)
+                
+    def smma(data, period):
+        smma_values = []
+        for i in range(len(data)):
+            if i < period:
+                smma_values.append(np.nan)
+            elif i == period:
+                smma_values.append(data[i-period:i].mean())
+            else:
+                smma_values.append((smma_values[-1] * (period - 1) + data[i]) / period)
+        return smma_values
+    
+    def angle(self,currentLipsValue, previousLipsValue, pair, pairXvalue, degrees=True):
+        """
+        Вычисляет arctg(x) и возвращает угол в градусах или радианах.
+
+        Параметры:
+            x (float): Число, для которого вычисляется арктангенс.
+            degrees (bool): Если True, возвращает угол в градусах, иначе в радианах.
+
+        Возвращает:
+            float: Угол в градусах или радианах.
+        """
+        x = (currentLipsValue - previousLipsValue) / self.mt5.symbol_info(pair).point
+        angle_rad = math.atan2(x, pairXvalue/2)
+        return math.degrees(angle_rad) if degrees else angle_rad
+    
+    def CountDecimalPlace(self,pair):    
+        num = Decimal(str(self.mt5.symbol_info(pair).point))
+        return  abs(num.as_tuple().exponent)
+    
+    def getAlligatorVsCurrentCandelDiff(self, pair, alligatorValue):
+        """Возвращает разницу между текущей ценой и индикатором аллигатор по модулю."""
+        return abs(alligatorValue - self.mt5.symbol_info_tick(pair).bid)/ self.mt5.symbol_info(pair).point
+    
+    def getLipsVsTeethDiff(self, pair, lips, teeth):
+        """Возвращает разницу между текущей ценой и индикатором аллигатор по модулю."""
+        return abs(lips - teeth)/ self.mt5.symbol_info(pair).point
