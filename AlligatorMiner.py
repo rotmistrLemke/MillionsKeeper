@@ -76,48 +76,51 @@ def checkOpen(jaw, teeth, lips, angle, candlediff, pair):
         #Уже есть ордер по данной паре и данному индикатору
         return
     if lips > teeth and lips > jaw and angle >= 10 and candlediff <= dictLipsCandleDiff.get(pair, 35):
+        serverTime = mt5Connector.ServerTime(pair)
         mt5Connector.orderOpenForAlligatorMain(pair,TargetType.LONG,IndicatorType.ALLIGATOR_MAIN)
-        print(f"\nОрдер LONG открыт по условию \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{get_server_time(pair)}")
+        print(f"\nОрдер LONG открыт по условию \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{serverTime}")
         with open(LOG_FILE, "a") as f:
-            f.write(f"\nОрдер LONG открыт по условию \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{get_server_time(pair)}")
+            f.write(f"\nОрдер LONG открыт по условию \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{serverTime}")
 
     if lips < teeth and lips < jaw and angle <= -10 and candlediff <= dictLipsCandleDiff.get(pair, 35):
         mt5Connector.orderOpenForAlligatorMain(pair,TargetType.SHORT,IndicatorType.ALLIGATOR_MAIN)
-        print(f"\nОрдер SHORT открыт по условию\npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{get_server_time(pair)}")
+        print(f"\nОрдер SHORT открыт по условию\npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{serverTime}")
         with open(LOG_FILE, "a") as f:
-            f.write(f"\nОрдер SHORT открыт по условию \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{get_server_time(pair)}")
+            f.write(f"\nОрдер SHORT открыт по условию \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{serverTime}")
     
 def checkClose(jaw, teeth,lips, angle, lipsVsTeethDiff, pair):
     if lips < teeth and angle > 5 and lipsVsTeethDiff <= dictLipsTeethDiff.get(pair, 10):
         ticket = mt5Connector.getTicket(pair,TargetType.SHORT,IndicatorType.ALLIGATOR_MAIN)
         if ticket:
+            serverTime = mt5Connector.ServerTime(pair)
             mt5Connector.orderClose(ticket,pair)
-            print(f"\nОрдер SHORT снят \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, LipsVsTeethDiff: {lipsVsTeethDiff}, time:{get_server_time(pair)}")
+            print(f"\nОрдер SHORT снят \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, LipsVsTeethDiff: {lipsVsTeethDiff}, time:{serverTime}")
             with open(LOG_FILE, "a") as f:
-                f.write(f"\nОрдер SHORT снят \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, LipsVsTeethDiff: {lipsVsTeethDiff}, time:{get_server_time(pair)}")
+                f.write(f"\nОрдер SHORT снят \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, LipsVsTeethDiff: {lipsVsTeethDiff}, time:{serverTime}")
             mt5Connector.orderOpenForAlligatorMain(pair,TargetType.LONG,IndicatorType.ALLIGATOR_MAIN)
-            print(f"\nОрдер LONG открыт по закрытию предыдущего \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{get_server_time(pair)}")
+            print(f"\nОрдер LONG открыт по закрытию предыдущего \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{serverTime}")
             with open(LOG_FILE, "a") as f:
-                f.write(f"\nОрдер LONG по закрытию предыдущего \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{get_server_time(pair)}")
+                f.write(f"\nОрдер LONG по закрытию предыдущего \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{serverTime}")
 
     if lips > teeth and angle < -5 and lipsVsTeethDiff <= dictLipsTeethDiff.get(pair, 10):
         ticket = mt5Connector.getTicket(pair,TargetType.LONG,IndicatorType.ALLIGATOR_MAIN)
         if ticket:
+            serverTime = mt5Connector.ServerTime(pair)
             mt5Connector.orderClose(ticket, pair)
-            print(f"\nОрдер LONG снят \npair: {pair}, jaw: {last_jaw}, teeth: {last_teeth}, lips: {last_lips}, angle: {angle}, LipsVsTeethDiff: {lipsVsTeethDiff}, time:{get_server_time(pair)}")
+            print(f"\nОрдер LONG снят \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, LipsVsTeethDiff: {lipsVsTeethDiff}, time:{serverTime}")
             with open(LOG_FILE, "a") as f:
-                f.write(f"\nОрдер LONG снят \npair: {pair}, jaw: {last_jaw}, teeth: {last_teeth}, lips: {last_lips}, angle: {angle}, LipsVsTeethDiff: {lipsVsTeethDiff}, time:{get_server_time(pair)}")
+                f.write(f"\nОрдер LONG снят \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, LipsVsTeethDiff: {lipsVsTeethDiff}, time:{serverTime}")
             mt5Connector.orderOpenForAlligatorMain(pair,TargetType.SHORT,IndicatorType.ALLIGATOR_MAIN)
-            print(f"\nОрдер SHORT по закрытию предыдущего \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{get_server_time(pair)}")
+            print(f"\nОрдер SHORT по закрытию предыдущего \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{serverTime}")
             with open(LOG_FILE, "a") as f:
-                f.write(f"\nОрдер SHORT по закрытию предыдущего \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{get_server_time(pair)}")
+                f.write(f"\nОрдер SHORT по закрытию предыдущего \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{serverTime}")
 
 
 if __name__ == '__main__':
     #pairs = mt5Connector.getSymbols(50)
     pairs = dictPairXvalue.keys()
     last_log_time = None
-    nextLogTime = logger.getNextLogTime(mt5Connector.serverTime('EURUSDrfd'))
+    nextLogTime = logger.getNextLogTime(mt5Connector.ServerTime('EURUSDrfd'))
     prev_bar_time = None
     
     while True:        
@@ -131,7 +134,6 @@ if __name__ == '__main__':
 
             df = pd.DataFrame(bars)
             medianPrice = (df['high'] + df['low']) / 2  # Медианная цена (HL/2)
-
             
             # Рассчитываем линии Аллигатора
             jaw = aligator.smma(medianPrice, 13)  # Челюсти (13)
@@ -153,7 +155,7 @@ if __name__ == '__main__':
             candleDiff = int(f"{aligator.getAlligatorVsCurrentCandelDiff(pair,lastLips):.0f}")
             lipsVsTeethDiff = int(f"{aligator.getLipsVsTeethDiff(pair, lastLips, lastTeeth):.0f}")
             
-            currentTime = mt5Connector.serverTime(pair)
+            currentTime = mt5Connector.ServerTime(pair)
         
             # Проверяем, нужно ли записывать время
             if currentTime >= nextLogTime:
@@ -168,7 +170,7 @@ if __name__ == '__main__':
 
         nextLogTime = logger.getNextLogTime(currentTime)
         
-        print(f"Все в порядке, время:{mt5Connector.serverTime(pair)}")
+        print(f"Все в порядке, время:{mt5Connector.ServerTime(pair)}")
         time.sleep(3600)
         
 

@@ -239,6 +239,6 @@ class MT5Connector:
         goods = [symbol.name for symbol in symbols if (symbol.spread <= spread and symbol.spread != 0 and symbol.name[0] != '#') or symbol.name=='XAGUSDrfd'  ]
         return goods
     
-    def serverTime(pair):
+    def ServerTime(pair):
         tick = mt5.symbol_info_tick(pair)
         return pd.to_datetime(tick.time, unit='s')
