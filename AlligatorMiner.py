@@ -2,7 +2,7 @@ from mt5Connector import MT5Connector
 import MetaTrader5 as mt5
 from appEnum import TargetType,IndicatorType
 import time
-from datetime import  timedelta
+from datetime import  datetime, timedelta
 import math
 import pandas as pd
 import numpy as np
@@ -140,7 +140,7 @@ def checkOpen(jaw, teeth, lips, angle, candlediff, pair):
             f.write(f"\nОрдер SHORT открыт по условию \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{get_server_time(pair)}")
     
 def checkClose(jaw, teeth,lips, angle, lipsVsTeethDiff, pair):
-    if lips < teeth and angle > 5 and lipsVsTeethDiff <= dictLipsTeethDiff.get(pair, 10):
+    if lips < teeth and angle > 5 and lipsVsTeethDiff <= dictLipsTeethDiff.get(pair, 10) or (angle > 5 and lips > teeth):
         ticket = mt5Connector.getTicket(pair,TargetType.SHORT,IndicatorType.ALLIGATOR_MAIN)
         if ticket:
             mt5Connector.orderClose(ticket,pair)
@@ -152,7 +152,7 @@ def checkClose(jaw, teeth,lips, angle, lipsVsTeethDiff, pair):
             with open(LOG_FILE, "a") as f:
                 f.write(f"\nОрдер LONG по закрытию предыдущего \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{get_server_time(pair)}")
 
-    if lips > teeth and angle < -5 and lipsVsTeethDiff <= dictLipsTeethDiff.get(pair, 10):
+    if lips > teeth and angle < -5 and lipsVsTeethDiff <= dictLipsTeethDiff.get(pair, 10) or (angle < -5 and lips < teeth):
         ticket = mt5Connector.getTicket(pair,TargetType.LONG,IndicatorType.ALLIGATOR_MAIN)
         if ticket:
             mt5Connector.orderClose(ticket, pair)
@@ -171,6 +171,7 @@ if __name__ == '__main__':
     last_log_time = None
     next_log_time = get_next_log_time(get_server_time('EURUSDrfd'))
     prev_bar_time = None
+
     
     while True:
         
@@ -213,7 +214,7 @@ if __name__ == '__main__':
             if current_time >= next_log_time:
                 with open(LOG_FILE, "a") as f:
                     f.write(f"\npair: {pair}, jaw: {last_jaw}, teeth: {last_teeth}, lips: {last_lips}, angle: {angle}, CandleDiff: {candleDiff}, LipsVsTeethDiff: {lipsVsTeethDiff}, time:{get_server_time(pair)}")
-                print(f"Все в порядке, время:{get_server_time(pair)}")
+
             
            
             
