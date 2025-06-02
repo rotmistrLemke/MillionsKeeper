@@ -89,7 +89,7 @@ def checkOpen(jaw, teeth, lips, angle, candlediff, pair):
             f.write(f"\nОрдер SHORT открыт по условию \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{serverTime}")
     
 def checkClose(jaw, teeth,lips, angle, lipsVsTeethDiff, pair):
-    if lips < teeth and angle > 5 and lipsVsTeethDiff <= dictLipsTeethDiff.get(pair, 10):
+    if lips < teeth and angle > 5 and lipsVsTeethDiff <= dictLipsTeethDiff.get(pair, 10) or (angle > 5 and lips > teeth):
         ticket = mt5Connector.getTicket(pair,TargetType.SHORT,IndicatorType.ALLIGATOR_MAIN)
         if ticket:
             serverTime = mt5Connector.ServerTime(pair)
@@ -102,7 +102,7 @@ def checkClose(jaw, teeth,lips, angle, lipsVsTeethDiff, pair):
             with open(LOG_FILE, "a") as f:
                 f.write(f"\nОрдер LONG по закрытию предыдущего \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{serverTime}")
 
-    if lips > teeth and angle < -5 and lipsVsTeethDiff <= dictLipsTeethDiff.get(pair, 10):
+    if lips > teeth and angle < -5 and lipsVsTeethDiff <= dictLipsTeethDiff.get(pair, 10) or (angle < -5 and lips < teeth):
         ticket = mt5Connector.getTicket(pair,TargetType.LONG,IndicatorType.ALLIGATOR_MAIN)
         if ticket:
             serverTime = mt5Connector.ServerTime(pair)
@@ -122,6 +122,7 @@ if __name__ == '__main__':
     last_log_time = None
     nextLogTime = logger.getNextLogTime(mt5Connector.ServerTime('EURUSDrfd'))
     prev_bar_time = None
+
     
     while True:        
         for pair in pairs:
@@ -160,8 +161,10 @@ if __name__ == '__main__':
             # Проверяем, нужно ли записывать время
             if currentTime >= nextLogTime:
                 with open(LOG_FILE, "a") as f:
-                    f.write(f"\npair: {pair}, jaw: {lastJaw}, teeth: {lastTeeth}, lips: {lastLips}, angle: {angle}, CandleDiff: {candleDiff}, LipsVsTeethDiff: {lipsVsTeethDiff}, time:{currentTime}")
-                print(f"Все в порядке, время:{currentTime}")              
+                    f.write(f"\npair: {pair}, jaw: {last_jaw}, teeth: {last_teeth}, lips: {last_lips}, angle: {angle}, CandleDiff: {candleDiff}, LipsVsTeethDiff: {lipsVsTeethDiff}, time:{get_server_time(pair)}")
+
+            
+           
             
             #print(f"\npair: {pair}, jaw: {last_jaw}, teeth: {last_teeth}, lips: {last_lips}, angle: {angle}, CandleDiff: {candleDiff}, LipsVsTeethDiff: {lipsVsTeethDiff}, time:{get_server_time(pair)}")
             checkOpen(lastJaw, lastTeeth, lastLips, angle, candleDiff, pair)    
