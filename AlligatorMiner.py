@@ -88,7 +88,7 @@ def checkOpen(jaw, teeth, lips, angle, candlediff, pair):
             f.write(f"\nОрдер SHORT открыт по условию \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{serverTime}")
     
 def checkClose(jaw, teeth,lips, angle, lipsVsTeethDiff, pair):
-    if lips < teeth and angle > 5 and lipsVsTeethDiff <= dictLipsTeethDiff.get(pair, 10) or (angle > 5 and lips > teeth) or (lips < teeth and angle > 15):
+    if lips < teeth and angle > 5 and lipsVsTeethDiff <= dictLipsTeethDiff.get(pair, 10) or (angle > 5 and lips > teeth) or (lips < teeth and angle > 15) or (angle > 30):
         ticket = mt5Connector.getTicket(pair,TargetType.SHORT,IndicatorType.ALLIGATOR_MAIN)
         if ticket:
             serverTime = mt5Connector.ServerTime(pair)
@@ -101,7 +101,7 @@ def checkClose(jaw, teeth,lips, angle, lipsVsTeethDiff, pair):
             with open(LOG_FILE, "a") as f:
                 f.write(f"\nОрдер LONG по закрытию предыдущего \npair: {pair}, jaw: {jaw}, teeth: {teeth}, lips: {lips}, angle: {angle}, CandleDiff: {candleDiff}, time:{serverTime}")
 
-    if lips > teeth and angle < -5 and lipsVsTeethDiff <= dictLipsTeethDiff.get(pair, 10) or (angle < -5 and lips < teeth) or (lips > teeth and angle < -15):
+    if lips > teeth and angle < -5 and lipsVsTeethDiff <= dictLipsTeethDiff.get(pair, 10) or (angle < -5 and lips < teeth) or (lips > teeth and angle < -15) or (angle < 30):
         ticket = mt5Connector.getTicket(pair,TargetType.LONG,IndicatorType.ALLIGATOR_MAIN)
         if ticket:
             serverTime = mt5Connector.ServerTime(pair)
