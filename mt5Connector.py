@@ -2,10 +2,11 @@ import MetaTrader5 as mt5
 import pandas as pd
 import numpy as np
 from enum import Enum
-from appEnum import TargetType
+from appEnum import TargetType, Settings
 from stock_indicators import indicators
 from stock_indicators import Quote
 from datetime import datetime
+from anilizer import Alligator
 
 
 
@@ -42,66 +43,43 @@ class MT5Connector:
             return False
      
     
-    def Alligator(self, jaw_period=13, teeth_period=8, lips_period=5, jaw_shift=5, teeth_shift=3, lips_shift=1):
-        """Рассчитывает индикатор Alligator"""
-        if self.df is None:
-            print("Ошибка вычисления Alligator")
-            return None
+    def alligatorData(self, pair):
+        bars = mt5.copy_rates_from_pos(pair, mt5.TIMEFRAME_H1, 0, 500)
+        if bars is None:
+            print("Не удалось получить данные:", mt5.last_error())
+
+        df = pd.DataFrame(bars)
+        medianPrice = (df['high'] + df['low']) / 2  # Медианная цена (HL/2)
+            
+        # Рассчитываем линии Аллигатора
+        jaw = Alligator.smma(medianPrice, 13)  # Челюсти (13)
+        teeth = Alligator.smma(medianPrice, 8)   # Зубы (8)
+        lips = Alligator.smma(medianPrice, 5)    # Губы (5)
+
+        # Смещаем линии  (бары 3, 1, -1)
+        jawShifted = jaw.shift(3)
+        teethShifted = teeth.shift(1)
+        lipsShifted = lips.shift(-1)
+            
+        # Последние значения
+        countDecimalPlace = Alligator.CountDecimalPlace(pair)
+        lastJaw = float(f"{jawShifted.iloc[-2]:.{countDecimalPlace}f}")
+        lastTeeth =  float(f"{teethShifted.iloc[-2]:.{countDecimalPlace}f}")
+        lastLips = float(f"{lipsShifted.iloc[-2]:.{countDecimalPlace}f}")
+        prelastLips = float(f"{lipsShifted.iloc[-3]:.{countDecimalPlace}f}")
+        angle = int(f"{Alligator.angle(lastLips,prelastLips,pair,Settings.dictPairXvalue.get(pair, 100)):.0f}")
+        candleDiff = int(f"{Alligator.getAlligatorVsCurrentCandelDiff(pair,lastLips):.0f}")
+        lipsVsTeethDiff = int(f"{Alligator.getLipsVsTeethDiff(pair, lastLips, lastTeeth):.0f}")
         
-        # Преобразуем DataFrame в формат, подходящий для stock-indicators
-        quotes = [
-            Quote(
-                datetime.fromtimestamp(d),  # Convert Unix timestamp to datetime
-                o,h,l,c,v
-            ) 
-            for d,o,h,l,c,v 
-            in zip(
-                self.df['time'], 
-                self.df['open'], 
-                self.df['high'], 
-                self.df['low'], 
-                self.df['close'], 
-                self.df['tick_volume']
-            )
-        ]
-        
-        # Рассчитываем Alligator
-        from stock_indicators.indicators.common.enums import MAType
-        results = indicators.get_alligator(
-            quotes,
-            jaw_periods=jaw_period,
-            jaw_offset=jaw_shift,
-            teeth_periods=teeth_period,
-            teeth_offset=teeth_shift,
-            lips_periods=lips_period,
-            lips_offset=lips_shift,
-        )
-        
-        # Преобразуем результаты в удобный формат
-        jaw = []
-        teeth = []
-        lips = []
-        
-        for result in results:
-            if result.jaw is not None and result.teeth is not None and result.lips is not None:
-                jaw.append(result.jaw)
-                teeth.append(result.teeth)
-                lips.append(result.lips)
-        
-        jaw = list(reversed(jaw))
-        teeth = list(reversed(teeth))
-        lips = list(reversed(lips))
-        # Возвращаем результаты в обратном порядке (как в других методах)
-        return jaw,teeth,lips
+        return lastJaw, lastTeeth, lastLips, angle, candleDiff, lipsVsTeethDiff
    
     def getData(self, symbol, count):
         if self.authorized:            
             if self.getHistoricalData(symbol,mt5.TIMEFRAME_H1,count):
                 cci = self.CCI()
                 signal,main = self.Stochastic()
-                jaw,teeth,lips = self.Alligator()
 
-                return jaw,teeth,lips,cci,signal,main
+                return cci,signal,main
             else:
                 print("Ошибка при получении данных")
         else:

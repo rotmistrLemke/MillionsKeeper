@@ -9461,3 +9461,103 @@ pair: GBPJPYrfd, jaw: 193.411, teeth: 193.36, lips: 193.411, angle: 15, CandleDi
 pair: USDSGDrfd, jaw: 1.28643, teeth: 1.2856, lips: 1.2859, angle: 25, LipsVsTeethDiff: 30, time:2025-06-03 07:01:46
 Ордер SHORT по закрытию предыдущего 
 pair: USDSGDrfd, jaw: 1.28643, teeth: 1.2856, lips: 1.2859, angle: 25, CandleDiff: 154, time:2025-06-03 07:01:46
+pair: EURUSDrfd, jaw: 1.141, teeth: 1.14021, lips: 1.13872, angle: -33, CandleDiff: 119, LipsVsTeethDiff: 149, time:2025-06-03 20:11:16
+pair: NZDUSDrfd, jaw: 0.60085, teeth: 0.60047, lips: 0.59999, angle: -1, CandleDiff: 11, LipsVsTeethDiff: 48, time:2025-06-03 20:11:16
+pair: EURGBPrfd, jaw: 0.84387, teeth: 0.8434, lips: 0.84238, angle: -31, CandleDiff: 115, LipsVsTeethDiff: 102, time:2025-06-03 20:11:17
+pair: USDCHFrfd, jaw: 0.81911, teeth: 0.82037, lips: 0.82224, angle: 33, CandleDiff: 147, LipsVsTeethDiff: 187, time:2025-06-03 20:11:16
+pair: USDJPYrfd, jaw: 143.027, teeth: 143.203, lips: 143.567, angle: 38, CandleDiff: 391, LipsVsTeethDiff: 364, time:2025-06-03 20:11:23
+pair: EURCHFrfd, jaw: 0.93469, teeth: 0.93548, lips: 0.93637, angle: 20, CandleDiff: 68, LipsVsTeethDiff: 89, time:2025-06-03 20:11:16
+pair: GBPUSDrfd, jaw: 1.35186, teeth: 1.35173, lips: 1.35158, angle: 4, CandleDiff: 46, LipsVsTeethDiff: 15, time:2025-06-03 20:11:23
+pair: USDCADrfd, jaw: 1.37255, teeth: 1.37245, lips: 1.37246, angle: -1, CandleDiff: 22, LipsVsTeethDiff: 1, time:2025-06-03 20:11:23
+pair: EURJPYrfd, jaw: 163.2, teeth: 163.292, lips: 163.493, angle: 26, CandleDiff: 274, LipsVsTeethDiff: 201, time:2025-06-03 20:11:23
+pair: AUDCADrfd, jaw: 0.88752, teeth: 0.88704, lips: 0.88665, angle: 1, CandleDiff: 23, LipsVsTeethDiff: 39, time:2025-06-03 20:11:17
+pair: AUDUSDrfd, jaw: 0.64657, teeth: 0.64626, lips: 0.64598, angle: 2, CandleDiff: 27, LipsVsTeethDiff: 28, time:2025-06-03 20:11:18
+pair: AUDJPYrfd, jaw: 92.481, teeth: 92.549, lips: 92.749, angle: 41, CandleDiff: 294, LipsVsTeethDiff: 200, time:2025-06-03 20:11:16
+pair: AUDCHFrfd, jaw: 0.52962, teeth: 0.53016, lips: 0.53115, angle: 33, CandleDiff: 119, LipsVsTeethDiff: 99, time:2025-06-03 20:11:25
+pair: CHFJPYrfd, jaw: 174.576, teeth: 174.526, lips: 174.573, angle: 20, CandleDiff: 172, LipsVsTeethDiff: 47, time:2025-06-03 20:11:21
+pair: EURAUDrfd, jaw: 1.76431, teeth: 1.76402, lips: 1.76247, angle: -33, CandleDiff: 269, LipsVsTeethDiff: 155, time:2025-06-03 20:11:23
+pair: GBPCHFrfd, jaw: 1.10737, teeth: 1.10893, lips: 1.11134, angle: 40, CandleDiff: 236, LipsVsTeethDiff: 241, time:2025-06-03 20:11:24
+pair: EURCADrfd, jaw: 1.56597, teeth: 1.56483, lips: 1.5628, angle: -24, CandleDiff: 190, LipsVsTeethDiff: 203, time:2025-06-03 20:11:19
+pair: GBPCADrfd, jaw: 1.85549, teeth: 1.85524, lips: 1.85507, angle: 2, CandleDiff: 27, LipsVsTeethDiff: 17, time:2025-06-03 20:11:23
+pair: XAUUSDrfd, jaw: 3357.81, teeth: 3356.52, lips: 3351.79, angle: -8, CandleDiff: 168, LipsVsTeethDiff: 473, time:2025-06-03 20:11:25
+pair: GBPJPYrfd, jaw: 193.359, teeth: 193.583, lips: 194.061, angle: 55, CandleDiff: 582, LipsVsTeethDiff: 478, time:2025-06-03 20:11:25
+pair: XAGUSDrfd, jaw: 34.1445, teeth: 34.2825, lips: 34.3592, angle: 19, CandleDiff: 988, LipsVsTeethDiff: 767, time:2025-06-03 20:11:25
+pair: USDSGDrfd, jaw: 1.28702, teeth: 1.28756, lips: 1.28842, angle: 13, CandleDiff: 63, LipsVsTeethDiff: 86, time:2025-06-03 20:11:10
+pair: EURUSDrfd, jaw: 1.14076, teeth: 1.13987, lips: 1.13852, angle: -27, CandleDiff: 107, LipsVsTeethDiff: 135, time:2025-06-03 21:11:25
+pair: NZDUSDrfd, jaw: 0.60085, teeth: 0.60047, lips: 0.60004, angle: 4, CandleDiff: 11, LipsVsTeethDiff: 43, time:2025-06-03 21:11:24
+pair: EURGBPrfd, jaw: 0.84374, teeth: 0.84313, lips: 0.84209, angle: -31, CandleDiff: 104, LipsVsTeethDiff: 104, time:2025-06-03 21:11:24
+pair: USDCHFrfd, jaw: 0.81945, teeth: 0.8208, lips: 0.82245, angle: 23, CandleDiff: 97, LipsVsTeethDiff: 165, time:2025-06-03 21:11:25
+pair: USDJPYrfd, jaw: 143.082, teeth: 143.301, lips: 143.621, angle: 26, CandleDiff: 254, LipsVsTeethDiff: 320, time:2025-06-03 21:11:25
+pair: EURCHFrfd, jaw: 0.93491, teeth: 0.93569, lips: 0.93644, angle: 9, CandleDiff: 24, LipsVsTeethDiff: 75, time:2025-06-03 21:11:24
+pair: GBPUSDrfd, jaw: 1.35182, teeth: 1.35173, lips: 1.35181, angle: 9, CandleDiff: 44, LipsVsTeethDiff: 8, time:2025-06-03 21:11:24
+pair: USDCADrfd, jaw: 1.37249, teeth: 1.37246, lips: 1.37233, angle: -3, CandleDiff: 16, LipsVsTeethDiff: 13, time:2025-06-03 21:11:24
+pair: EURJPYrfd, jaw: 163.232, teeth: 163.352, lips: 163.523, angle: 13, CandleDiff: 138, LipsVsTeethDiff: 171, time:2025-06-03 21:11:25
+pair: AUDCADrfd, jaw: 0.88742, teeth: 0.88698, lips: 0.88679, angle: 9, CandleDiff: 14, LipsVsTeethDiff: 19, time:2025-06-03 21:11:24
+pair: AUDUSDrfd, jaw: 0.64652, teeth: 0.64622, lips: 0.64613, angle: 10, CandleDiff: 18, LipsVsTeethDiff: 9, time:2025-06-03 21:11:24
+Ордер SHORT снят 
+pair: AUDUSDrfd, jaw: 0.64652, teeth: 0.64622, lips: 0.64613, angle: 10, LipsVsTeethDiff: 9, time:2025-06-03 21:11:24
+Ордер LONG по закрытию предыдущего 
+pair: AUDUSDrfd, jaw: 0.64652, teeth: 0.64622, lips: 0.64613, angle: 10, CandleDiff: 18, time:2025-06-03 21:11:24
+pair: AUDJPYrfd, jaw: 92.507, teeth: 92.609, lips: 92.804, angle: 34, CandleDiff: 193, LipsVsTeethDiff: 195, time:2025-06-03 21:11:28
+pair: AUDCHFrfd, jaw: 0.52979, teeth: 0.53041, lips: 0.53142, angle: 28, CandleDiff: 80, LipsVsTeethDiff: 101, time:2025-06-03 21:11:26
+pair: CHFJPYrfd, jaw: 174.57, teeth: 174.551, lips: 174.594, angle: 11, CandleDiff: 108, LipsVsTeethDiff: 43, time:2025-06-03 21:11:27
+pair: EURAUDrfd, jaw: 1.76412, teeth: 1.76359, lips: 1.76172, angle: -36, CandleDiff: 221, LipsVsTeethDiff: 187, time:2025-06-03 21:11:27
+pair: GBPCHFrfd, jaw: 1.10778, teeth: 1.10953, lips: 1.11182, angle: 34, CandleDiff: 168, LipsVsTeethDiff: 229, time:2025-06-03 21:11:28
+pair: EURCADrfd, jaw: 1.56564, teeth: 1.56437, lips: 1.56239, angle: -20, CandleDiff: 172, LipsVsTeethDiff: 198, time:2025-06-03 21:11:27
+pair: GBPCADrfd, jaw: 1.85539, teeth: 1.85526, lips: 1.85523, angle: 9, CandleDiff: 26, LipsVsTeethDiff: 3, time:2025-06-03 21:11:26
+Ордер SHORT снят 
+pair: GBPCADrfd, jaw: 1.85539, teeth: 1.85526, lips: 1.85523, angle: 9, LipsVsTeethDiff: 3, time:2025-06-03 21:11:26
+Ордер LONG по закрытию предыдущего 
+pair: GBPCADrfd, jaw: 1.85539, teeth: 1.85526, lips: 1.85523, angle: 9, CandleDiff: 26, time:2025-06-03 21:11:26
+pair: XAUUSDrfd, jaw: 3356.55, teeth: 3355.57, lips: 3352.3, angle: 1, CandleDiff: 18, LipsVsTeethDiff: 327, time:2025-06-03 21:11:29
+pair: GBPJPYrfd, jaw: 193.427, teeth: 193.719, lips: 194.164, angle: 45, CandleDiff: 396, LipsVsTeethDiff: 445, time:2025-06-03 21:11:30
+pair: XAGUSDrfd, jaw: 34.1599, teeth: 34.2988, lips: 34.3968, angle: 25, CandleDiff: 1062, LipsVsTeethDiff: 980, time:2025-06-03 21:11:28
+pair: USDSGDrfd, jaw: 1.28702, teeth: 1.28756, lips: 1.28839, angle: 11, CandleDiff: 54, LipsVsTeethDiff: 83, time:2025-06-03 21:11:24
+pair: EURUSDrfd, jaw: 1.14055, teeth: 1.13959, lips: 1.13827, angle: -22, CandleDiff: 75, LipsVsTeethDiff: 132, time:2025-06-03 22:11:23
+pair: NZDUSDrfd, jaw: 0.60071, teeth: 0.60035, lips: 0.6001, angle: 5, CandleDiff: 2, LipsVsTeethDiff: 25, time:2025-06-03 22:11:22
+pair: EURGBPrfd, jaw: 0.84356, teeth: 0.84289, lips: 0.84187, angle: -26, CandleDiff: 82, LipsVsTeethDiff: 102, time:2025-06-03 22:11:10
+pair: USDCHFrfd, jaw: 0.81977, teeth: 0.82115, lips: 0.82267, angle: 20, CandleDiff: 76, LipsVsTeethDiff: 152, time:2025-06-03 22:11:22
+pair: USDJPYrfd, jaw: 143.141, teeth: 143.379, lips: 143.683, angle: 25, CandleDiff: 225, LipsVsTeethDiff: 304, time:2025-06-03 22:11:30
+pair: EURCHFrfd, jaw: 0.93509, teeth: 0.93585, lips: 0.93651, angle: 9, CandleDiff: 22, LipsVsTeethDiff: 66, time:2025-06-03 22:11:22
+pair: GBPUSDrfd, jaw: 1.35186, teeth: 1.35179, lips: 1.3519, angle: 8, CandleDiff: 43, LipsVsTeethDiff: 11, time:2025-06-03 22:11:29
+pair: USDCADrfd, jaw: 1.37243, teeth: 1.3724, lips: 1.37212, angle: -9, CandleDiff: 63, LipsVsTeethDiff: 28, time:2025-06-03 22:11:31
+pair: EURJPYrfd, jaw: 163.27, teeth: 163.402, lips: 163.562, angle: 16, CandleDiff: 147, LipsVsTeethDiff: 160, time:2025-06-03 22:11:31
+pair: AUDCADrfd, jaw: 0.88736, teeth: 0.88698, lips: 0.88681, angle: 6, CandleDiff: 2, LipsVsTeethDiff: 17, time:2025-06-03 22:11:05
+pair: AUDUSDrfd, jaw: 0.64652, teeth: 0.64622, lips: 0.64612, angle: 9, CandleDiff: 46, LipsVsTeethDiff: 10, time:2025-06-03 22:11:22
+pair: AUDJPYrfd, jaw: 92.544, teeth: 92.663, lips: 92.861, angle: 35, CandleDiff: 197, LipsVsTeethDiff: 198, time:2025-06-03 22:11:29
+pair: AUDCHFrfd, jaw: 0.52998, teeth: 0.53067, lips: 0.53166, angle: 28, CandleDiff: 77, LipsVsTeethDiff: 99, time:2025-06-03 22:11:22
+pair: CHFJPYrfd, jaw: 174.577, teeth: 174.572, lips: 174.623, angle: 14, CandleDiff: 123, LipsVsTeethDiff: 51, time:2025-06-03 22:11:32
+pair: EURAUDrfd, jaw: 1.76386, teeth: 1.76309, lips: 1.76106, angle: -35, CandleDiff: 216, LipsVsTeethDiff: 203, time:2025-06-03 22:11:28
+pair: GBPCHFrfd, jaw: 1.10824, teeth: 1.11007, lips: 1.11221, angle: 30, CandleDiff: 136, LipsVsTeethDiff: 214, time:2025-06-03 22:11:29
+pair: EURCADrfd, jaw: 1.56527, teeth: 1.56393, lips: 1.56181, angle: -25, CandleDiff: 182, LipsVsTeethDiff: 212, time:2025-06-03 22:11:32
+pair: GBPCADrfd, jaw: 1.85536, teeth: 1.85528, lips: 1.85504, angle: -6, CandleDiff: 37, LipsVsTeethDiff: 24, time:2025-06-03 22:11:31
+Ордер LONG снят 
+pair: GBPCADrfd, jaw: 1.85536, teeth: 1.85528, lips: 1.85504, angle: -6, LipsVsTeethDiff: 24, time:2025-06-03 22:11:31
+Ордер SHORT по закрытию предыдущего 
+pair: GBPCADrfd, jaw: 1.85536, teeth: 1.85528, lips: 1.85504, angle: -6, CandleDiff: 37, time:2025-06-03 22:11:31
+pair: XAUUSDrfd, jaw: 3355.86, teeth: 3354.97, lips: 3352.22, angle: 3, CandleDiff: 283, LipsVsTeethDiff: 275, time:2025-06-03 22:11:33
+pair: GBPJPYrfd, jaw: 193.515, teeth: 193.835, lips: 194.261, angle: 44, CandleDiff: 360, LipsVsTeethDiff: 426, time:2025-06-03 22:11:34
+pair: XAGUSDrfd, jaw: 34.1816, teeth: 34.3219, lips: 34.4358, angle: 30, CandleDiff: 1442, LipsVsTeethDiff: 1139, time:2025-06-03 22:11:33
+pair: USDSGDrfd, jaw: 1.28716, teeth: 1.28778, lips: 1.2885, angle: 9, CandleDiff: 48, LipsVsTeethDiff: 72, time:2025-06-03 22:10:48
+pair: EURUSDrfd, jaw: 1.14032, teeth: 1.13931, lips: 1.13796, angle: -26, CandleDiff: 92, LipsVsTeethDiff: 135, time:2025-06-03 23:11:32
+pair: NZDUSDrfd, jaw: 0.60063, teeth: 0.60032, lips: 0.6, angle: -5, CandleDiff: 11, LipsVsTeethDiff: 32, time:2025-06-03 23:11:32
+pair: EURGBPrfd, jaw: 0.84338, teeth: 0.84265, lips: 0.84173, angle: -18, CandleDiff: 63, LipsVsTeethDiff: 92, time:2025-06-03 23:11:26
+pair: USDCHFrfd, jaw: 0.82009, teeth: 0.82144, lips: 0.82295, angle: 21, CandleDiff: 110, LipsVsTeethDiff: 151, time:2025-06-03 23:11:32
+pair: USDJPYrfd, jaw: 143.206, teeth: 143.442, lips: 143.766, angle: 28, CandleDiff: 253, LipsVsTeethDiff: 324, time:2025-06-03 23:11:32
+pair: EURCHFrfd, jaw: 0.93524, teeth: 0.93596, lips: 0.9366, angle: 9, CandleDiff: 44, LipsVsTeethDiff: 64, time:2025-06-03 23:11:31
+pair: GBPUSDrfd, jaw: 1.35185, teeth: 1.35185, lips: 1.35175, angle: -3, CandleDiff: 9, LipsVsTeethDiff: 10, time:2025-06-03 23:11:34
+pair: USDCADrfd, jaw: 1.37243, teeth: 1.37234, lips: 1.37211, angle: -3, CandleDiff: 24, LipsVsTeethDiff: 23, time:2025-06-03 23:11:34
+pair: EURJPYrfd, jaw: 163.308, teeth: 163.434, lips: 163.609, angle: 17, CandleDiff: 155, LipsVsTeethDiff: 175, time:2025-06-03 23:11:35
+pair: AUDCADrfd, jaw: 0.8873, teeth: 0.88698, lips: 0.88675, angle: -2, CandleDiff: 0, LipsVsTeethDiff: 23, time:2025-06-03 23:11:32
+pair: AUDUSDrfd, jaw: 0.64646, teeth: 0.64627, lips: 0.64621, angle: 1, CandleDiff: 13, LipsVsTeethDiff: 6, time:2025-06-03 23:11:31
+pair: AUDJPYrfd, jaw: 92.581, teeth: 92.708, lips: 92.911, angle: 32, CandleDiff: 183, LipsVsTeethDiff: 203, time:2025-06-03 23:11:30
+pair: AUDCHFrfd, jaw: 0.53015, teeth: 0.53088, lips: 0.53183, angle: 22, CandleDiff: 80, LipsVsTeethDiff: 95, time:2025-06-03 23:11:25
+pair: CHFJPYrfd, jaw: 174.588, teeth: 174.588, lips: 174.659, angle: 16, CandleDiff: 89, LipsVsTeethDiff: 71, time:2025-06-03 23:11:26
+pair: EURAUDrfd, jaw: 1.7636, teeth: 1.76258, lips: 1.76063, angle: -27, CandleDiff: 180, LipsVsTeethDiff: 195, time:2025-06-03 23:11:25
+pair: GBPCHFrfd, jaw: 1.10866, teeth: 1.11051, lips: 1.11249, angle: 23, CandleDiff: 137, LipsVsTeethDiff: 198, time:2025-06-03 23:11:26
+pair: EURCADrfd, jaw: 1.56495, teeth: 1.56348, lips: 1.56135, angle: -22, CandleDiff: 158, LipsVsTeethDiff: 213, time:2025-06-03 23:11:32
+pair: GBPCADrfd, jaw: 1.85537, teeth: 1.85527, lips: 1.85479, angle: -12, CandleDiff: 51, LipsVsTeethDiff: 48, time:2025-06-03 23:11:32
+pair: XAUUSDrfd, jaw: 3355.33, teeth: 3354.48, lips: 3352.26, angle: 2, CandleDiff: 87, LipsVsTeethDiff: 222, time:2025-06-03 23:11:27
+pair: GBPJPYrfd, jaw: 193.604, teeth: 193.926, lips: 194.349, angle: 40, CandleDiff: 319, LipsVsTeethDiff: 423, time:2025-06-03 23:11:35
+pair: XAGUSDrfd, jaw: 34.1994, teeth: 34.3484, lips: 34.467, angle: 26, CandleDiff: 1090, LipsVsTeethDiff: 1186, time:2025-06-03 23:11:31
+pair: USDSGDrfd, jaw: 1.28743, teeth: 1.28805, lips: 1.28888, angle: 17, CandleDiff: 77, LipsVsTeethDiff: 83, time:2025-06-03 23:11:20

@@ -1,9 +1,11 @@
 import numpy as np
-from appEnum import IndicatorType,TargetType
+from appEnum import IndicatorType,TargetType,Settings
 import math
 from decimal import Decimal
 import pandas as pd
 import MetaTrader5 as mt5
+from openpyxl import Workbook, load_workbook
+from datetime import datetime
 
 
 class ZeroIntersection:    
@@ -99,7 +101,7 @@ class Extremum:
         
         return {"value": False}
     
-class Aligator:
+class Alligator:
     def __init__(self,mt5):
         self.mt5 = mt5    
 
@@ -122,7 +124,7 @@ class Aligator:
             if ticket:
                 self.mt5.orderClose(ticket,pair)
                 
-    def smma(self, data, period):
+    def smma(data, period):
         smma_values = []
         for i in range(len(data)):
             if i < period:
@@ -133,7 +135,7 @@ class Aligator:
                 smma_values.append((smma_values[-1] * (period - 1) + data[i]) / period)
         return pd.Series(smma_values)
     
-    def angle(self,currentLipsValue, previousLipsValue, pair, pairXvalue, degrees=True):
+    def angle(currentLipsValue, previousLipsValue, pair, pairXvalue, degrees=True):
         """
         Вычисляет arctg(x) и возвращает угол в градусах или радианах.
 
@@ -148,14 +150,43 @@ class Aligator:
         angle_rad = math.atan2(x, pairXvalue/2)
         return math.degrees(angle_rad) if degrees else angle_rad
     
-    def CountDecimalPlace(self, pair):    
+    def CountDecimalPlace(pair):    
         num = Decimal(str(mt5.symbol_info(pair).point))
         return  abs(num.as_tuple().exponent)
     
-    def getAlligatorVsCurrentCandelDiff(self, pair, alligatorValue):
+    def getAlligatorVsCurrentCandelDiff(pair, alligatorValue):
         """Возвращает разницу между текущей ценой и индикатором аллигатор по модулю."""
         return abs(alligatorValue - mt5.symbol_info_tick(pair).bid)/ mt5.symbol_info(pair).point
     
-    def getLipsVsTeethDiff(self, pair, lips, teeth):
+    def getLipsVsTeethDiff(pair, lips, teeth):
         """Возвращает разницу между текущей ценой и индикатором аллигатор по модулю."""
         return abs(lips - teeth)/ mt5.symbol_info(pair).point
+    def saveToExcel(pair, event, jaw, teeth, lips, angle, candle_diff, lips_vs_teeth_diff, comment):
+        
+        
+        try:
+            # Пытаемся загрузить существующий файл
+            workbook = load_workbook(Settings.filename)
+            sheet = workbook.active
+        except FileNotFoundError:
+            # Если файла нет — создаем новый
+            workbook = Workbook()
+            sheet = workbook.active
+            sheet.append(["Дата", "Событие", "Пара", "Челюсть (Jaw)", "Зубы (Teeth)", "Губы (Lips)", "Угол", "Разница со свечой", "Разница Lips/Teeth", "Комментарий"])
+        
+        # Добавляем новую строку
+        sheet.append([
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            event,
+            pair,
+            jaw,
+            teeth,
+            lips,
+            angle,
+            candle_diff,
+            lips_vs_teeth_diff,
+            comment
+        ])
+        
+        workbook.save(Settings.filename)
+        
