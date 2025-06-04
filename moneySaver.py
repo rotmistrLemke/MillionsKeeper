@@ -76,7 +76,7 @@ else:
             priceOpen = order_dict.get("price_open", 0),
             orderType = order_dict.get("type", 0),
             stopLoss = order_dict.get("sl", 0)
-            if str(comment) == "4" and profit > volume * 100:  # Проверяем комментарий
+            if str(comment) == "4" and profit > volume * 200:  # Проверяем комментарий
                 setStopLoss(ticketId, calculateStopLoss(profit, volume, symbol, order_dict.get("price_open", 0), order_dict.get("type", 0)), stopLoss, order_dict.get("type", 0))
                 filtered_orders.append(order_dict)
         

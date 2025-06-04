@@ -18,14 +18,14 @@ def checkOpen(jaw, teeth, lips, angle, pair):
         #Уже есть ордер по данной паре и данному индикатору
         return
     #if lips > teeth and lips > jaw and angle >= 10 and candlediff <= Settings.dictLipsCandleDiff.get(pair, 35):
-    if lips < teeth and angle > 5 and lipsVsTeethDiff <= Settings.dictLipsTeethDiff.get(pair, 10) or (angle > 5 and lips > teeth) or (lips < teeth and angle > 15) or (angle > 30):
+    if (lips < teeth and angle > 5 and lipsVsTeethDiff <= Settings.dictLipsTeethDiff.get(pair, 10)) or (angle > 5 and lips > teeth) or (lips < teeth and angle > 15) or (angle > 30):
          
         mt5Connector.orderOpenForAlligatorMain(pair,TargetType.LONG,IndicatorType.ALLIGATOR_MAIN)
         print(f"\n{"-" * 50}, \ntime:{serverTime}, \npair: {pair}, \njaw: {jaw}, \nteeth: {teeth}, \nlips: {lips}, \nangle: {angle}, \ncomment: Ордер LONG выставлен по условию, \n{"-" * 50}")
         Alligator.saveToExcel(pair, "OPEN_LONG", jaw, teeth, lips, angle, candleDiff, lipsVsTeethDiff, "Ордер LONG выставлен по условию")
             
     #if lips < teeth and lips < jaw and angle <= -10 and candlediff <= Settings.dictLipsCandleDiff.get(pair, 35):
-    if lips > teeth and angle < -5 and lipsVsTeethDiff <= Settings.dictLipsTeethDiff.get(pair, 10) or (angle < -5 and lips < teeth) or (lips > teeth and angle < -15) or (angle < -30):
+    if (lips > teeth and angle < -5 and lipsVsTeethDiff <= Settings.dictLipsTeethDiff.get(pair, 10)) or (angle < -5 and lips < teeth) or (lips > teeth and angle < -15) or (angle < -30):
         
         mt5Connector.orderOpenForAlligatorMain(pair,TargetType.SHORT,IndicatorType.ALLIGATOR_MAIN)
         print(f"\n{"-" * 50}, \ntime:{serverTime}, \npair: {pair}, \njaw: {jaw}, \nteeth: {teeth}, \nlips: {lips}, \nangle: {angle}, \ncomment: Ордер SHORT выставлен по условию, \n{"-" * 50}")
@@ -34,7 +34,7 @@ def checkOpen(jaw, teeth, lips, angle, pair):
 def checkClose(jaw, teeth,lips, angle, lipsVsTeethDiff, pair):
     serverTime = mt5Connector.ServerTime(pair)
     
-    if lips < teeth and angle > 5 and lipsVsTeethDiff <= Settings.dictLipsTeethDiff.get(pair, 10) or (angle > 5 and lips > teeth) or (lips < teeth and angle > 15) or (angle > 30):
+    if (lips < teeth and angle > 5 and lipsVsTeethDiff <= Settings.dictLipsTeethDiff.get(pair, 10)) or (angle > 5 and lips > teeth) or (lips < teeth and angle > 15) or (angle > 30):
         
         ticket = mt5Connector.getTicket(pair,TargetType.SHORT,IndicatorType.ALLIGATOR_MAIN)
         
@@ -48,7 +48,7 @@ def checkClose(jaw, teeth,lips, angle, lipsVsTeethDiff, pair):
             print(f"\n{"-" * 50}, \ntime:{serverTime}, \npair: {pair}, \njaw: {jaw}, \nteeth: {teeth}, \nlips: {lips}, \nangle: {angle}, \ncomment: Ордер LONG выставлен по закрытию предыдущего, \n{"-" * 50}")
             Alligator.saveToExcel(pair, "OPEN_LONG", jaw, teeth, lips, angle, candleDiff, lipsVsTeethDiff, "Ордер LONG выставлен по закрытию предыдущего")
             
-    if lips > teeth and angle < -5 and lipsVsTeethDiff <= Settings.dictLipsTeethDiff.get(pair, 10) or (angle < -5 and lips < teeth) or (lips > teeth and angle < -15) or (angle < -30):
+    if (lips > teeth and angle < -5 and lipsVsTeethDiff <= Settings.dictLipsTeethDiff.get(pair, 10)) or (angle < -5 and lips < teeth) or (lips > teeth and angle < -15) or (angle < -30):
         ticket = mt5Connector.getTicket(pair,TargetType.LONG,IndicatorType.ALLIGATOR_MAIN)
         
         if ticket:
