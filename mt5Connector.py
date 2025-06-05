@@ -8,9 +8,6 @@ from stock_indicators import Quote
 from datetime import datetime
 from anilizer import Alligator
 
-
-
-
 class MT5Connector:
     def __init__(self,account):
         self.rates = None
@@ -41,7 +38,6 @@ class MT5Connector:
         except Exception as e:
             print(f"Ошибка при получении данных: {str(e)}")
             return False
-     
     
     def alligatorData(self, pair):
         bars = mt5.copy_rates_from_pos(pair, mt5.TIMEFRAME_H1, 0, 500)
@@ -182,7 +178,59 @@ class MT5Connector:
         else:   
             print(f"Пара {symbol} Ордер {result.order} цена {result.price}")
         return {"order":result.order,"price":result.price,"symbol":symbol,"targetType":type}
+    
+    def orderOpenStoplimit(self,symbol,type,comment,stoplimit,expiration):
+        symbol_info = mt5.symbol_info(symbol) 
+        if symbol == 'XAGUSDrfd':
+            stopLossPoint = 6000
+        else:
+            stopLossPoint = 300
+        if not symbol_info.visible:
+            if not mt5.symbol_select(symbol,True):
+                print("symbol_select({}}) failed, exit",symbol)        
+        volume = 0.01
+        deviation = 20
+        point = mt5.symbol_info(symbol).point
+        price = mt5.symbol_info_tick(symbol).ask
+        result = None
+        if type == TargetType.LONG:            
+            result = mt5.order_send({
+                "action": mt5.TRADE_ACTION_DEAL,
+                "symbol": symbol,
+                "volume": volume,
+                "type": mt5.ORDER_TYPE_BUY,
+                "stoplimit": stoplimit,
+                "expiration":expiration,
+                #"sl": price - stopLossPoint * point,
+                "price": price,                
+                "deviation": deviation,
+                "comment": str(comment),
+                "type_time": mt5.ORDER_TIME_GTC,
+                "type_filling": mt5.ORDER_FILLING_FOK,
+            })
+        if type == TargetType.SHORT:            
+            result = mt5.order_send({
+                "action": mt5.TRADE_ACTION_DEAL,
+                "symbol": symbol,
+                "volume": volume,
+                "type": mt5.ORDER_TYPE_SELL,
+                #"sl": price + stopLossPoint * point,
+                "price": price,                
+                "deviation": deviation,
+                "comment": str(comment),
+                "type_time": mt5.ORDER_TIME_GTC,
+                "type_filling": mt5.ORDER_FILLING_FOK,
+            })
+        if not result:
+            print(mt5.last_error()) 
 
+        elif result.retcode != mt5.TRADE_RETCODE_DONE:
+                print("4. order_send failed, retcode={}".format(result.retcode))
+                print("   result",result) 
+        else:   
+            print(f"Пара {symbol} Ордер {result.order} цена {result.price}")
+        return {"order":result.order,"price":result.price,"symbol":symbol,"targetType":type}
+    
     def orderClose(self,orderTicket,symbol):
         result = mt5.Close(symbol=symbol,ticket=orderTicket)
         if not result:

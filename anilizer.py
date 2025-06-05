@@ -102,29 +102,26 @@ class Extremum:
         return {"value": False}
     
 class Alligator:
-    def __init__(self,mt5):
-        self.mt5 = mt5    
-
     def checkOpen(self,jaw,teeth,lips,pair):
-        if self.mt5.symbolInPostions(pair,TargetType.LONG,IndicatorType.ALLIGATOR) or mt5.symbolInPostions(pair,TargetType.SHORT,IndicatorType.ALLIGATOR):
+        if mt5.symbolInPostions(pair,TargetType.LONG,IndicatorType.ALLIGATOR) or mt5.symbolInPostions(pair,TargetType.SHORT,IndicatorType.ALLIGATOR):
             #Уже есть ордер по данной паре и данному индикатору
             return
         if lips > teeth and lips > jaw:
-            self.mt5.orderOpenWithoutSLTP(pair,TargetType.LONG,IndicatorType.ALLIGATOR)
+            mt5.orderOpenWithoutSLTP(pair,TargetType.LONG,IndicatorType.ALLIGATOR)
         if lips < teeth and lips < jaw:
-            self.mt5.orderOpenWithoutSLTP(pair,TargetType.SHORT,IndicatorType.ALLIGATOR)        
+            mt5.orderOpenWithoutSLTP(pair,TargetType.SHORT,IndicatorType.ALLIGATOR)        
 
     def checkClose(self,teeth,lips,pair):
         if lips > teeth:
-            ticket = self.mt5.getTicket(pair,TargetType.SHORT,IndicatorType.ALLIGATOR)
+            ticket = mt5.getTicket(pair,TargetType.SHORT,IndicatorType.ALLIGATOR)
             if ticket:
-                self.mt5.orderClose(ticket,pair)
+                mt5.orderClose(ticket,pair)
         if lips < teeth:
-            ticket = self.mt5.getTicket(pair,TargetType.LONG,IndicatorType.ALLIGATOR)
+            ticket = mt5.getTicket(pair,TargetType.LONG,IndicatorType.ALLIGATOR)
             if ticket:
-                self.mt5.orderClose(ticket,pair)
+                mt5.orderClose(ticket,pair)
                 
-    def smma(data, period):
+    def smma(self,data, period):
         smma_values = []
         for i in range(len(data)):
             if i < period:
@@ -135,7 +132,7 @@ class Alligator:
                 smma_values.append((smma_values[-1] * (period - 1) + data[i]) / period)
         return pd.Series(smma_values)
     
-    def angle(currentLipsValue, previousLipsValue, pair, pairXvalue, degrees=True):
+    def angle(self,currentLipsValue, previousLipsValue, pair, pairXvalue, degrees=True):
         """
         Вычисляет arctg(x) и возвращает угол в градусах или радианах.
 
@@ -148,22 +145,21 @@ class Alligator:
         """
         x = (currentLipsValue - previousLipsValue) / mt5.symbol_info(pair).point
         angle_rad = math.atan2(x, pairXvalue/2)
-        return math.degrees(angle_rad) if degrees else angle_rad
+        return int(f"{math.degrees(angle_rad):.0f}") if degrees else int(f"{angle_rad:.0f}")
     
-    def CountDecimalPlace(pair):    
+    def CountDecimalPlace(self,pair):    
         num = Decimal(str(mt5.symbol_info(pair).point))
         return  abs(num.as_tuple().exponent)
     
-    def getAlligatorVsCurrentCandelDiff(pair, alligatorValue):
+    def getAlligatorVsCurrentCandelDiff(self,pair, alligatorValue):
         """Возвращает разницу между текущей ценой и индикатором аллигатор по модулю."""
-        return abs(alligatorValue - mt5.symbol_info_tick(pair).bid)/ mt5.symbol_info(pair).point
+        return int(f"{abs(alligatorValue - mt5.symbol_info_tick(pair).bid)/ mt5.symbol_info(pair).point:.0f}")
     
-    def getLipsVsTeethDiff(pair, lips, teeth):
+    def getLipsVsTeethDiff(self,pair, lips, teeth):
         """Возвращает разницу между текущей ценой и индикатором аллигатор по модулю."""
         return abs(lips - teeth)/ mt5.symbol_info(pair).point
-    def saveToExcel(pair, event, jaw, teeth, lips, angle, candle_diff, lips_vs_teeth_diff, comment):
-        
-        
+    
+    def saveToExcel(self,pair, event, jaw, teeth, lips, angle, candle_diff, lips_vs_teeth_diff, comment): 
         try:
             # Пытаемся загрузить существующий файл
             workbook = load_workbook(Settings.filename)
@@ -190,3 +186,57 @@ class Alligator:
         
         workbook.save(Settings.filename)
         
+        return int(f"{abs(lips - teeth)/ mt5.symbol_info(pair).point:.0f}")
+    
+    def MainData(self,df):
+        medianPrice = (df['high'] + df['low']) / 2  # Медианная цена (HL/2)            
+        # Рассчитываем линии Аллигатора
+        jaw = self.smma(medianPrice, 13)  # Челюсти (13)
+        teeth = self.smma(medianPrice, 8)   # Зубы (8)
+        lips = self.smma(medianPrice, 5)    # Губы (5)
+        return medianPrice,jaw,teeth,lips
+
+    def ShiftedData(self,jaw,teeth,lips,medianPrice):
+        # Рассчитываем линии Аллигатора
+        jaw = self.smma(medianPrice, 13)  # Челюсти (13)
+        teeth = self.smma(medianPrice, 8)   # Зубы (8)
+        lips = self.smma(medianPrice, 5)    # Губы (5)
+        # Смещаем линии  (бары 3, 1, -1)
+        jawShifted = jaw.shift(3)
+        teethShifted = teeth.shift(1)
+        lipsShifted = lips.shift(-1)
+
+        return jawShifted,teethShifted,lipsShifted
+    
+    def LastData(self,pair,jawShifted,teethShifted,lipsShifted): 
+        countDecimalPlace = self.CountDecimalPlace(pair)
+        lastJaw = float(f"{jawShifted.iloc[-2]:.{countDecimalPlace}f}")
+        lastTeeth =  float(f"{teethShifted.iloc[-2]:.{countDecimalPlace}f}")
+        lastLips = float(f"{lipsShifted.iloc[-2]:.{countDecimalPlace}f}")
+        prelastLips = float(f"{lipsShifted.iloc[-3]:.{countDecimalPlace}f}")
+        return lastJaw,lastTeeth,lastLips,prelastLips
+    
+    def SupportData(self,lastLips,prelastLips,pair,dictPairXvalue,lastTeeth):
+        angle = self.angle(lastLips,prelastLips,pair,dictPairXvalue.get(pair, 100))
+        candleDiff = self.getAlligatorVsCurrentCandelDiff(pair,lastLips)
+        lipsVsTeethDiff = self.getLipsVsTeethDiff(pair, lastLips, lastTeeth)
+        return angle,candleDiff,lipsVsTeethDiff
+
+    def IsNewBar(self,df, lastCheckedTime):
+        new_time = df['time'].iloc[0]
+        if lastCheckedTime is None:
+            print("Первая свеча, запоминаем время")
+            return True, new_time  # Возвращаем флаг новой свечи и новое время
+        if new_time != lastCheckedTime:
+            print("Обнаружена новая свеча!")
+            return True, new_time  # Возвращаем True и новое время
+        return False, lastCheckedTime  # Возвращаем False и старое время
+
+
+    def Df(self,pair):
+        bars = mt5.copy_rates_from_pos(pair, mt5.TIMEFRAME_H1, 0, 500)
+        if bars is None:
+            print("Не удалось получить данные:", mt5.last_error())
+        df = pd.DataFrame(bars)
+        return df
+

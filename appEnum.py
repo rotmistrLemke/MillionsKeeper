@@ -69,3 +69,5 @@ class Settings:
     }
 
     filename = "C:/MillionsKeeper/alligator_data.xlsx"
+
+   
