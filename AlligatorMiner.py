@@ -116,6 +116,7 @@ def checkClose(jaw, teeth,lips, angle, lipsVsTeethDiff, pair):
             print(f"\n{"-" * 50}, \ntime:{serverTime}, \npair: {pair}, \njaw: {jaw}, \nteeth: {teeth}, \nlips: {lips}, \nangle: {angle}, \ncomment: Ордер SHORT выставлен по закрытию предыдущего, \n{"-" * 50}")
             Alligator.saveToExcel(pair, "OPEN_SHORT", jaw, teeth, lips, angle, candleDiff, lipsVsTeethDiff, "Ордер SHORT выставлен по закрытию предыдущего")
 
+
 if __name__ == '__main__':
 
     pairs = Settings.dictPairXvalue.keys()
