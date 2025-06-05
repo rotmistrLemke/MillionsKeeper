@@ -116,6 +116,23 @@ def checkClose(jaw, teeth,lips, angle, lipsVsTeethDiff, pair):
             print(f"\n{"-" * 50}, \ntime:{serverTime}, \npair: {pair}, \njaw: {jaw}, \nteeth: {teeth}, \nlips: {lips}, \nangle: {angle}, \ncomment: Ордер SHORT выставлен по закрытию предыдущего, \n{"-" * 50}")
             Alligator.saveToExcel(pair, "OPEN_SHORT", jaw, teeth, lips, angle, candleDiff, lipsVsTeethDiff, "Ордер SHORT выставлен по закрытию предыдущего")
 
+def IsNewBar(pair,df):
+    new_time = df['time'].iloc[0]
+    if lastCheckedTime[pair] == None:
+        lastCheckedTime[pair] = new_time
+        return False
+    if new_time != lastCheckedTime[pair]:
+            lastCheckedTime[pair] = new_time
+            print("Обнаружена новая свеча!")
+            return True
+    return False
+
+def Df(pair):
+    bars = mt5.copy_rates_from_pos(pair, mt5.TIMEFRAME_M1, 0, 500)
+    if bars is None:
+        print("Не удалось получить данные:", mt5.last_error())
+    df = pd.DataFrame(bars)
+    return df
 
 if __name__ == '__main__':
 
