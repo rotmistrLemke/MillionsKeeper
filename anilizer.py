@@ -102,25 +102,7 @@ class Extremum:
         return {"value": False}
     
 class Alligator:
-    def checkOpen(self,jaw,teeth,lips,pair):
-        if mt5.symbolInPostions(pair,TargetType.LONG,IndicatorType.ALLIGATOR) or mt5.symbolInPostions(pair,TargetType.SHORT,IndicatorType.ALLIGATOR):
-            #Уже есть ордер по данной паре и данному индикатору
-            return
-        if lips > teeth and lips > jaw:
-            mt5.orderOpenWithoutSLTP(pair,TargetType.LONG,IndicatorType.ALLIGATOR)
-        if lips < teeth and lips < jaw:
-            mt5.orderOpenWithoutSLTP(pair,TargetType.SHORT,IndicatorType.ALLIGATOR)        
 
-    def checkClose(self,teeth,lips,pair):
-        if lips > teeth:
-            ticket = mt5.getTicket(pair,TargetType.SHORT,IndicatorType.ALLIGATOR)
-            if ticket:
-                mt5.orderClose(ticket,pair)
-        if lips < teeth:
-            ticket = mt5.getTicket(pair,TargetType.LONG,IndicatorType.ALLIGATOR)
-            if ticket:
-                mt5.orderClose(ticket,pair)
-                
     def smma(self,data, period):
         smma_values = []
         for i in range(len(data)):
@@ -159,7 +141,7 @@ class Alligator:
         """Возвращает разницу между текущей ценой и индикатором аллигатор по модулю."""
         return abs(lips - teeth)/ mt5.symbol_info(pair).point
     
-    def saveToExcel(self,pair, event, jaw, teeth, lips, angle, candle_diff, lips_vs_teeth_diff, comment): 
+    def saveToExcel(self,pair, event, teeth, angle, comment): 
         try:
             # Пытаемся загрузить существующий файл
             workbook = load_workbook(Settings.filename)
@@ -168,33 +150,29 @@ class Alligator:
             # Если файла нет — создаем новый
             workbook = Workbook()
             sheet = workbook.active
-            sheet.append(["Дата", "Событие", "Пара", "Челюсть (Jaw)", "Зубы (Teeth)", "Губы (Lips)", "Угол", "Разница со свечой", "Разница Lips/Teeth", "Комментарий"])
+            sheet.append(["Дата", "Событие", "Пара", "Зубы (Teeth)", "Угол", "Комментарий"])
         
         # Добавляем новую строку
         sheet.append([
             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             event,
             pair,
-            jaw,
             teeth,
-            lips,
             angle,
-            candle_diff,
-            lips_vs_teeth_diff,
             comment
         ])
         
         workbook.save(Settings.filename)
         
-        return int(f"{abs(lips - teeth)/ mt5.symbol_info(pair).point:.0f}")
     
     def MainData(self,df):
-        medianPrice = (df['high'] + df['low']) / 2  # Медианная цена (HL/2)            
+        medianPrice = (df['high'] + df['low']) / 2  # Медианная цена (HL/2)
+        openPrice = df['open'].iloc[-1]
         # Рассчитываем линии Аллигатора
         jaw = self.smma(medianPrice, 13)  # Челюсти (13)
         teeth = self.smma(medianPrice, 8)   # Зубы (8)
         lips = self.smma(medianPrice, 5)    # Губы (5)
-        return medianPrice,jaw,teeth,lips
+        return medianPrice,jaw,teeth,lips,openPrice
 
     def ShiftedData(self,jaw,teeth,lips,medianPrice):
         # Рассчитываем линии Аллигатора

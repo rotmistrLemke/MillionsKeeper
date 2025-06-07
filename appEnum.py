@@ -68,6 +68,6 @@ class Settings:
         "AUDUSDrfd": 15
     }
 
-    filename = "C:/MillionsKeeper/alligator_data.xlsx"
+    filename = "C:/MillionsKeeper/alligator_data_2.0.xlsx"
 
    

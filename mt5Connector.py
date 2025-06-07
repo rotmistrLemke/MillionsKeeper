@@ -238,9 +238,9 @@ class MT5Connector:
         else:   
             print(f"Пара {symbol} Ордер {orderTicket} успешно снят")        
         
-    def getTicket(self,symbol,typeOrder,indicatorType):
+    def getTicket(self,symbol,indicatorType):
         positions = self.getPositions()
-        currentPositions = list(filter(lambda position: position.symbol == symbol and position.type == typeOrder and position.comment == str(indicatorType), positions))
+        currentPositions = list(filter(lambda position: position.symbol == symbol and position.comment == str(indicatorType), positions))
         if len(currentPositions) > 0:
             return currentPositions[0].ticket
         return None
