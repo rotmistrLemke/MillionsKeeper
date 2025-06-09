@@ -13,13 +13,13 @@ class ZeroIntersection:
         if len(cciValues) < 2:
             return {"value": False}
                     
-        current_value = cciValues[0]
-        previous_value = cciValues[1]
+        currentValue = cciValues[0]
+        previousValue = cciValues[1]
         
-        if current_value > 0 and current_value < 15 and previous_value < -10:
+        if currentValue > 0 and currentValue < 15 and previousValue < -10:
             return {"value": True, "target": TargetType.LONG}
         
-        if current_value < 0 and current_value > -15 and previous_value > 10:
+        if currentValue < 0 and currentValue > -15 and previousValue > 10:
             return {"value": True, "target": TargetType.SHORT}
             
         return {"value": False}
@@ -29,22 +29,21 @@ class HundredIntersection:
         if len(cciValues) < 2:
             return {"value": False}
             
-        current_value = cciValues[0]
-        previous_value = cciValues[1]
+        currentValue = cciValues[0]
+        previousValue = cciValues[1]
         
-        if current_value > 100 and current_value < 115 and previous_value < 90:
+        if currentValue > 100 and currentValue < 115 and previousValue < 90:
             return {"value": True, "target": TargetType.LONG}
         
-        if current_value < -100 and current_value > -115 and previous_value > -90:
+        if currentValue < -100 and currentValue > -115 and previousValue > -90:
             return {"value": True, "target": TargetType.SHORT}
             
         return {"value": False}
 
 class Extremum:    
     def __init__(self,settings):
-        self.coefficientLimitCCI=settings["CCI_CoefficientLimit"]
-        self.coefficientLimitStochastic= settings["Stochastic_CoefficientLimit"]
         self.CCI_ReferenceLimit = settings["CCI_ReferenceLimit"]
+    
     def tryAngleCoefficient(self,current,prev):
         current = abs(current)
         prev = abs(prev)
@@ -52,19 +51,35 @@ class Extremum:
             return (prev-current)/prev
         elif current > prev:
             return (current-prev)/current
+    
+    def angle(self,currentValue, previousValue, y, degrees=True):
+            """
+            Вычисляет arctg(x) и возвращает угол в градусах или радианах.
+
+            Параметры:
+                x (float): Число, для которого вычисляется арктангенс.
+                degrees (bool): Если True, возвращает угол в градусах, иначе в радианах.
+
+            Возвращает:
+                float: Угол в градусах или радианах.
+            """
+            x = (currentValue - previousValue)
+            angle_rad = math.atan2(x, y)
+            return int(f"{abs(math.degrees(angle_rad)):.0f}") if degrees else int(f"{abs(angle_rad):.0f}")
 
     def cciReverse(self, cciValues, limit):
         if len(cciValues) < 2:
             return {"value": False}
             
-        current_value = cciValues[0]
-        previous_value = cciValues[1]
-        coefficient = self.tryAngleCoefficient(current_value,previous_value)
+        currentValue = cciValues[0]
+        previousValue = cciValues[1]
+        # coefficient = self.tryAngleCoefficient(currentValue,previousValue)
+        angle = self.angle(currentValue,previousValue,50)
         
-        if current_value > limit and previous_value > current_value and coefficient>self.coefficientLimitCCI:
+        if currentValue > limit and previousValue > currentValue and angle > 20:
             return {"value": True, "target": TargetType.SHORT}
         
-        if current_value < limit * -1 and previous_value < current_value and coefficient>self.coefficientLimitCCI:
+        if currentValue < limit * -1 and previousValue < currentValue and angle > 20:
             return {"value": True, "target": TargetType.LONG}
             
         return {"value": False}
@@ -73,14 +88,15 @@ class Extremum:
         if len(stochasticValues) < 2:
             return {"value": False}
             
-        current_value = stochasticValues[0]
-        previous_value = stochasticValues[1]
-        coefficient = self.tryAngleCoefficient(current_value,previous_value)
+        currentValue = stochasticValues[0]
+        previousValue = stochasticValues[1]
+        # coefficient = self.tryAngleCoefficient(currentValue,previousValue)
+        angle = self.angle(currentValue,previousValue,10)
 
-        if previous_value > current_value and coefficient > self.coefficientLimitStochastic:
+        if previousValue > currentValue and angle > 30:
             return {"value": True, "target": TargetType.SHORT}
         
-        if previous_value < current_value and coefficient > self.coefficientLimitStochastic:
+        if previousValue < currentValue and angle > 30:
             return {"value": True, "target": TargetType.LONG}
             
         return {"value": False}

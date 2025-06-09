@@ -106,7 +106,7 @@ def main() :
     # Используем async handler вместо lambda с asyncio.run
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(check_order))
-    
+       
     application.run_polling()
 
 if __name__ == "__main__":
