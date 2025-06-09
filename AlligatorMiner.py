@@ -94,7 +94,8 @@ if __name__ == '__main__':
 
                      
             if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
-                aligator.saveToExcel(pair, "LOG", teeth, angle, "")
+                aligator.saveToExcel(pair, "LOG", lastTeeth, angle, "")
+                nextLogTime = logger.getNextLogTime(currentTime)
         
             if isNewBar:
                 checkOpen(angle,pair)    
@@ -102,9 +103,9 @@ if __name__ == '__main__':
             checkClose(currentPrice, openPrice, lastTeeth, pair) 
             #Обновляем время следующей записи
         currentTime = mt5Connector.ServerTime('EURUSDrfd')       
-        nextLogTime = logger.getNextLogTime(currentTime)  
+          
            
-        print(f"Все в порядке, время:{mt5Connector.ServerTime('EURUSDrfd')}")
+        print(f"Все в порядке, время:{currentTime}")
         time.sleep(5)
         
 
