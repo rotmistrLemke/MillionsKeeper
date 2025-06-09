@@ -2,6 +2,7 @@ import time
 import pandas as pd
 from mt5Connector import MT5Connector
 import MetaTrader5 as mt5
+from appEnum import TargetType
 
 
 account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
@@ -10,19 +11,25 @@ mt5Connector = MT5Connector(account)
 # Получение всех открытых ордеров
 orders = mt5Connector.getPositions()
 
-def calculateStopLoss(profit, volume, pair, priceOpen, orderType):
-    if orderType == 0:
-        stopLoss = priceOpen + (((profit / volume) * mt5.symbol_info(pair).point) / 3)
+def calculateStopLoss(pair, priceCurrent, orderType):
+    if orderType == TargetType.LONG:
+        if pair == 'XAUUSDrfd' or pair == 'XAGUSDrfd':
+            stopLoss = priceCurrent - (1000 * mt5.symbol_info(pair).point)
+        else:
+            stopLoss = priceCurrent - (200 * mt5.symbol_info(pair).point)
         
-    else:
-        stopLoss = priceOpen - (((profit / volume) * mt5.symbol_info(pair).point) / 3)
+    elif orderType == TargetType.SHORT:
+        if pair == 'XAUUSDrfd' or pair == 'XAGUSDrfd':
+            stopLoss = priceCurrent + (1000 * mt5.symbol_info(pair).point)
+        else:
+            stopLoss = priceCurrent + (200 * mt5.symbol_info(pair).point)
     return stopLoss
 
 
 
 def setStopLoss(ticket, new_sl , oldSl, orderType):
 
-    if orderType == 0 and new_sl > oldSl:
+    if orderType == TargetType.LONG and new_sl > oldSl:
         # Подготавливаем структуру для изменения
         request = {
             "action": mt5.TRADE_ACTION_SLTP,
@@ -39,7 +46,7 @@ def setStopLoss(ticket, new_sl , oldSl, orderType):
         else:
             print(f"Ошибка изменения ордера {ticket}. Код ошибки:", result.retcode)
             return False
-    elif (orderType == 1 and new_sl < oldSl) or  oldSl == 0.0:
+    elif (orderType == TargetType.SHORT and new_sl < oldSl) or  oldSl == 0.0:
         # Подготавливаем структуру для изменения
         request = {
             "action": mt5.TRADE_ACTION_SLTP,
@@ -73,17 +80,17 @@ else:
             volume = order_dict.get("volume", 0)
             ticketId = order_dict.get("ticket", 0)
             symbol = order_dict.get("symbol", 0)
-            priceOpen = order_dict.get("price_open", 0),
+            priceCurrent = order_dict.get("price_current", 0),
             orderType = order_dict.get("type", 0),
             stopLoss = order_dict.get("sl", 0)
             
             if symbol == 'XAUUSDrfd' or symbol == 'XAGUSDrfd':
-                if str(comment) == "4" and profit > volume * 800:  # Проверяем комментарий
-                    setStopLoss(ticketId, calculateStopLoss(profit, volume, symbol, order_dict.get("price_open", 0), order_dict.get("type", 0)), stopLoss, order_dict.get("type", 0))
+                if str(comment) == "4":  # Проверяем комментарий
+                    setStopLoss(ticketId, calculateStopLoss( symbol, order_dict.get("price_current", 0), order_dict.get("type", 0)), stopLoss, order_dict.get("type", 0))
                     filtered_orders.append(order_dict)
             else:
-                if str(comment) == "4" and profit > volume * 200:  # Проверяем комментарий
-                    setStopLoss(ticketId, calculateStopLoss(profit, volume, symbol, order_dict.get("price_open", 0), order_dict.get("type", 0)), stopLoss, order_dict.get("type", 0))
+                if str(comment) == "4":  # Проверяем комментарий
+                    setStopLoss(ticketId, calculateStopLoss( symbol, order_dict.get("price_current", 0), order_dict.get("type", 0)), stopLoss, order_dict.get("type", 0))
                     filtered_orders.append(order_dict)
         
         if not filtered_orders:

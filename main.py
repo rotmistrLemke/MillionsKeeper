@@ -3,7 +3,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 import asyncio
 import json
 from mt5Connector import MT5Connector
-from anilizer import Extremum,ZeroIntersection,HundredIntersection,Aligator
+from anilizer import Extremum,ZeroIntersection,HundredIntersection,Alligator
 from chartCreator import createChart
 from appEnum import TargetType,IndicatorType
 
@@ -21,7 +21,7 @@ mt5Connector = MT5Connector(account)
 zeroIntersection = ZeroIntersection()
 hundredIntersection = HundredIntersection()
 extremum = Extremum(settings)
-aligator = Aligator(mt5Connector)
+#aligator = Alligator(mt5Connector)
 
 async def searching(update, context) :     
     while True:  
@@ -31,7 +31,7 @@ async def searching(update, context) :
                 continue
             print(f"\nПроверка пары CCI: {pair}")
 
-            jaw,teeth,lips,cci,signal,main = mt5Connector.getData(pair,30)                        
+            cci,signal,main = mt5Connector.getData(pair,30)                        
             resultExtremum = extremum.check(cci, signal)
             await ExtremumDisplay(resultExtremum, cci, update, pair)            
         await asyncio.sleep(5)
@@ -63,15 +63,15 @@ async def ExtremumDisplay(result, cciValues, update, pair) :
         # reply_markup = InlineKeyboardMarkup([[long_button]])
         # await update.message.reply_text(f"{pair}\nПерепроданность, лонгуем\nЗначение: {cciValues[0]}", reply_markup=reply_markup)
         response = mt5Connector.orderOpen(pair,TargetType.LONG,IndicatorType.EXTREMUM_REVERSE,100,700)
-        await update.message.reply_text(f"{pair}\nПерепроданность, ставлю ордер на лонг\nОрдер: {response["order"]}") 
-        await createChart(cciValues,update)
+        #await update.message.reply_text(f"{pair}\nПерепроданность, ставлю ордер на лонг\nОрдер: {response["order"]}") 
+        #await createChart(cciValues,update)
         
     if result["target"] == TargetType.SHORT:                
         # reply_markup = InlineKeyboardMarkup([[short_button]])
         # await update.message.reply_text(f"{pair}\nПерекупленность, шортим\nЗначение: {cciValues[0]}", reply_markup=reply_markup)   
         response = mt5Connector.orderOpen(pair,TargetType.SHORT,IndicatorType.EXTREMUM_REVERSE,100,700)
-        await update.message.reply_text(f"{pair}\nПерекупленность, ставлю ордер на шорт\nОрдер: {response["order"]}")   
-        await createChart(cciValues,update)
+        #await update.message.reply_text(f"{pair}\nПерекупленность, ставлю ордер на шорт\nОрдер: {response["order"]}")   
+        #await createChart(cciValues,update)
 
 async def ZeroIntersectionDisplay(result, cciValues, update, pair) :
     if result["value"]:
@@ -88,11 +88,11 @@ async def ZeroIntersectionDisplay(result, cciValues, update, pair) :
 async def check_order(update,context) :
     data = json.loads(update.callback_query.data)    
     if int(data["targetType"]) == TargetType.LONG:
-        response = mt5Connector.orderOpen(data["pair"],TargetType.LONG,data["indicator"],50,400)        
+        response = mt5Connector.orderOpen(data["pair"],TargetType.LONG,data["indicator"],100,700)        
         if response["order"]:
             await update.effective_message.reply_text(f"Ордер: {response['order']}\nПара: {response['symbol']}\nТип сделки: {response['targetType']}")
     if int(data["targetType"]) == TargetType.SHORT:
-        response = mt5Connector.orderOpen(data["pair"],TargetType.SHORT,data["indicator"],50,400)        
+        response = mt5Connector.orderOpen(data["pair"],TargetType.SHORT,data["indicator"],100,700)        
         if response["order"]:
             await update.effective_message.reply_text(f"Ордер: {response['order']}\nПара: {response['symbol']}\nТип сделки: {response['targetType']}")
 

@@ -68,10 +68,62 @@ class MT5Connector:
         lipsVsTeethDiff = int(f"{Alligator.getLipsVsTeethDiff(pair, lastLips, lastTeeth):.0f}")
         
         return lastJaw, lastTeeth, lastLips, angle, candleDiff, lipsVsTeethDiff
+
+
+    def CCI(self, period=14):
+            """Рассчитывает CCI"""
+            if self.df is None:
+                print("Ошибка вычисления CCI")
+                return None
+            tp = (self.df['high'] + self.df['low'] + self.df['close']) / 3
+            sma = tp.rolling(window=period).mean()
+            mean_deviation = tp.rolling(window=period).apply(
+                lambda x: np.mean(np.abs(x - np.mean(x)))
+            )
+            cci = ((tp - sma) / (0.015 * mean_deviation)).round(2)
+            result = list(reversed(pd.Series(cci).dropna().tolist()))
+            return result
+        
+    def Stochastic(self):
+        """Рассчитывает стохастический осциллятор"""
+        if self.df is None:
+            print("Ошибка вычисления Stochastic")
+            return None
+        k_period = 5
+        d_period = 3
+        slowing = 3
+        highs = self.df['high'].rolling(window=k_period).max()
+        lows = self.df['low'].rolling(window=k_period).min()
+        
+        k = pd.Series(index=self.df.index)
+        for i in range(slowing-1, len(self.df)):
+            sum_low = sum(self.df['close'][i-slowing+1:i+1] - lows[i-slowing+1:i+1])
+            sum_high = sum(highs[i-slowing+1:i+1] - lows[i-slowing+1:i+1])
+            if sum_high == 0:
+                k[i] = 100.0
+            else:
+                k[i] = (sum_low / sum_high) * 100
+        
+        d = k.rolling(window=d_period).mean().round(2)
+        
+        result_df = pd.DataFrame({
+            'Stochastic_K': k.round(2),
+            'Stochastic_D': d
+        }).dropna()
+        
+        # Преобразуем в список словарей для вывода
+        signal = []
+        main = []
+        for idx in reversed(result_df.index):
+            signal.append(float(result_df.loc[idx, 'Stochastic_D']))
+            main.append(float(result_df.loc[idx, 'Stochastic_K']))
+        
+        return signal,main
+        
    
     def getData(self, symbol, count):
         if self.authorized:            
-            if self.getHistoricalData(symbol,mt5.TIMEFRAME_H1,count):
+            if self.getHistoricalData(symbol,mt5.TIMEFRAME_H4,count):
                 cci = self.CCI()
                 signal,main = self.Stochastic()
 
@@ -238,9 +290,9 @@ class MT5Connector:
         else:   
             print(f"Пара {symbol} Ордер {orderTicket} успешно снят")        
         
-    def getTicket(self,symbol,indicatorType):
+    def getTicket(self,symbol,typeOrder,indicatorType):
         positions = self.getPositions()
-        currentPositions = list(filter(lambda position: position.symbol == symbol and position.comment == str(indicatorType), positions))
+        currentPositions = list(filter(lambda position: position.symbol == symbol and position.type == typeOrder and position.comment == str(indicatorType), positions))
         if len(currentPositions) > 0:
             return currentPositions[0].ticket
         return None
@@ -262,7 +314,7 @@ class MT5Connector:
         
     def getSymbols(self,spread):
         symbols=mt5.symbols_get()
-        goods = [symbol.name for symbol in symbols if (symbol.spread <= spread and symbol.spread != 0 and symbol.name[0] != '#') or symbol.name=='XAGUSDrfd'  ]
+        goods = [symbol.name for symbol in symbols if (symbol.spread <= spread and symbol.spread != 0 and symbol.name[0] != '#' and symbol.name[0] != 'X')  ]
         return goods
     
     def ServerTime(self, pair):

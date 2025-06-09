@@ -35,14 +35,24 @@ def checkClose(currentPrice, openPrice, teeth, pair):
     
     if currentPrice > teeth > openPrice:
         
-        ticket = mt5Connector.getTicket(pair,IndicatorType.ALLIGATOR_MAIN)
+        ticket = mt5Connector.getTicket(pair,TargetType.SHORT,IndicatorType.ALLIGATOR_MAIN)
         
         if ticket:
             
             mt5Connector.orderClose(ticket,pair)
             print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \nteeth: {teeth} \nopenPrice: {openPrice} \ncomment: Ордер SHORT снят \n{"-" * 50}")
             aligator.saveToExcel(pair, "CLOSE_SHORT",teeth, angle,  "Ордер SHORT снят")
-           
+            
+    if currentPrice < teeth < openPrice:
+        
+        ticket = mt5Connector.getTicket(pair,TargetType.LONG,IndicatorType.ALLIGATOR_MAIN)
+        
+        if ticket:
+            
+            mt5Connector.orderClose(ticket,pair)
+            print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \nteeth: {teeth} \nopenPrice: {openPrice} \ncomment: Ордер LONG снят \n{"-" * 50}")
+            aligator.saveToExcel(pair, "CLOSE_LONG",teeth, angle,  "Ордер LONG снят")
+          
 
             
 def IsNewBar(pair,df):
@@ -84,15 +94,16 @@ if __name__ == '__main__':
 
                      
             if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
-                aligator.saveToExcel(pair, "LOG", jaw, teeth, lips, angle, candleDiff, lipsVsTeethDiff, "")
+                aligator.saveToExcel(pair, "LOG", teeth, angle, "")
         
             if isNewBar:
-                checkClose(currentPrice, openPrice, lastTeeth, pair)
-                checkOpen(angle,pair)     
+                checkOpen(angle,pair)    
+                
+            checkClose(currentPrice, openPrice, lastTeeth, pair) 
             #Обновляем время следующей записи
         currentTime = mt5Connector.ServerTime('EURUSDrfd')       
         nextLogTime = logger.getNextLogTime(currentTime)  
-                      
+           
         print(f"Все в порядке, время:{mt5Connector.ServerTime('EURUSDrfd')}")
         time.sleep(5)
         
