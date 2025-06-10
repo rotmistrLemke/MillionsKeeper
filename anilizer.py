@@ -1,3 +1,5 @@
+from plistlib import InvalidFileException
+import zipfile
 import numpy as np
 from appEnum import IndicatorType,TargetType,Settings
 import math
@@ -93,10 +95,10 @@ class Extremum:
         # coefficient = self.tryAngleCoefficient(currentValue,previousValue)
         angle = self.angle(currentValue,previousValue,10)
 
-        if previousValue > currentValue and angle > 30:
+        if previousValue > currentValue and angle > 15:
             return {"value": True, "target": TargetType.SHORT, "angle":angle }
         
-        if previousValue < currentValue and angle > 30:
+        if previousValue < currentValue and angle > 15:
             return {"value": True, "target": TargetType.LONG, "angle":angle}
             
         return {"value": False, "angle": angle}
@@ -162,11 +164,15 @@ class Alligator:
             # Пытаемся загрузить существующий файл
             workbook = load_workbook(Settings.filename)
             sheet = workbook.active
-        except FileNotFoundError:
+        #except FileNotFoundError:
             # Если файла нет — создаем новый
-            workbook = Workbook()
-            sheet = workbook.active
-            sheet.append(["Дата", "Событие", "Пара", "Зубы (Teeth)", "Угол", "Комментарий"])
+            #workbook = Workbook()
+            #sheet = workbook.active
+            #sheet.append(["Дата", "Событие", "Пара", "Зубы (Teeth)", "Угол", "Комментарий"])
+        except (FileNotFoundError, zipfile.BadZipFile, InvalidFileException) as e:
+            print(f"⚠️ Ошибка при загрузке файла {Settings.filename}: {e}")
+            print("Продолжаю работу без сохранения в Excel...")
+            return
         
         # Добавляем новую строку
         sheet.append([
@@ -216,19 +222,19 @@ class Alligator:
         lipsVsTeethDiff = self.getLipsVsTeethDiff(pair, lastLips, lastTeeth)
         return angle,candleDiff,lipsVsTeethDiff
 
-    def IsNewBar(self,df, lastCheckedTime):
+    def IsNewBar(self,df, lastCheckedTime, timeFrame):
         new_time = df['time'].iloc[0]
         if lastCheckedTime is None:
-            print("Первая свеча, запоминаем время")
+            print(f"Первая свеча {timeFrame}, запоминаем время")
             return True, new_time  # Возвращаем флаг новой свечи и новое время
         if new_time != lastCheckedTime:
-            print("Обнаружена новая свеча!")
+            print(f"Обнаружена новая свеча {timeFrame}!")
             return True, new_time  # Возвращаем True и новое время
         return False, lastCheckedTime  # Возвращаем False и старое время
 
 
-    def Df(self,pair):
-        bars = mt5.copy_rates_from_pos(pair, mt5.TIMEFRAME_H1, 0, 500)
+    def Df(self,pair, timeFrame):
+        bars = mt5.copy_rates_from_pos(pair, timeFrame, 0, 500)
         if bars is None:
             print("Не удалось получить данные:", mt5.last_error())
         df = pd.DataFrame(bars)

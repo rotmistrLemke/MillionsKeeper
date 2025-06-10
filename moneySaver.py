@@ -101,7 +101,7 @@ else:
                     setStopLoss(ticketId, calculateStopLoss( symbol, order_dict.get("price_current", 0), order_dict.get("type", 0)), stopLoss, order_dict.get("type", 0))
                     filtered_orders.append(order_dict)
             
-            if str(comment) == "2":
+            if str(comment) == "3":
                 cci,signal,main = mt5Connector.getData(symbol,30)                        
                 resultExtremum = extremum.check(cci, signal)
                 
@@ -120,11 +120,11 @@ else:
             print(orders_df[['ticket', 'symbol', 'type', 'volume', 'price_open', 'sl', 'tp', 'time', 'comment', 'profit']])
             print("="*50 + "\n")
             
-        if not filtered_orders:
+        if not cciFIlteredOrders:
             print("Нет ордеров с комментарием '2'.")
         else:
             # Выводим отфильтрованные ордера в DataFrame
-            orders_df = pd.DataFrame(filtered_orders)
+            orders_df = pd.DataFrame(cciFIlteredOrders)
             print("\n" + "="*50)
             print("Ордера с комментарием '2':")
             print(orders_df[['ticket', 'symbol', 'type', 'volume', 'price_open', 'sl', 'tp', 'time', 'comment', 'profit']])

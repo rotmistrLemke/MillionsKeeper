@@ -9,7 +9,7 @@ account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real
 mt5Connector = MT5Connector(account)
 alligator = Alligator()
 settings = {
-    "CCI_ReferenceLimit" : 60,
+    "CCI_ReferenceLimit" : 30,
     "CCI_CoefficientLimit" : 0.3,    
     "Stochastic_CoefficientLimit" : 0.1
 }
@@ -35,17 +35,14 @@ def ExtremumDisplay(result, cciValues, pair) :
 
 if __name__ == '__main__':
     pairs = Settings.dictPairXvalue.keys()
-    last_log_time = None
     nextLogTime = logger.getNextLogTime(mt5Connector.ServerTime('EURUSDrfd'))
-    prev_bar_time = None
     currentTime = mt5Connector.ServerTime('EURUSDrfd')
     
     while True:  
-        pairs = mt5Connector.getSymbols(50)
+        pairs = Settings.dictPairXvalue.keys()
         for pair in pairs:
-            if "#JNJ" in pair:
-                continue
-            print(f"\nПроверка пары CCI: {pair}")
+
+            currentTime = mt5Connector.ServerTime('EURUSDrfd') 
             cci,signal,main = mt5Connector.getData(pair,30)                        
             resultExtremum = extremum.check(cci, signal)
             ExtremumDisplay(resultExtremum, cci, pair)   
@@ -54,6 +51,7 @@ if __name__ == '__main__':
                 alligator.saveToExcel(pair, "CCI_STOCH_LOG", resultExtremum["cciAngle"], resultExtremum["stochAngle"], "")
             
         
-        currentTime = mt5Connector.ServerTime('EURUSDrfd') 
-        nextLogTime = logger.getNextLogTime(currentTime)            
+        
+        nextLogTime = logger.getNextLogTime(currentTime)   
+        print(f"CCI_Stochastic все в порядке, время:{mt5Connector.ServerTime('EURUSDrfd')}")        
         time.sleep(40)

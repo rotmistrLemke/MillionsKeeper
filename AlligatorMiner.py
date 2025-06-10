@@ -75,7 +75,7 @@ def Df(pair):
 
 if __name__ == '__main__':
 
-    pairs = Settings.dictPairXvalue.keys()
+    pairs = Settings.onlyForex.keys()
     last_log_time = None
     nextLogTime = logger.getNextLogTime(mt5Connector.ServerTime('EURUSDrfd'))
     prev_bar_time = None

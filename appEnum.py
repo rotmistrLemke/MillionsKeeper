@@ -67,6 +67,35 @@ class Settings:
         "USDSGDrfd": 15,
         "AUDUSDrfd": 15
     }
+    
+    onlyMetals = {
+    "XAUUSDrfd": 1005,
+    "XAGUSDrfd": 1230  
+}
+
+    onlyForex = {
+    "EURUSDrfd": 100,
+    "NZDUSDrfd": 110,
+    "EURGBPrfd": 90,
+    "USDCHFrfd": 120,
+    "USDJPYrfd": 245,
+    "EURCHFrfd": 100,
+    "GBPUSDrfd": 180,
+    "USDCADrfd": 240,
+    "EURJPYrfd": 265,
+    "AUDCADrfd": 100,
+    "AUDUSDrfd": 105,
+    "AUDJPYrfd": 150,
+    "AUDCHFrfd": 85,
+    "CHFJPYrfd": 210,
+    "EURAUDrfd": 175,
+    "GBPCHFrfd": 135,
+    "EURCADrfd": 210,
+    "GBPCADrfd": 160,
+    "XAUUSDrfd": 1005,
+    "GBPJPYrfd": 195
+  
+}
 
     filename = "C:/MillionsKeeper/alligator_data_2.0.xlsx"
 
