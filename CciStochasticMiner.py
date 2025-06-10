@@ -52,7 +52,8 @@ if __name__ == '__main__':
             
             if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
                 alligator.saveToExcel(pair, "CCI_STOCH_LOG", resultExtremum["cciAngle"], resultExtremum["stochAngle"], "")
-            nextLogTime = logger.getNextLogTime(currentTime)
+            
         
-        currentTime = mt5Connector.ServerTime('EURUSDrfd')             
-        time.sleep(5)
+        currentTime = mt5Connector.ServerTime('EURUSDrfd') 
+        nextLogTime = logger.getNextLogTime(currentTime)            
+        time.sleep(40)
