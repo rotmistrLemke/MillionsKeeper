@@ -3,10 +3,17 @@ import pandas as pd
 from mt5Connector import MT5Connector
 import MetaTrader5 as mt5
 from appEnum import TargetType
+from anilizer import Extremum
 
 
 account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
 mt5Connector = MT5Connector(account)
+settings = {
+    "CCI_ReferenceLimit" : 60,
+    "CCI_CoefficientLimit" : 0.3,    
+    "Stochastic_CoefficientLimit" : 0.1
+}
+extremum = Extremum(settings)
 
 # Получение всех открытых ордеров
 orders = mt5Connector.getPositions()
@@ -73,6 +80,7 @@ else:
     while True:
         # Фильтруем ордера с комментарием "4"
         filtered_orders = []
+        cciFIlteredOrders = []
         for order in orders:
             order_dict = order._asdict()
             comment = order_dict.get("comment", "")
@@ -84,14 +92,23 @@ else:
             orderType = order_dict.get("type", 0),
             stopLoss = order_dict.get("sl", 0)
             
-            if symbol == 'XAUUSDrfd' or symbol == 'XAGUSDrfd':
-                if str(comment) == "4":  # Проверяем комментарий
+            if str(comment) == "4":  # Проверяем комментарий
+            
+                if symbol == 'XAUUSDrfd' or symbol == 'XAGUSDrfd':
                     setStopLoss(ticketId, calculateStopLoss( symbol, order_dict.get("price_current", 0), order_dict.get("type", 0)), stopLoss, order_dict.get("type", 0))
                     filtered_orders.append(order_dict)
-            else:
-                if str(comment) == "4":  # Проверяем комментарий
+                else:
                     setStopLoss(ticketId, calculateStopLoss( symbol, order_dict.get("price_current", 0), order_dict.get("type", 0)), stopLoss, order_dict.get("type", 0))
                     filtered_orders.append(order_dict)
+            
+            if str(comment) == "2":
+                cci,signal,main = mt5Connector.getData(symbol,30)                        
+                resultExtremum = extremum.check(cci, signal)
+                
+                if resultExtremum["value"] == False:
+                    mt5Connector.orderClose(ticketId,symbol)
+                                       
+                    cciFIlteredOrders.append(order_dict)
         
         if not filtered_orders:
             print("Нет ордеров с комментарием '4'.")
@@ -102,6 +119,17 @@ else:
             print("Ордера с комментарием '4':")
             print(orders_df[['ticket', 'symbol', 'type', 'volume', 'price_open', 'sl', 'tp', 'time', 'comment', 'profit']])
             print("="*50 + "\n")
+            
+        if not filtered_orders:
+            print("Нет ордеров с комментарием '2'.")
+        else:
+            # Выводим отфильтрованные ордера в DataFrame
+            orders_df = pd.DataFrame(filtered_orders)
+            print("\n" + "="*50)
+            print("Ордера с комментарием '2':")
+            print(orders_df[['ticket', 'symbol', 'type', 'volume', 'price_open', 'sl', 'tp', 'time', 'comment', 'profit']])
+            print("="*50 + "\n")
+            
         orders = mt5Connector.getPositions()
         time.sleep(10)
 

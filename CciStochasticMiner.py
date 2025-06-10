@@ -3,9 +3,11 @@ from appEnum import TargetType,IndicatorType, Settings
 from logger import Logger
 from anilizer import Extremum,ZeroIntersection,HundredIntersection,Alligator
 import time
+from anilizer import Alligator
 
-account = {"login":2000096507,"password":"x$Kz8CD7XB","server":"AlfaForexRU-Real"}
+account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
 mt5Connector = MT5Connector(account)
+alligator = Alligator()
 settings = {
     "CCI_ReferenceLimit" : 60,
     "CCI_CoefficientLimit" : 0.3,    
@@ -14,7 +16,7 @@ settings = {
 logger = Logger()
 extremum = Extremum(settings)
 
-async def ExtremumDisplay(result, cciValues, pair) :
+def ExtremumDisplay(result, cciValues, pair) :
     if not result["value"]:  
         return
     if(mt5Connector.symbolInPostions(pair,result["target"],IndicatorType.EXTREMUM_REVERSE)):
@@ -46,5 +48,11 @@ if __name__ == '__main__':
             print(f"\nПроверка пары CCI: {pair}")
             cci,signal,main = mt5Connector.getData(pair,30)                        
             resultExtremum = extremum.check(cci, signal)
-            # ExtremumDisplay(resultExtremum, cci, pair)            
+            ExtremumDisplay(resultExtremum, cci, pair)   
+            
+            if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
+                alligator.saveToExcel(pair, "CCI_STOCH_LOG", resultExtremum["cciAngle"], resultExtremum["stochAngle"], "")
+            nextLogTime = logger.getNextLogTime(currentTime)
+        
+        currentTime = mt5Connector.ServerTime('EURUSDrfd')             
         time.sleep(5)

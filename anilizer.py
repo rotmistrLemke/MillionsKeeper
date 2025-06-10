@@ -77,12 +77,12 @@ class Extremum:
         angle = self.angle(currentValue,previousValue,50)
         
         if currentValue > limit and previousValue > currentValue and angle > 20:
-            return {"value": True, "target": TargetType.SHORT}
+            return {"value": True, "target": TargetType.SHORT, "angle": angle}
         
         if currentValue < limit * -1 and previousValue < currentValue and angle > 20:
-            return {"value": True, "target": TargetType.LONG}
+            return {"value": True, "target": TargetType.LONG, "angle": angle}
             
-        return {"value": False}
+        return {"value": False, "angle": angle}
 
     def stochasticReverse(self, stochasticValues):
         if len(stochasticValues) < 2:
@@ -94,12 +94,12 @@ class Extremum:
         angle = self.angle(currentValue,previousValue,10)
 
         if previousValue > currentValue and angle > 30:
-            return {"value": True, "target": TargetType.SHORT}
+            return {"value": True, "target": TargetType.SHORT, "angle":angle }
         
         if previousValue < currentValue and angle > 30:
-            return {"value": True, "target": TargetType.LONG}
+            return {"value": True, "target": TargetType.LONG, "angle":angle}
             
-        return {"value": False}
+        return {"value": False, "angle": angle}
 
     def check(self, cciValues, stochasticValues):
         """Основной метод проверки условий"""
@@ -109,13 +109,13 @@ class Extremum:
         if cciReverse_result["value"] and stochasticReverse_result["value"]:
             if (cciReverse_result["target"] == TargetType.LONG and 
                 stochasticReverse_result["target"] == TargetType.LONG):
-                return {"value": True, "target": TargetType.LONG}
+                return {"value": True, "target": TargetType.LONG, "cciAngle": cciReverse_result["angle"], "stochAngle": stochasticReverse_result["angle"]}
             
             if (cciReverse_result["target"] == TargetType.SHORT and 
                 stochasticReverse_result["target"] == TargetType.SHORT):
-                return {"value": True, "target": TargetType.SHORT}
+                return {"value": True, "target": TargetType.SHORT, "cciAngle": cciReverse_result["angle"], "stochAngle": stochasticReverse_result["angle"]}
         
-        return {"value": False}
+        return {"value": False, "cciAngle": cciReverse_result["angle"], "stochAngle": stochasticReverse_result["angle"]}
     
 class Alligator:
 
