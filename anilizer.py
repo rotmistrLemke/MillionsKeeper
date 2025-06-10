@@ -184,7 +184,12 @@ class Alligator:
             comment
         ])
         
-        workbook.save(Settings.filename)
+        try:
+            workbook.save(Settings.filename)
+        except (FileNotFoundError, zipfile.BadZipFile, InvalidFileException, PermissionError) as e:
+            print(f"⚠️ Ошибка при сохранении файла {Settings.filename}: {e}")
+            print("Продолжаю работу без сохранения в Excel...")
+            return
         
     
     def MainData(self,df):
