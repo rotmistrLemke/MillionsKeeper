@@ -48,7 +48,7 @@ if __name__ == '__main__':
             ExtremumDisplay(resultExtremum, cci, pair)   
             
             if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
-                alligator.saveToExcel(pair, "CCI_STOCH_LOG", resultExtremum["cciAngle"], resultExtremum["stochAngle"], "")
+                alligator.saveToExcel(pair, "CCI_STOCH_LOG", resultExtremum["cciAngle"], resultExtremum["stochAngle"], "", Settings.filenameCCIStoch)
             
         
         

@@ -159,10 +159,10 @@ class Alligator:
         """Возвращает разницу между текущей ценой и индикатором аллигатор по модулю."""
         return abs(lips - teeth)/ mt5.symbol_info(pair).point
     
-    def saveToExcel(self,pair, event, teeth, angle, comment): 
+    def saveToExcel(self,pair, event, teeth, angle, comment, fileName): 
         try:
             # Пытаемся загрузить существующий файл
-            workbook = load_workbook(Settings.filename)
+            workbook = load_workbook(fileName)
             sheet = workbook.active
         #except FileNotFoundError:
             # Если файла нет — создаем новый
@@ -170,7 +170,7 @@ class Alligator:
             #sheet = workbook.active
             #sheet.append(["Дата", "Событие", "Пара", "Зубы (Teeth)", "Угол", "Комментарий"])
         except (FileNotFoundError, zipfile.BadZipFile, InvalidFileException) as e:
-            print(f"⚠️ Ошибка при загрузке файла {Settings.filename}: {e}")
+            print(f"⚠️ Ошибка при загрузке файла {fileName}: {e}")
             print("Продолжаю работу без сохранения в Excel...")
             return
         
@@ -185,9 +185,9 @@ class Alligator:
         ])
         
         try:
-            workbook.save(Settings.filename)
+            workbook.save(fileName)
         except (FileNotFoundError, zipfile.BadZipFile, InvalidFileException, PermissionError) as e:
-            print(f"⚠️ Ошибка при сохранении файла {Settings.filename}: {e}")
+            print(f"⚠️ Ошибка при сохранении файла {fileName}: {e}")
             print("Продолжаю работу без сохранения в Excel...")
             return
         

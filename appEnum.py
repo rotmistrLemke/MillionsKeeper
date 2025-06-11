@@ -97,6 +97,7 @@ class Settings:
   
 }
 
-    filename = "C:/MillionsKeeper/alligator_data_2.0.xlsx"
+    filenameAlligator = "C:/MillionsKeeper/alligator_data_2.0.xlsx"
+    filenameCCIStoch = "C:/MillionsKeeper/CCI_Stoch_data.xlsx"
 
    
