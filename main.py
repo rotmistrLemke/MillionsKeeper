@@ -9,9 +9,7 @@ from appEnum import TargetType,IndicatorType
 
 
 settings = {
-    "CCI_ReferenceLimit" : 60,
-    "CCI_CoefficientLimit" : 0.3,    
-    "Stochastic_CoefficientLimit" : 0.1
+    "CCI_ReferenceLimitForEnter" : 60
 }
 #account1 = {"login":2000096507,"password":"x$Kz8CD7XB","server":"AlfaForexRU-Real"}
 account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}

@@ -7,7 +7,6 @@ class IndicatorType:
     EXTREMUM_REVERSE = 2
     ZERO_INTERSECTION = 3
     ALLIGATOR_MAIN = 4
-    ALLIGATOR_PERIODICITY = 5
     
 class Settings:
     dictPairXvalue = {

@@ -44,7 +44,7 @@ class HundredIntersection:
 
 class Extremum:    
     def __init__(self,settings):
-        self.CCI_ReferenceLimit = settings["CCI_ReferenceLimit"]
+        self.CCI_ReferenceLimitForEnter = settings["CCI_ReferenceLimitForEnter"]
     
     def tryAngleCoefficient(self,current,prev):
         current = abs(current)
@@ -54,7 +54,7 @@ class Extremum:
         elif current > prev:
             return (current-prev)/current
     
-    def angle(self,currentValue, previousValue, y, degrees=True):
+    def angleForCciStoch(self,currentValue, previousValue, y, degrees=True):
             """
             Вычисляет arctg(x) и возвращает угол в градусах или радианах.
 
@@ -67,7 +67,7 @@ class Extremum:
             """
             x = (currentValue - previousValue)
             angle_rad = math.atan2(x, y)
-            return int(f"{abs(math.degrees(angle_rad)):.0f}") if degrees else int(f"{abs(angle_rad):.0f}")
+            return int(f"{math.degrees(angle_rad):.0f}") if degrees else int(f"{angle_rad:.0f}")
 
     def cciReverse(self, cciValues, limit):
         if len(cciValues) < 2:
@@ -76,9 +76,9 @@ class Extremum:
         currentValue = cciValues[0]
         previousValue = cciValues[1]
         # coefficient = self.tryAngleCoefficient(currentValue,previousValue)
-        angle = self.angle(currentValue,previousValue,50)
+        angle = self.angleForCciStoch(currentValue,previousValue,50)
         
-        if currentValue > limit and previousValue > currentValue and angle > 20:
+        if currentValue > limit and previousValue > currentValue and angle < -20:
             return {"value": True, "target": TargetType.SHORT, "angle": angle}
         
         if currentValue < limit * -1 and previousValue < currentValue and angle > 20:
@@ -93,9 +93,9 @@ class Extremum:
         currentValue = stochasticValues[0]
         previousValue = stochasticValues[1]
         # coefficient = self.tryAngleCoefficient(currentValue,previousValue)
-        angle = self.angle(currentValue,previousValue,10)
+        angle = self.angleForCciStoch(currentValue,previousValue,10)
 
-        if previousValue > currentValue and angle > 15:
+        if previousValue > currentValue and angle < -15:
             return {"value": True, "target": TargetType.SHORT, "angle":angle }
         
         if previousValue < currentValue and angle > 15:
@@ -103,9 +103,9 @@ class Extremum:
             
         return {"value": False, "angle": angle}
 
-    def check(self, cciValues, stochasticValues):
+    def checkForEnter(self, cciValues, stochasticValues):
         """Основной метод проверки условий"""
-        cciReverse_result = self.cciReverse(cciValues, self.CCI_ReferenceLimit)
+        cciReverse_result = self.cciReverse(cciValues, self.CCI_ReferenceLimitForEnter)
         stochasticReverse_result = self.stochasticReverse(stochasticValues)
         
         if cciReverse_result["value"] and stochasticReverse_result["value"]:
@@ -118,6 +118,18 @@ class Extremum:
                 return {"value": True, "target": TargetType.SHORT, "cciAngle": cciReverse_result["angle"], "stochAngle": stochasticReverse_result["angle"]}
         
         return {"value": False, "cciAngle": cciReverse_result["angle"], "stochAngle": stochasticReverse_result["angle"]}
+    
+    def checkForClose(self, cciValues):
+        """Основной метод проверки условий"""
+        currentValue = cciValues[0]
+        
+        if currentValue > -20:
+            return {"value": True, "cciValue": currentValue}
+        
+        if currentValue < 20:
+            return {"value": True, "cciValue": currentValue}
+            
+        return {"value": False, "cciValue": currentValue}
     
 class Alligator:
 

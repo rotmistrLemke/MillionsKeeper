@@ -2,16 +2,15 @@ import time
 import pandas as pd
 from mt5Connector import MT5Connector
 import MetaTrader5 as mt5
-from appEnum import TargetType
-from anilizer import Extremum
+from appEnum import TargetType, Settings
+from anilizer import Extremum, Alligator
 
 
 account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
 mt5Connector = MT5Connector(account)
+alligator = Alligator()
 settings = {
-    "CCI_ReferenceLimit" : 60,
-    "CCI_CoefficientLimit" : 0.3,    
-    "Stochastic_CoefficientLimit" : 0.1
+    "CCI_ReferenceLimitForEnter" : 60
 }
 extremum = Extremum(settings)
 
@@ -101,14 +100,15 @@ else:
                     setStopLoss(ticketId, calculateStopLoss( symbol, order_dict.get("price_current", 0), order_dict.get("type", 0)), stopLoss, order_dict.get("type", 0))
                     filtered_orders.append(order_dict)
             
-            if str(comment) == "3":
+            if str(comment) == "2" :
                 cci,signal,main = mt5Connector.getData(symbol,30)                        
-                resultExtremum = extremum.check(cci, signal)
+                result = extremum.checkForClose(cci)
                 
-                if resultExtremum["value"] == False:
+                if result["value"] == False:
                     mt5Connector.orderClose(ticketId,symbol)
+                    alligator.saveToExcel(symbol, "CCI_STOCH_CLOSE", 0, 0, result["cciValue"], Settings.filenameCCIStoch)
                                        
-                    cciFIlteredOrders.append(order_dict)
+                cciFIlteredOrders.append(order_dict)
         
         if not filtered_orders:
             print("Нет ордеров с комментарием '4'.")
