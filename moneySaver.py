@@ -20,13 +20,13 @@ orders = mt5Connector.getPositions()
 def calculateStopLoss(pair, priceCurrent, orderType):
     if orderType == TargetType.LONG:
         if pair == 'XAUUSDrfd' or pair == 'XAGUSDrfd':
-            stopLoss = priceCurrent - (1000 * mt5.symbol_info(pair).point)
+            stopLoss = priceCurrent - (1500 * mt5.symbol_info(pair).point)
         else:
             stopLoss = priceCurrent - (200 * mt5.symbol_info(pair).point)
         
     elif orderType == TargetType.SHORT:
         if pair == 'XAUUSDrfd' or pair == 'XAGUSDrfd':
-            stopLoss = priceCurrent + (1000 * mt5.symbol_info(pair).point)
+            stopLoss = priceCurrent + (1500 * mt5.symbol_info(pair).point)
         else:
             stopLoss = priceCurrent + (200 * mt5.symbol_info(pair).point)
     return stopLoss

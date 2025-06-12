@@ -88,7 +88,7 @@ if __name__ == '__main__':
                 if isNewBar_H4 and timeFrame == mt5.TIMEFRAME_H4:
                     checkOpen(angle, pair, timeFrame)       
                     
-                checkClose(currentPrice, openPrice, lastTeeth, pair, timeFrame) 
+                checkClose(currentPrice, openPrice, lastJaw, pair, timeFrame) 
                 #Обновляем время следующей записи
                 
             

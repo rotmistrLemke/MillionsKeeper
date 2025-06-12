@@ -122,11 +122,12 @@ class Extremum:
     def checkForClose(self, cciValues):
         """Основной метод проверки условий"""
         currentValue = cciValues[0]
+        cciReverse_result = self.cciReverse(cciValues, self.CCI_ReferenceLimitForEnter)
         
-        if currentValue > -20:
+        if 500 > currentValue > 5:
             return {"value": True, "cciValue": currentValue}
         
-        if currentValue < 20:
+        if currentValue < -5:
             return {"value": True, "cciValue": currentValue}
             
         return {"value": False, "cciValue": currentValue}
@@ -202,7 +203,45 @@ class Alligator:
             print(f"⚠️ Ошибка при сохранении файла {fileName}: {e}")
             print("Продолжаю работу без сохранения в Excel...")
             return
+    
+    def saveToExcelOpenAi(self,pair, event, positionType, price, sl, tp, signalPower, trendAnalysis, volumeAnalysis, summary, error, fileName) : 
+        try:
+            # Пытаемся загрузить существующий файл
+            workbook = load_workbook(fileName)
+            sheet = workbook.active
+        except FileNotFoundError:
+            # Если файла нет — создаем новый
+            workbook = Workbook()
+            sheet = workbook.active
+            sheet.append(["Дата", "Событие", "Пара", "Тип ордера", "Цена", "sl", "tp", "мощность сигнала", "Анализ тренда", "Анализ объема", "Итого", "Ошибка"])
+        except (FileNotFoundError, zipfile.BadZipFile, InvalidFileException) as e:
+            print(f"⚠️ Ошибка при загрузке файла {fileName}: {e}")
+            print("Продолжаю работу без сохранения в Excel...")
+            return
         
+        # Добавляем новую строку
+        sheet.append([
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            event,
+            pair,
+            positionType, 
+            price, 
+            sl, 
+            tp, 
+            signalPower, 
+            trendAnalysis, 
+            volumeAnalysis, 
+            summary, 
+            error
+        ])
+        
+        try:
+            workbook.save(fileName)
+        except (FileNotFoundError, zipfile.BadZipFile, InvalidFileException, PermissionError) as e:
+            print(f"⚠️ Ошибка при сохранении файла {fileName}: {e}")
+            print("Продолжаю работу без сохранения в Excel...")
+            return
+  
     
     def MainData(self,df):
         medianPrice = (df['high'] + df['low']) / 2  # Медианная цена (HL/2)
