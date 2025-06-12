@@ -67,10 +67,11 @@ class Settings:
         "AUDUSDrfd": 15
     }
     
-    onlyMetals = {
+    onlyMetalsH1 = {
     "XAUUSDrfd": 1005,
     "XAGUSDrfd": 1230  
 }
+
 
     onlyForex = {
     "EURUSDrfd": 100,

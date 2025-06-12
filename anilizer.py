@@ -233,11 +233,11 @@ class Alligator:
         prelastLips = float(f"{lipsShifted.iloc[-3]:.{countDecimalPlace}f}")
         return lastJaw,lastTeeth,lastLips,prelastLips
     
-    def SupportData(self,lastLips,prelastLips,pair,dictPairXvalue,lastTeeth):
+    def SupportData(self,lastLips,prelastLips,pair,dictPairXvalue, lastTeeth):
         angle = self.angle(lastLips,prelastLips,pair,dictPairXvalue.get(pair, 100))
         candleDiff = self.getAlligatorVsCurrentCandelDiff(pair,lastLips)
         lipsVsTeethDiff = self.getLipsVsTeethDiff(pair, lastLips, lastTeeth)
-        return angle,candleDiff,lipsVsTeethDiff
+        return angle, candleDiff, lipsVsTeethDiff
 
     def IsNewBar(self,df, lastCheckedTime, timeFrame):
         new_time = df['time'].iloc[0]
