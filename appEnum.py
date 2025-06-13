@@ -1,6 +1,7 @@
 class TargetType():
     LONG = 0
     SHORT = 1
+    NEUTRAL = 2
 
 class IndicatorType:
     HUNDRED_INTERSECTION = 1

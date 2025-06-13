@@ -8,7 +8,9 @@ import pandas as pd
 import MetaTrader5 as mt5
 from openpyxl import Workbook, load_workbook
 from datetime import datetime
+from mt5Connector import MT5Connector
 
+account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
 
 class ZeroIntersection:    
     def check(self, cciValues):
@@ -103,18 +105,51 @@ class Extremum:
             
         return {"value": False, "angle": angle}
 
-    def checkForEnter(self, cciValues, stochasticValues):
+    def sma(self, data, period=8):
+        sma_values = []
+        for i in range(len(data)):
+            if i < period - 1:  # Для первых period-1 элементов возвращаем NaN
+                sma_values.append(np.nan)
+            else:
+                sma_values.append(data[i-period+1:i+1].mean())
+        return pd.Series(sma_values)
+
+    def checkTrendForParentPeriod(self, pair):    
+        # Получаем данные с дневного таймфрейма
+        mt5ParentPeriod = MT5Connector(account)
+        mt5ParentPeriod.getHistoricalData(pair, mt5.TIMEFRAME_D1, 30)
+        
+        if mt5ParentPeriod.df is None or len(mt5ParentPeriod.df) < 8:
+            return 0  # Недостаточно данных для анализа
+        
+        close_prices = mt5ParentPeriod.df['close']
+        sma = self.sma(close_prices, 8)        
+        sma = sma.dropna()        
+        if len(sma) < 2:
+            return 0  # Недостаточно значений SMA для анализа      
+
+        last_sma = sma.iloc[-8:]        
+        angle = self.angleForCciStoch(last_sma.iloc[-1], last_sma.iloc[0], 8)
+        
+        if angle > 15:
+            return TargetType.LONG
+        elif angle < -15:
+            return TargetType.SHORT
+        else:
+            return TargetType.NEUTRAL
+
+    def checkForEnter(self, cciValues, stochasticValues,pair):
         """Основной метод проверки условий"""
         cciReverse_result = self.cciReverse(cciValues, self.CCI_ReferenceLimitForEnter)
         stochasticReverse_result = self.stochasticReverse(stochasticValues)
-        
+        parentPeriodTrendResult = self.checkTrendForParentPeriod(pair)
         if cciReverse_result["value"] and stochasticReverse_result["value"]:
             if (cciReverse_result["target"] == TargetType.LONG and 
-                stochasticReverse_result["target"] == TargetType.LONG):
+                stochasticReverse_result["target"] == TargetType.LONG) and parentPeriodTrendResult == TargetType.LONG:
                 return {"value": True, "target": TargetType.LONG, "cciAngle": cciReverse_result["angle"], "stochAngle": stochasticReverse_result["angle"]}
             
             if (cciReverse_result["target"] == TargetType.SHORT and 
-                stochasticReverse_result["target"] == TargetType.SHORT):
+                stochasticReverse_result["target"] == TargetType.SHORT) and parentPeriodTrendResult == TargetType.SHORT:
                 return {"value": True, "target": TargetType.SHORT, "cciAngle": cciReverse_result["angle"], "stochAngle": stochasticReverse_result["angle"]}
         
         return {"value": False, "cciAngle": cciReverse_result["angle"], "stochAngle": stochasticReverse_result["angle"]}
