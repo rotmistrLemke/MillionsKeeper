@@ -77,27 +77,27 @@ def main():
                 cci,signal,main = mt5Connector.getData(symbol,30)
                 
                 if candlesH4:
-
+                    if any(mt5Connector.symbolInPostions(symbol, i, "openAI") for i in range(4)):
+                        print("Уже размещен заказ на данную пару")
+                        continue
                     analysisJsonOpenAI = OpenAIConnector.analyzeWithOpenAI(symbol, candlesH4, cci).content
 
-                    
+                        
                     if analysisJsonOpenAI:
                         print(f"[{time.ctime()}] Ответ от OpenAI получен:")
                         signalOpenAI = parseTradeSignal(analysisJsonOpenAI)
-                        
+                            
                         if signalOpenAI:
                             # Красивый вывод с декодированными строками
                             print(json.dumps(signalOpenAI, indent=2, ensure_ascii=False))
-                            if mt5Connector.symbolInPostions(symbol,signalOpenAI['positionType'],"openAI"):
-                                print("Уже размещен заказ на данную пару")
-                                continue
                             if signalOpenAI and signalOpenAI.get('signalPower', 0) >= 3:
-                                
+                                positionTypeСode = 0 if signalOpenAI['positionType'] == "BUY" else 1
+                                    
                                 if signalOpenAI['orderType'] == "Market":
-                                    mt5Connector.orderOpenByAI(symbol,signalOpenAI['positionType'],"openAI",signalOpenAI['takeProfit'],signalOpenAI['stopLoss'])
-                                
+                                    mt5Connector.orderOpenByAI(symbol,positionTypeСode,"openAI",signalOpenAI['takeProfit'],signalOpenAI['stopLoss'])
+                                    
                                 if signalOpenAI['orderType'] == "Limit":
-                                    mt5Connector.orderOpenStoplimit(symbol,signalOpenAI['positionType'],"openAI",signalOpenAI['entryPoint'],signalOpenAI['takeProfit'],signalOpenAI['stopLoss'])
+                                    mt5Connector.orderOpenStoplimit(symbol,positionTypeСode,"openAI",signalOpenAI['entryPoint'],signalOpenAI['takeProfit'],signalOpenAI['stopLoss'])
     
         except Exception as e:
             print(f"Критическая ошибка: {str(e)}")

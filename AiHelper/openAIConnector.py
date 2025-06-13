@@ -46,7 +46,7 @@ class OpenAIConnector:
         Сформируй JSON-ответ строго в следующем формате:
         {{
         "orderType": "Limit|Market",
-        "positionType": "if BUY: 0|if SELL: 1",
+        "positionType": "BUY|SELL",
         "entryPoint": float (5 decimal places),
         "stopLoss": float (5 decimal places),
         "takeProfit": float (5 decimal places),
