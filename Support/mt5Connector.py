@@ -1,7 +1,7 @@
 import MetaTrader5 as mt5
 import pandas as pd
 import numpy as np
-from appEnum import TargetType, Settings
+from Support.appEnum import TargetType, Settings
 
 class MT5Connector:
     def __init__(self,account):

@@ -4,7 +4,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 import MetaTrader5 as mt5
 import json
 import time
-from mt5Connector import MT5Connector
+from Support.mt5Connector import MT5Connector
 from settings import Settings
 from openAIConnector import OpenAIConnector
 

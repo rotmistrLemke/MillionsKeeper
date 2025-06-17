@@ -1,7 +1,7 @@
-from mt5Connector import MT5Connector
-from appEnum import TargetType,IndicatorType, Settings
-from logger import Logger
-from anilizer import Extremum
+from Support.mt5Connector import MT5Connector
+from Support.appEnum import TargetType,IndicatorType, Settings
+from Support.logger import Logger
+from Support.anilizer import Extremum
 import time
 
 account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}

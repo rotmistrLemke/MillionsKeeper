@@ -2,10 +2,10 @@ from telegram import  InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 import asyncio
 import json
-from mt5Connector import MT5Connector
-from anilizer import Extremum,ZeroIntersection,HundredIntersection,Alligator
-from chartCreator import createChart
-from appEnum import TargetType,IndicatorType
+from Support.mt5Connector import MT5Connector
+from Support.anilizer import Extremum,ZeroIntersection,HundredIntersection,Alligator
+from Support.chartCreator import createChart
+from Support.appEnum import TargetType,IndicatorType
 
 
 settings = {

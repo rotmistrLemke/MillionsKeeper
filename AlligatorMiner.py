@@ -1,10 +1,10 @@
-from mt5Connector import MT5Connector
-from appEnum import TargetType,IndicatorType, Settings
+from Support.mt5Connector import MT5Connector
+from Support.appEnum import TargetType,IndicatorType, Settings
 import time
 import pandas as pd
 import MetaTrader5 as mt5
-from anilizer import Alligator
-from logger import Logger
+from Support.anilizer import Alligator
+from Support.logger import Logger
 
 account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
 mt5Connector = MT5Connector(account)

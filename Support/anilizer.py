@@ -1,11 +1,11 @@
 
 import numpy as np
-from appEnum import TargetType
+from Support.appEnum import TargetType
 import math
 from decimal import Decimal
 import pandas as pd
 import MetaTrader5 as mt5
-from mt5Connector import MT5Connector
+from Support.mt5Connector import MT5Connector
 
 
 
