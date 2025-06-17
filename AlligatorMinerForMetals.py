@@ -41,7 +41,7 @@ def checkClose(currentPrice, openPrice, jaw, pair, timeFrame):
         if ticket:
             
             mt5Connector.orderClose(ticket,pair)
-            print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \nteeth: {teeth} \nopenPrice: {openPrice} \ncomment: Ордер SHORT снят \n{"-" * 50}")
+            print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \nteeth: {jaw} \nopenPrice: {openPrice} \ncomment: Ордер SHORT снят \n{"-" * 50}")
             alligator.saveToExcel(pair, "CLOSE_SHORT",teeth, angle,  "Ордер SHORT снят", Settings.filenameAlligator)
             
     if currentPrice < jaw < openPrice:
@@ -51,7 +51,7 @@ def checkClose(currentPrice, openPrice, jaw, pair, timeFrame):
         if ticket:
             
             mt5Connector.orderClose(ticket,pair)
-            print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \nteeth: {teeth} \nopenPrice: {openPrice} \ncomment: Ордер LONG снят \n{"-" * 50}")
+            print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \nteeth: {jaw} \nopenPrice: {openPrice} \ncomment: Ордер LONG снят \n{"-" * 50}")
             alligator.saveToExcel(pair, "CLOSE_LONG",teeth, angle,  "Ордер LONG снят", Settings.filenameAlligator)
           
 
@@ -63,40 +63,44 @@ if __name__ == '__main__':
     currentTime = mt5Connector.ServerTime('XAUUSDrfd')
     
     while True:
-        df_H1 = alligator.Df('XAUUSDrfd', mt5.TIMEFRAME_H1)
-        df_H4 = alligator.Df('XAUUSDrfd', mt5.TIMEFRAME_H4)
-        isNewBar_H1, lastCheckedTime_H1 = alligator.IsNewBar(df_H1, lastCheckedTime_H1, mt5.TIMEFRAME_H1)
-        isNewBar_H4, lastCheckedTime_H4 = alligator.IsNewBar(df_H4, lastCheckedTime_H4, mt5.TIMEFRAME_H4)
-        for timeFrame in timeFrames:
-                
-            for pair in pairs:
-                currentTime = mt5Connector.ServerTime('XAUUSDrfd')
-                currentPrice = mt5.symbol_info_tick(pair).ask
-                df = alligator.Df(pair, timeFrame)
-                medianPrice,jaw,teeth,lips,openPrice = alligator.MainData(df) # Основные значения
-                jawShifted,teethShifted,lipsShifted = alligator.ShiftedData(jaw,teeth,lips,medianPrice) # Значения со сдвигом            
-                lastJaw,lastTeeth,lastLips,prelastLips = alligator.LastData(pair,jawShifted,teethShifted,lipsShifted) # Последние значения            
-                angle, candleDiff,lipsVsTeethDiff = alligator.SupportData(lastLips,prelastLips,pair,Settings.dictPairXvalue,lastTeeth) #Вспомогательные значения
-
-                        
-                if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
-                    alligator.saveToExcel(pair, "ALLIGATOR_LOG", lastJaw, angle, f"{timeFrame}", Settings.filenameAlligator)
-
-            
-                if isNewBar_H1 and timeFrame == mt5.TIMEFRAME_H1:
-                    checkOpen(angle, pair, timeFrame) 
-                if isNewBar_H4 and timeFrame == mt5.TIMEFRAME_H4:
-                    checkOpen(angle, pair, timeFrame)       
+        try:
+            df_H1 = alligator.Df('XAUUSDrfd', mt5.TIMEFRAME_H1)
+            df_H4 = alligator.Df('XAUUSDrfd', mt5.TIMEFRAME_H4)
+            isNewBar_H1, lastCheckedTime_H1 = alligator.IsNewBar(df_H1, lastCheckedTime_H1, mt5.TIMEFRAME_H1)
+            isNewBar_H4, lastCheckedTime_H4 = alligator.IsNewBar(df_H4, lastCheckedTime_H4, mt5.TIMEFRAME_H4)
+            for timeFrame in timeFrames:
                     
-                checkClose(currentPrice, openPrice, lastJaw, pair, timeFrame) 
-                #Обновляем время следующей записи
+                for pair in pairs:
+                    currentTime = mt5Connector.ServerTime('XAUUSDrfd')
+                    currentPrice = mt5.symbol_info_tick(pair).ask
+                    df = alligator.Df(pair, timeFrame)
+                    medianPrice,jaw,teeth,lips,openPrice = alligator.MainData(df) # Основные значения
+                    jawShifted,teethShifted,lipsShifted = alligator.ShiftedData(jaw,teeth,lips,medianPrice) # Значения со сдвигом            
+                    lastJaw,lastTeeth,lastLips,prelastLips = alligator.LastData(pair,jawShifted,teethShifted,lipsShifted) # Последние значения            
+                    angle, candleDiff,lipsVsTeethDiff = alligator.SupportData(lastLips,prelastLips,pair,Settings.dictPairXvalue,lastTeeth) #Вспомогательные значения
+
+                            
+                    if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
+                        alligator.saveToExcel(pair, "ALLIGATOR_LOG", lastJaw, angle, f"{timeFrame}", Settings.filenameAlligator)
+
                 
-            
-            
-        print(f"AlligatorForMetals все в порядке, время:{mt5Connector.ServerTime('XAUUSDrfd')}")
-        nextLogTime = logger.getNextLogTime(currentTime)
-            
-        time.sleep(40)
+                    if isNewBar_H1 and timeFrame == mt5.TIMEFRAME_H1:
+                        checkOpen(angle, pair, timeFrame) 
+                    if isNewBar_H4 and timeFrame == mt5.TIMEFRAME_H4:
+                        checkOpen(angle, pair, timeFrame)       
+                        
+                    checkClose(currentPrice, openPrice, lastJaw, pair, timeFrame) 
+                    #Обновляем время следующей записи
+                    
+                
+                
+            print(f"AlligatorForMetals все в порядке, время:{mt5Connector.ServerTime('XAUUSDrfd')}")
+            nextLogTime = logger.getNextLogTime(currentTime)
+        except Exception as e:
+            print(f"Ошибка при создании графика: {str(e)}")
+            continue
+                
+        time.sleep(17)
         
 
     

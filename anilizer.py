@@ -294,5 +294,6 @@ class Alligator:
         if bars is None:
             print("Не удалось получить данные:", mt5.last_error())
         df = pd.DataFrame(bars)
+        df['time'] = pd.to_datetime(df['time'], unit='s')
         return df
 
