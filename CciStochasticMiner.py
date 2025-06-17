@@ -25,8 +25,8 @@ def ExtremumDisplay(result, cciValues, pair, cciAngle, stochAngle) :
         print(f"{pair}\nПерепроданность, лонгуем\nЗначение: {cciValues[0]}")
         response = mt5Connector.orderOpen(pair,TargetType.LONG,IndicatorType.EXTREMUM_REVERSE,100,700)
         alligator.saveToExcel(pair, "CCI_STOCH_OPEN_BUY", cciAngle, stochAngle, "", Settings.filenameCCIStoch)
-        print(f"{pair}\nПерепроданность, ставлю ордер на лонг\nОрдер: {response["order"]}") 
-        
+        print(f"{pair}\nПерепроданность, ставлю ордер на лонг\nОрдер: {response["order"]}")
+
     if result["target"] == TargetType.SHORT:                
         print(f"{pair}\nПерекупленность, шортим\nЗначение: {cciValues[0]}")   
         response = mt5Connector.orderOpen(pair,TargetType.SHORT,IndicatorType.EXTREMUM_REVERSE,100,700)
@@ -44,7 +44,7 @@ if __name__ == '__main__':
 
             currentTime = mt5Connector.ServerTime('EURUSDrfd') 
             cci,signal,main = mt5Connector.getData(pair,30)                        
-            resultExtremum = extremum.checkForEnter(cci, signal)
+            resultExtremum = extremum.checkForEnter(cci, signal,pair)
             ExtremumDisplay(resultExtremum, cci, pair, resultExtremum["cciAngle"], resultExtremum["stochAngle"])   
             
             if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
