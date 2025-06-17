@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
                         
                 if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
-                    alligator.saveToExcel(pair, "ALLIGATOR_LOG", "", "", f"{timeFrame}", Settings.filenameAlligator)
+                    logger.saveToExcel(pair, "ALLIGATOR_LOG", "", "", f"{timeFrame}", Settings.filenameAlligator)
 
                                 
                 if isNewBar_H1 and timeFrame == mt5.TIMEFRAME_M1:

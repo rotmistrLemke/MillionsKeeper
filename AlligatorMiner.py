@@ -23,12 +23,12 @@ def checkOpen(angle, pair):
     if angle > 15:
         mt5Connector.orderOpenForAlligatorMain(pair,TargetType.LONG,IndicatorType.ALLIGATOR_MAIN)
         print(f"\n{"-" * 50}, \ntime:{serverTime} \npair: {pair} \nangle: {angle} \ncomment: Ордер LONG выставлен по условию, \n{"-" * 50}")
-        alligator.saveToExcel(pair, "OPEN_LONG", 0, angle, "Ордер LONG выставлен по условию")
+        logger.saveToExcel(pair, "OPEN_LONG", 0, angle, "Ордер LONG выставлен по условию")
             
     if angle < -15:        
         mt5Connector.orderOpenForAlligatorMain(pair,TargetType.SHORT,IndicatorType.ALLIGATOR_MAIN)
         print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \nangle: {angle} \ncomment: Ордер SHORT выставлен по условию, \n{"-" * 50}")
-        alligator.saveToExcel(pair, "OPEN_SHORT", 0,  angle, "Ордер SHORT выставлен по условию")
+        logger.saveToExcel(pair, "OPEN_SHORT", 0,  angle, "Ордер SHORT выставлен по условию")
             
 def checkClose(currentPrice, openPrice, teeth, pair):
     serverTime = mt5Connector.ServerTime(pair)
@@ -41,7 +41,7 @@ def checkClose(currentPrice, openPrice, teeth, pair):
             
             mt5Connector.orderClose(ticket,pair)
             print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \nteeth: {teeth} \nopenPrice: {openPrice} \ncomment: Ордер SHORT снят \n{"-" * 50}")
-            alligator.saveToExcel(pair, "CLOSE_SHORT",teeth, angle,  "Ордер SHORT снят")
+            logger.saveToExcel(pair, "CLOSE_SHORT",teeth, angle,  "Ордер SHORT снят")
             
     if currentPrice < teeth < openPrice:
         
@@ -51,7 +51,7 @@ def checkClose(currentPrice, openPrice, teeth, pair):
             
             mt5Connector.orderClose(ticket,pair)
             print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \nteeth: {teeth} \nopenPrice: {openPrice} \ncomment: Ордер LONG снят \n{"-" * 50}")
-            alligator.saveToExcel(pair, "CLOSE_LONG",teeth, angle,  "Ордер LONG снят")
+            logger.saveToExcel(pair, "CLOSE_LONG",teeth, angle,  "Ордер LONG снят")
           
 
             
@@ -95,7 +95,7 @@ if __name__ == '__main__':
 
                      
             if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
-                alligator.saveToExcel(pair, "ALLIGATOR_LOG", lastTeeth, angle, "")
+                logger.saveToExcel(pair, "ALLIGATOR_LOG", lastTeeth, angle, "")
 
         
             if isNewBar:

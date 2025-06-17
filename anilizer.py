@@ -1,14 +1,13 @@
-from plistlib import InvalidFileException
-import zipfile
+
 import numpy as np
-from appEnum import IndicatorType,TargetType,Settings
+from appEnum import TargetType
 import math
 from decimal import Decimal
 import pandas as pd
 import MetaTrader5 as mt5
-from openpyxl import Workbook, load_workbook
-from datetime import datetime
 from mt5Connector import MT5Connector
+
+
 
 account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
 
@@ -131,9 +130,9 @@ class Extremum:
         last_sma = sma.iloc[-8:]        
         angle = self.angleForCciStoch(last_sma.iloc[-1], last_sma.iloc[0], 8)
         
-        if angle > 15:
+        if angle > 10:
             return TargetType.LONG
-        elif angle < -15:
+        elif angle < -10:
             return TargetType.SHORT
         else:
             return TargetType.NEUTRAL
@@ -207,76 +206,7 @@ class Alligator:
         """Возвращает разницу между текущей ценой и индикатором аллигатор по модулю."""
         return abs(lips - teeth)/ mt5.symbol_info(pair).point
     
-    def saveToExcel(self,pair, event, teeth, angle, comment, fileName): 
-        try:
-            # Пытаемся загрузить существующий файл
-            workbook = load_workbook(fileName)
-            sheet = workbook.active
-        #except FileNotFoundError:
-            # Если файла нет — создаем новый
-            #workbook = Workbook()
-            #sheet = workbook.active
-            #sheet.append(["Дата", "Событие", "Пара", "Зубы (Teeth)", "Угол", "Комментарий"])
-        except (FileNotFoundError, zipfile.BadZipFile, InvalidFileException) as e:
-            print(f"⚠️ Ошибка при загрузке файла {fileName}: {e}")
-            print("Продолжаю работу без сохранения в Excel...")
-            return
-        
-        # Добавляем новую строку
-        sheet.append([
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            event,
-            pair,
-            teeth,
-            angle,
-            comment
-        ])
-        
-        try:
-            workbook.save(fileName)
-        except (FileNotFoundError, zipfile.BadZipFile, InvalidFileException, PermissionError) as e:
-            print(f"⚠️ Ошибка при сохранении файла {fileName}: {e}")
-            print("Продолжаю работу без сохранения в Excel...")
-            return
-    
-    def saveToExcelOpenAi(self,pair, event, positionType, price, sl, tp, signalPower, trendAnalysis, volumeAnalysis, summary, error, fileName) : 
-        try:
-            # Пытаемся загрузить существующий файл
-            workbook = load_workbook(fileName)
-            sheet = workbook.active
-        except FileNotFoundError:
-            # Если файла нет — создаем новый
-            workbook = Workbook()
-            sheet = workbook.active
-            sheet.append(["Дата", "Событие", "Пара", "Тип ордера", "Цена", "sl", "tp", "мощность сигнала", "Анализ тренда", "Анализ объема", "Итого", "Ошибка"])
-        except (FileNotFoundError, zipfile.BadZipFile, InvalidFileException) as e:
-            print(f"⚠️ Ошибка при загрузке файла {fileName}: {e}")
-            print("Продолжаю работу без сохранения в Excel...")
-            return
-        
-        # Добавляем новую строку
-        sheet.append([
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            event,
-            pair,
-            positionType, 
-            price, 
-            sl, 
-            tp, 
-            signalPower, 
-            trendAnalysis, 
-            volumeAnalysis, 
-            summary, 
-            error
-        ])
-        
-        try:
-            workbook.save(fileName)
-        except (FileNotFoundError, zipfile.BadZipFile, InvalidFileException, PermissionError) as e:
-            print(f"⚠️ Ошибка при сохранении файла {fileName}: {e}")
-            print("Продолжаю работу без сохранения в Excel...")
-            return
-  
+
     
     def MainData(self,df):
         medianPrice = (df['high'] + df['low']) / 2  # Медианная цена (HL/2)

@@ -4,10 +4,11 @@ from mt5Connector import MT5Connector
 import MetaTrader5 as mt5
 from appEnum import TargetType, Settings
 from anilizer import Extremum, Alligator
-
+from logger import Logger
 
 account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
 mt5Connector = MT5Connector(account)
+logger = Logger()
 alligator = Alligator()
 settings = {
     "CCI_ReferenceLimitForEnter" : 60
@@ -106,7 +107,7 @@ else:
                 
                 if result["value"] == False:
                     mt5Connector.orderClose(ticketId,symbol)
-                    alligator.saveToExcel(symbol, "CCI_STOCH_CLOSE", 0, 0, result["cciValue"], Settings.filenameCCIStoch)
+                    logger.saveToExcel(symbol, "CCI_STOCH_CLOSE", 0, 0, result["cciValue"], Settings.filenameCCIStoch)
                                        
                 cciFIlteredOrders.append(order_dict)
         

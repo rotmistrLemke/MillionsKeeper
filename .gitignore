@@ -1,9 +1,5 @@
 
-alligator_data_2.0.xlsx
-
-test.py
-
-test2.py
-
+*.xlsx
+test
 # Игнорировать кэш Python
 __pycache__/

@@ -3,11 +3,10 @@ from appEnum import TargetType,IndicatorType, Settings
 from logger import Logger
 from anilizer import Extremum
 import time
-from anilizer import Alligator
 
 account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
 mt5Connector = MT5Connector(account)
-alligator = Alligator()
+logger = Logger()
 settings = {
     "CCI_ReferenceLimitForEnter" : 60
 }
@@ -24,13 +23,13 @@ def ExtremumDisplay(result, cciValues, pair, cciAngle, stochAngle) :
     if result["target"] == TargetType.LONG:       
         print(f"{pair}\nПерепроданность, лонгуем\nЗначение: {cciValues[0]}")
         response = mt5Connector.orderOpen(pair,TargetType.LONG,IndicatorType.EXTREMUM_REVERSE,100,700)
-        alligator.saveToExcel(pair, "CCI_STOCH_OPEN_BUY", cciAngle, stochAngle, "", Settings.filenameCCIStoch)
+        logger.saveToExcel(pair, "CCI_STOCH_OPEN_BUY", cciAngle, stochAngle, "", Settings.filenameCCIStoch)
         print(f"{pair}\nПерепроданность, ставлю ордер на лонг\nОрдер: {response["order"]}")
 
     if result["target"] == TargetType.SHORT:                
         print(f"{pair}\nПерекупленность, шортим\nЗначение: {cciValues[0]}")   
         response = mt5Connector.orderOpen(pair,TargetType.SHORT,IndicatorType.EXTREMUM_REVERSE,100,700)
-        alligator.saveToExcel(pair, "CCI_STOCH_OPEN_SHORT", cciAngle, stochAngle, "", Settings.filenameCCIStoch)
+        logger.saveToExcel(pair, "CCI_STOCH_OPEN_SHORT", cciAngle, stochAngle, "", Settings.filenameCCIStoch)
         print(f"{pair}\nПерекупленность, ставлю ордер на шорт\nОрдер: {response["order"]}")   
 
 if __name__ == '__main__':
@@ -48,7 +47,7 @@ if __name__ == '__main__':
             ExtremumDisplay(resultExtremum, cci, pair, resultExtremum["cciAngle"], resultExtremum["stochAngle"])   
             
             if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
-                alligator.saveToExcel(pair, "CCI_STOCH_LOG", resultExtremum["cciAngle"], resultExtremum["stochAngle"], "", Settings.filenameCCIStoch)
+                logger.saveToExcel(pair, "CCI_STOCH_LOG", resultExtremum["cciAngle"], resultExtremum["stochAngle"], "", Settings.filenameCCIStoch)
             
         
         

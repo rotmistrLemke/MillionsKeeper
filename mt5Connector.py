@@ -1,12 +1,7 @@
 import MetaTrader5 as mt5
 import pandas as pd
 import numpy as np
-from enum import Enum
 from appEnum import TargetType, Settings
-from stock_indicators import indicators
-from stock_indicators import Quote
-from datetime import datetime
-from anilizer import Alligator
 
 class MT5Connector:
     def __init__(self,account):
@@ -61,36 +56,6 @@ class MT5Connector:
         except Exception as e:
             print(f"Ошибка при получении данных: {str(e)}")
             return False
-    
-    def alligatorData(self, pair):
-        bars = mt5.copy_rates_from_pos(pair, mt5.TIMEFRAME_H1, 0, 500)
-        if bars is None:
-            print("Не удалось получить данные:", mt5.last_error())
-
-        df = pd.DataFrame(bars)
-        medianPrice = (df['high'] + df['low']) / 2  # Медианная цена (HL/2)
-            
-        # Рассчитываем линии Аллигатора
-        jaw = Alligator.smma(medianPrice, 13)  # Челюсти (13)
-        teeth = Alligator.smma(medianPrice, 8)   # Зубы (8)
-        lips = Alligator.smma(medianPrice, 5)    # Губы (5)
-
-        # Смещаем линии  (бары 3, 1, -1)
-        jawShifted = jaw.shift(3)
-        teethShifted = teeth.shift(1)
-        lipsShifted = lips.shift(-1)
-            
-        # Последние значения
-        countDecimalPlace = Alligator.CountDecimalPlace(pair)
-        lastJaw = float(f"{jawShifted.iloc[-2]:.{countDecimalPlace}f}")
-        lastTeeth =  float(f"{teethShifted.iloc[-2]:.{countDecimalPlace}f}")
-        lastLips = float(f"{lipsShifted.iloc[-2]:.{countDecimalPlace}f}")
-        prelastLips = float(f"{lipsShifted.iloc[-3]:.{countDecimalPlace}f}")
-        angle = int(f"{Alligator.angle(lastLips,prelastLips,pair,Settings.dictPairXvalue.get(pair, 100)):.0f}")
-        candleDiff = int(f"{Alligator.getAlligatorVsCurrentCandelDiff(pair,lastLips):.0f}")
-        lipsVsTeethDiff = int(f"{Alligator.getLipsVsTeethDiff(pair, lastLips, lastTeeth):.0f}")
-        
-        return lastJaw, lastTeeth, lastLips, angle, candleDiff, lipsVsTeethDiff
 
 
     def CCI(self, period=14):
