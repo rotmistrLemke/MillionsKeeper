@@ -42,7 +42,7 @@ def checkClose(currentPrice, openPrice, jaw, pair, timeFrame):
             
             mt5Connector.orderClose(ticket,pair)
             print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \nteeth: {jaw} \nopenPrice: {openPrice} \ncomment: Ордер SHORT снят \n{"-" * 50}")
-            alligator.saveToExcel(pair, "CLOSE_SHORT",teeth, angle,  "Ордер SHORT снят", Settings.filenameAlligator)
+            alligator.saveToExcel(pair, "CLOSE_SHORT",jaw, angle,  "Ордер SHORT снят", Settings.filenameAlligator)
             
     if currentPrice < jaw < openPrice:
         
@@ -52,7 +52,7 @@ def checkClose(currentPrice, openPrice, jaw, pair, timeFrame):
             
             mt5Connector.orderClose(ticket,pair)
             print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \nteeth: {jaw} \nopenPrice: {openPrice} \ncomment: Ордер LONG снят \n{"-" * 50}")
-            alligator.saveToExcel(pair, "CLOSE_LONG",teeth, angle,  "Ордер LONG снят", Settings.filenameAlligator)
+            alligator.saveToExcel(pair, "CLOSE_LONG",jaw, angle,  "Ордер LONG снят", Settings.filenameAlligator)
           
 
 if __name__ == '__main__':
