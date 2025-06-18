@@ -8,6 +8,7 @@ class IndicatorType:
     EXTREMUM_REVERSE = 2
     ZERO_INTERSECTION = 3
     ALLIGATOR_MAIN = 4
+    BOLLINGER_BANDS = 5
     
 class Settings:
     dictPairXvalue = {
@@ -93,12 +94,13 @@ class Settings:
     "GBPCHFrfd": 135,
     "EURCADrfd": 210,
     "GBPCADrfd": 160,
-    "XAUUSDrfd": 1005,
     "GBPJPYrfd": 195
   
 }
 
-    filenameAlligator = "C:/MillionsKeeper/alligator_data_2.0.xlsx"
-    filenameCCIStoch = "C:/MillionsKeeper/CCI_Stoch_data.xlsx"
+    filenameAlligator = "C:/MillionsKeeper/logs/alligator_data_2.0.xlsx"
+    filenameCCIStoch = "C:/MillionsKeeper/logs/CCI_Stoch_data.xlsx"
+    filenameErrors = "C:/MillionsKeeper/logs/errors.xlsx"
+    filenameBollingerBands="C:/MillionsKeeper/logs/bollinger_bands_data.xlsx"
 
    

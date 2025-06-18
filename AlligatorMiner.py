@@ -4,7 +4,7 @@ import time
 import pandas as pd
 import MetaTrader5 as mt5
 from Support.anilizer import Alligator
-from Support.logger import Logger
+from logs.logger import Logger
 
 account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
 mt5Connector = MT5Connector(account)

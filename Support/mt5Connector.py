@@ -267,6 +267,52 @@ class MT5Connector:
             print(f"Пара {symbol} Ордер {result.order} цена {result.price}")
         return {"order":result.order,"price":result.price,"symbol":symbol,"targetType":type}
     
+    def orderOpenForBB(self,symbol,type,comment):
+        symbol_info = mt5.symbol_info(symbol) 
+        
+        if not symbol_info.visible:
+            if not mt5.symbol_select(symbol,True):
+                print("symbol_select({}}) failed, exit",symbol)        
+        volume = 0.1
+        deviation = 20
+        point = mt5.symbol_info(symbol).point
+        price = mt5.symbol_info_tick(symbol).ask
+        result = None
+        if type == TargetType.LONG:            
+            result = mt5.order_send({
+                "action": mt5.TRADE_ACTION_DEAL,
+                "symbol": symbol,
+                "volume": volume,
+                "type": mt5.ORDER_TYPE_BUY,
+                "price": price,                
+                "deviation": deviation,
+                "comment": str(comment),
+                "type_time": mt5.ORDER_TIME_GTC,
+                "type_filling": mt5.ORDER_FILLING_FOK,
+            })
+        if type == TargetType.SHORT:            
+            result = mt5.order_send({
+                "action": mt5.TRADE_ACTION_DEAL,
+                "symbol": symbol,
+                "volume": volume,
+                "type": mt5.ORDER_TYPE_SELL,
+                "price": price,                
+                "deviation": deviation,
+                "comment": str(comment),
+                "type_time": mt5.ORDER_TIME_GTC,
+                "type_filling": mt5.ORDER_FILLING_FOK,
+            })
+        if not result:
+            print(mt5.last_error()) 
+
+        elif result.retcode != mt5.TRADE_RETCODE_DONE:
+                print("4. order_send failed, retcode={}".format(result.retcode))
+                print("   result",result) 
+        else:   
+            print(f"Пара {symbol} Ордер {result.order} цена {result.price}")
+        return {"order":result.order,"price":result.price,"symbol":symbol,"targetType":type}
+    
+    
     def orderOpenStoplimit(self,symbol,type,comment,price,takeProfit,stopLoss):
         symbol_info = mt5.symbol_info(symbol) 
         if not symbol_info.visible:

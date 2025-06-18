@@ -82,4 +82,68 @@ class Logger:
             print("Продолжаю работу без сохранения в Excel...")
             return
   
-    
+    def saveErrorsToExcel(self, service, comment, fileName): 
+        try:
+            # Пытаемся загрузить существующий файл
+            workbook = load_workbook(fileName)
+            sheet = workbook.active
+
+        except (FileNotFoundError, zipfile.BadZipFile, InvalidFileException) as e:
+            
+            print(f"⚠️ Ошибка при загрузке файла {fileName}: {e}")
+            print("Продолжаю работу без сохранения в Excel...")
+            workbook = Workbook()
+            sheet = workbook.active
+            sheet.append(["Дата", "сервис", "ошибка"])
+            
+            return
+        
+        # Добавляем новую строку
+        sheet.append([
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            service,
+            comment
+        ])
+        
+        try:
+            workbook.save(fileName)
+        except (FileNotFoundError, zipfile.BadZipFile, InvalidFileException, PermissionError) as e:
+            print(f"⚠️ Ошибка при сохранении файла {fileName}: {e}")
+            print("Продолжаю работу без сохранения в Excel...")
+            return
+
+    def saveBBToExcel(self, pair, typeOperation, price, lower, middle, upper, comment, fileName): 
+        try:
+            # Пытаемся загрузить существующий файл
+            workbook = load_workbook(fileName)
+            sheet = workbook.active
+
+        except (FileNotFoundError, zipfile.BadZipFile, InvalidFileException) as e:
+            
+            print(f"⚠️ Ошибка при загрузке файла {fileName}: {e}")
+            print("Продолжаю работу без сохранения в Excel...")
+            workbook = Workbook()
+            sheet = workbook.active
+            sheet.append(["время", "пара", "тип операции", "цена", "lower", "middle", "upper", "комментарий"])
+            
+            return
+        
+        # Добавляем новую строку
+        sheet.append([
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            pair,
+            typeOperation,
+            price,
+            lower,
+            middle,
+            upper,
+            comment           
+            
+        ])
+        
+        try:
+            workbook.save(fileName)
+        except (FileNotFoundError, zipfile.BadZipFile, InvalidFileException, PermissionError) as e:
+            print(f"⚠️ Ошибка при сохранении файла {fileName}: {e}")
+            print("Продолжаю работу без сохранения в Excel...")
+            return

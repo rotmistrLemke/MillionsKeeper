@@ -1,6 +1,6 @@
 from Support.mt5Connector import MT5Connector
 from Support.appEnum import TargetType,IndicatorType, Settings
-from Support.logger import Logger
+from logs.logger import Logger
 from Support.anilizer import Extremum
 import time
 
@@ -37,20 +37,25 @@ if __name__ == '__main__':
     nextLogTime = logger.getNextLogTime(mt5Connector.ServerTime('EURUSDrfd'))
     currentTime = mt5Connector.ServerTime('EURUSDrfd')
     
-    while True:  
-        pairs = Settings.dictPairXvalue.keys()
-        for pair in pairs:
+    while True: 
+        try: 
+            pairs = Settings.dictPairXvalue.keys()
+            for pair in pairs:
 
-            currentTime = mt5Connector.ServerTime('EURUSDrfd') 
-            cci,signal,main = mt5Connector.getData(pair,30)                        
-            resultExtremum = extremum.checkForEnter(cci, signal,pair)
-            ExtremumDisplay(resultExtremum, cci, pair, resultExtremum["cciAngle"], resultExtremum["stochAngle"])   
+                currentTime = mt5Connector.ServerTime('EURUSDrfd') 
+                cci,signal,main = mt5Connector.getData(pair,30)                        
+                resultExtremum = extremum.checkForEnter(cci, signal,pair)
+                ExtremumDisplay(resultExtremum, cci, pair, resultExtremum["cciAngle"], resultExtremum["stochAngle"])   
+                
+                if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
+                    logger.saveToExcel(pair, "CCI_STOCH_LOG", resultExtremum["cciAngle"], resultExtremum["stochAngle"], "", Settings.filenameCCIStoch)
+                
             
-            if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
-                logger.saveToExcel(pair, "CCI_STOCH_LOG", resultExtremum["cciAngle"], resultExtremum["stochAngle"], "", Settings.filenameCCIStoch)
             
-        
-        
-        nextLogTime = logger.getNextLogTime(currentTime)   
-        print(f"CCI_Stochastic все в порядке, время:{mt5Connector.ServerTime('EURUSDrfd')}")        
+            nextLogTime = logger.getNextLogTime(currentTime)   
+            print(f"CCI_Stochastic все в порядке, время:{mt5Connector.ServerTime('EURUSDrfd')}")       
+        except Exception as e:
+            print(f"Ошибка хуибка читай логи: {str(e)}")
+            logger.saveErrorsToExcel("cciStochastic", str(e), Settings.filenameErrors) 
+            continue 
         time.sleep(40)

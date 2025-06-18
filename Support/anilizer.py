@@ -6,6 +6,7 @@ from decimal import Decimal
 import pandas as pd
 import MetaTrader5 as mt5
 from Support.mt5Connector import MT5Connector
+import talib
 
 
 
@@ -254,11 +255,39 @@ class Alligator:
         return False, lastCheckedTime  # Возвращаем False и старое время
 
 
-    def Df(self,pair, timeFrame):
+    def Df(self, pair, timeFrame):
         bars = mt5.copy_rates_from_pos(pair, timeFrame, 0, 500)
         if bars is None:
             print("Не удалось получить данные:", mt5.last_error())
         df = pd.DataFrame(bars)
+       
         df['time'] = pd.to_datetime(df['time'], unit='s')
         return df
 
+class AdaptiveMovingAverage:
+    
+    def checkFlat(self, df, pair, dictPairXvalue):
+
+        close_prices = df['close'].values
+        # Расчет AMA (период 10, fast=2, slow=30)
+        ama = talib.KAMA(close_prices, timeperiod=10)  # KAMA (Kaufman's AMA) — альтернатива AMA
+        # Добавление AMA в DataFrame
+        df['AMA'] = ama
+        last_two = df[['AMA']].tail(2)
+        
+        lastAma = last_two['AMA'].iloc[-1]
+        prevAma = last_two['AMA'].iloc[-2]
+        pairXvalue = dictPairXvalue.get(pair, 100)
+        
+        x = (lastAma - prevAma) / mt5.symbol_info(pair).point
+        angle_rad = math.atan2(x, pairXvalue/2)
+        angle = int(f"{math.degrees(angle_rad):.0f}") if math.degrees else int(f"{angle_rad:.0f}")
+        
+        if angle > 10 or angle < -10:
+            return {"value": False, "angle": angle}
+        else:
+            return {"value": True, "angle": angle}
+
+        
+        
+    
