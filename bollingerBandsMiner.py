@@ -32,8 +32,7 @@ def checkOpen(currentPrice, upper, lower, pair, timeFrame):
         mt5Connector.orderOpenForBB(pair, TargetType.SHORT, f"{IndicatorType.BOLLINGER_BANDS}_{timeFrame}")
         print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \ncomment: Ордер SHORT выставлен по условию, \n{"-" * 50}")
         logger.saveBBToExcel(pair, "OPEN_SHORT", currentPrice, 0, 0, upper, "", Settings.filenameBollingerBands)
-
-            
+          
 def checkClose(currentPrice, middle, pair, timeFrame):
     serverTime = mt5Connector.ServerTime(pair)
     
@@ -109,7 +108,7 @@ if __name__ == '__main__':
                     lastLower, lastMiddle, lastUpper = getBBData(data)
                                                 
                     if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
-                        logger.saveBBToExcel(pair, "OPEN_LONG", currentPrice, lastLower, lastMiddle, lastUpper, "", Settings.filenameBollingerBands)
+                        logger.saveBBToExcel(pair, "LOG", currentPrice, lastLower, lastMiddle, lastUpper, "", Settings.filenameBollingerBands)
 
                 
                     if checkFlat["value"] == True:

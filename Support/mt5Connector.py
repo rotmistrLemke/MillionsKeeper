@@ -18,8 +18,7 @@ class MT5Connector:
             )
         except Exception as e:
             print(f"Ошибка авторизации: {str(e)}")    
- 
- 
+
     def getCandles(self, symbol, timeFrame, candleCount):
         
         try:
@@ -42,6 +41,7 @@ class MT5Connector:
         except Exception as e:
             print(f"Ошибка при получении данных для {symbol}: {str(e)}")
             return None       
+    
     def getHistoricalData(self, symbol, timeframe, count):
         """Получает исторические данные из MT5"""
         try:
@@ -56,7 +56,6 @@ class MT5Connector:
         except Exception as e:
             print(f"Ошибка при получении данных: {str(e)}")
             return False
-
 
     def CCI(self, period=14):
             """Рассчитывает CCI"""
@@ -107,8 +106,7 @@ class MT5Connector:
             main.append(float(result_df.loc[idx, 'Stochastic_K']))
         
         return signal,main
-        
-   
+ 
     def getData(self, symbol, count):
         if self.authorized:            
             if self.getHistoricalData(symbol,mt5.TIMEFRAME_H4,count):
@@ -216,7 +214,6 @@ class MT5Connector:
             print(f"Пара {symbol} Ордер {result.order} цена {result.price}")
         return {"order":result.order,"price":result.price,"symbol":symbol,"targetType":type}
     
-    
     def orderOpenForAlligatorMain(self,symbol,type,comment):
         symbol_info = mt5.symbol_info(symbol) 
         if symbol == 'XAGUSDrfd':
@@ -269,6 +266,10 @@ class MT5Connector:
     
     def orderOpenForBB(self,symbol,type,comment):
         symbol_info = mt5.symbol_info(symbol) 
+        if symbol == 'XAGUSDrfd':
+            stopLossPoint = 2000
+        else:
+            stopLossPoint = 1000
         
         if not symbol_info.visible:
             if not mt5.symbol_select(symbol,True):
@@ -284,6 +285,7 @@ class MT5Connector:
                 "symbol": symbol,
                 "volume": volume,
                 "type": mt5.ORDER_TYPE_BUY,
+                "sl": price - stopLossPoint * point,
                 "price": price,                
                 "deviation": deviation,
                 "comment": str(comment),
@@ -296,6 +298,7 @@ class MT5Connector:
                 "symbol": symbol,
                 "volume": volume,
                 "type": mt5.ORDER_TYPE_SELL,
+                "sl": price + stopLossPoint * point,
                 "price": price,                
                 "deviation": deviation,
                 "comment": str(comment),
@@ -311,7 +314,6 @@ class MT5Connector:
         else:   
             print(f"Пара {symbol} Ордер {result.order} цена {result.price}")
         return {"order":result.order,"price":result.price,"symbol":symbol,"targetType":type}
-    
     
     def orderOpenStoplimit(self,symbol,type,comment,price,takeProfit,stopLoss):
         symbol_info = mt5.symbol_info(symbol) 
