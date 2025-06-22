@@ -7,10 +7,9 @@ import pandas as pd
 import MetaTrader5 as mt5
 from Support.mt5Connector import MT5Connector
 import talib
+from Support.account import Account
 
-
-
-account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
+account = Account.accountReal
 
 class ZeroIntersection:    
     def check(self, cciValues):

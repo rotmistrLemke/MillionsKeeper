@@ -1,5 +1,6 @@
 
 *.xlsx
 test*
+account.py
 # Игнорировать кэш Python
 __pycache__/

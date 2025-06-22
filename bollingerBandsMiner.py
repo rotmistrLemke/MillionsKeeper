@@ -6,9 +6,9 @@ from Support.mt5Connector import MT5Connector
 from Support.anilizer import Alligator, AdaptiveMovingAverage
 from Support.appEnum import TargetType,IndicatorType, Settings
 from logs.logger import Logger
+from Support.account import Account
 
-
-account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
+account = Account.accountReal
 mt5Connector = MT5Connector(account)
 symbol = "XAUUSDrfd"
 alligator = Alligator()

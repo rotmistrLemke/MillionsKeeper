@@ -216,14 +216,13 @@ class MT5Connector:
     
     def orderOpenForAlligatorMain(self,symbol,type,comment):
         symbol_info = mt5.symbol_info(symbol) 
-        if symbol == 'XAGUSDrfd':
-            stopLossPoint = 6000
-        else:
-            stopLossPoint = 300
         if not symbol_info.visible:
             if not mt5.symbol_select(symbol,True):
-                print("symbol_select({}}) failed, exit",symbol)        
-        volume = 0.5
+                print("symbol_select({}}) failed, exit",symbol)     
+        if symbol == 'XAGUSDrfd':
+            volume = 4
+        else:
+            volume = 2   
         deviation = 20
         point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).ask
@@ -268,13 +267,14 @@ class MT5Connector:
         symbol_info = mt5.symbol_info(symbol) 
         if symbol == 'XAGUSDrfd':
             stopLossPoint = 2000
+            volume = 4
         else:
             stopLossPoint = 1000
+            volume = 2
         
         if not symbol_info.visible:
             if not mt5.symbol_select(symbol,True):
                 print("symbol_select({}}) failed, exit",symbol)        
-        volume = 0.1
         deviation = 20
         point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).ask

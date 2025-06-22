@@ -3,8 +3,9 @@ from Support.appEnum import TargetType,IndicatorType, Settings
 from logs.logger import Logger
 from Support.anilizer import Extremum
 import time
+from Support.account import Account
 
-account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
+account = Account.accountReal
 mt5Connector = MT5Connector(account)
 logger = Logger()
 settings = {

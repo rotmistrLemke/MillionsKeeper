@@ -5,8 +5,9 @@ import talib
 import MetaTrader5 as mt5
 from Support.anilizer import Alligator
 from logs.logger import Logger
+from Support.account import Account
 
-account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
+account = Account.accountReal
 mt5Connector = MT5Connector(account)
 alligator = Alligator()
 logger = Logger()

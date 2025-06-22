@@ -6,14 +6,14 @@ from Support.mt5Connector import MT5Connector
 from Support.anilizer import Extremum,ZeroIntersection,HundredIntersection,Alligator
 from Support.chartCreator import createChart
 from Support.appEnum import TargetType,IndicatorType
-
+from Support.account import Account
 
 settings = {
     "CCI_ReferenceLimitForEnter" : 60
 }
-#account1 = {"login":2000096507,"password":"x$Kz8CD7XB","server":"AlfaForexRU-Real"}
-account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
 
+
+account = Account.accountReal
 #mt5Connector1 = MT5Connector(account1)
 mt5Connector = MT5Connector(account)
 zeroIntersection = ZeroIntersection()

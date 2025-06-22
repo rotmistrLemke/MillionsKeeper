@@ -5,8 +5,9 @@ import MetaTrader5 as mt5
 from Support.appEnum import TargetType, Settings
 from Support.anilizer import Extremum, Alligator
 from logs.logger import Logger
+from Support.account import Account
 
-account = {"login":2000099548,"password":"VeeDM6A$E1","server":"AlfaForexRU-Real"}
+account = Account.accountReal
 mt5Connector = MT5Connector(account)
 logger = Logger()
 alligator = Alligator()
