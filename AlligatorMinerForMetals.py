@@ -78,7 +78,7 @@ if __name__ == '__main__':
                     currentTime = mt5Connector.ServerTime('XAUUSDrfd')
                     currentPrice = mt5.symbol_info_tick(pair).ask
                     df = alligator.Df(pair, timeFrame)
-                    checkFlat = AMA.checkFlatAlligator(df, pair, Settings.dictPairXvalue)
+                    checkFlat = AMA.checkFlat(df, pair, Settings.dictPairXvalue)
                     medianPrice,jaw,teeth,lips,openPrice = alligator.MainData(df) # Основные значения
                     jawShifted,teethShifted,lipsShifted = alligator.ShiftedData(jaw,teeth,lips,medianPrice) # Значения со сдвигом            
                     lastJaw,lastTeeth,lastLips,prelastLips = alligator.LastData(pair,jawShifted,teethShifted,lipsShifted) # Последние значения            
@@ -86,7 +86,7 @@ if __name__ == '__main__':
 
                             
                     if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
-                        logger.saveToExcel(pair, "ALLIGATOR_LOG", lastJaw, angle, f"{timeFrame}__{checkFlat["value"]}", Settings.filenameAlligator)
+                        logger.saveToExcel(pair, "ALLIGATOR_LOG", lastJaw, angle, f"{timeFrame}__{checkFlat["value"]}__{checkFlat["angle"]}", Settings.filenameAlligator)
 
                 
                     if checkFlat["value"] == False:

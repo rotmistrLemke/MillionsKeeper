@@ -104,7 +104,7 @@ if __name__ == '__main__':
                     currentTime = mt5Connector.ServerTime('XAUUSDrfd')
                     currentPrice = mt5.symbol_info_tick(pair).ask
                     data = symbolData(pair, timeFrame)
-                    checkFlat = AMA.checkFlatBB(data, pair, Settings.dictPairXvalue)
+                    checkFlat = AMA.checkFlat(data, pair, Settings.dictPairXvalue)
                     lastLower, lastMiddle, lastUpper = getBBData(data)
                                                 
                     if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
