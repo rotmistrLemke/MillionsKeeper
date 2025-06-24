@@ -112,7 +112,7 @@ class Logger:
             print("Продолжаю работу без сохранения в Excel...")
             return
 
-    def saveBBToExcel(self, pair, typeOperation, price, lower, middle, upper, comment, fileName): 
+    def saveBBToExcel(self, pair, typeOperation, price, lower, middle, upper, comment, angle, fileName): 
         try:
             # Пытаемся загрузить существующий файл
             workbook = load_workbook(fileName)
@@ -124,7 +124,7 @@ class Logger:
             print("Продолжаю работу без сохранения в Excel...")
             workbook = Workbook()
             sheet = workbook.active
-            sheet.append(["время", "пара", "тип операции", "цена", "lower", "middle", "upper", "комментарий"])
+            sheet.append(["время", "пара", "тип операции", "цена", "lower", "middle", "upper", "угол" "комментарий"])
             
             return
         
@@ -137,6 +137,7 @@ class Logger:
             lower,
             middle,
             upper,
+            angle,
             comment           
             
         ])

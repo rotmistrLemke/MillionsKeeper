@@ -44,7 +44,7 @@ def checkClose(currentPrice, middle, pair, timeFrame):
             
             mt5Connector.orderClose(ticket, pair)
             print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \ncomment: Ордер SHORT снят \n{"-" * 50}")
-            logger.saveBBToExcel(pair, "CLOSE_SHORT",currentPrice, 0, middle, 0,  "Ордер SHORT снят", Settings.filenameAlligator)
+            logger.saveBBToExcel(pair, "CLOSE_SHORT",currentPrice, 0, middle, 0,  "Ордер SHORT снят", 0, Settings.filenameAlligator)
             
     if currentPrice > middle:
         
@@ -54,7 +54,7 @@ def checkClose(currentPrice, middle, pair, timeFrame):
             
             mt5Connector.orderClose(ticket, pair)
             print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \ncomment: Ордер LONG снят \n{"-" * 50}")
-            logger.saveBBToExcel(pair, "CLOSE_LONG",currentPrice, 0, middle, 0,  "Ордер LONG снят", Settings.filenameAlligator)
+            logger.saveBBToExcel(pair, "CLOSE_LONG",currentPrice, 0, middle, 0,  "Ордер LONG снят", 0, Settings.filenameAlligator)
 
 def symbolData(pair, timeframe):
     bars = mt5.copy_rates_from_pos(pair, timeframe, 0, 500)
@@ -104,11 +104,11 @@ if __name__ == '__main__':
                     currentTime = mt5Connector.ServerTime('XAUUSDrfd')
                     currentPrice = mt5.symbol_info_tick(pair).ask
                     data = symbolData(pair, timeFrame)
-                    checkFlat = AMA.checkFlat(data, pair, Settings.dictPairXvalue)
+                    checkFlat = AMA.checkFlatBB(data, pair, Settings.dictPairXvalue)
                     lastLower, lastMiddle, lastUpper = getBBData(data)
                                                 
                     if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
-                        logger.saveBBToExcel(pair, "LOG", currentPrice, lastLower, lastMiddle, lastUpper, "", Settings.filenameBollingerBands)
+                        logger.saveBBToExcel(pair, "LOG", currentPrice, lastLower, lastMiddle, lastUpper, "", checkFlat["angle"], Settings.filenameBollingerBands)
 
                 
                     if checkFlat["value"] == True:

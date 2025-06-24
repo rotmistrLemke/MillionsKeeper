@@ -265,7 +265,7 @@ class Alligator:
 
 class AdaptiveMovingAverage:
     
-    def checkFlat(self, df, pair, dictPairXvalue):
+    def checkFlatBB(self, df, pair, dictPairXvalue):
 
         close_prices = df['close'].values
         # Расчет AMA (период 10, fast=2, slow=30)
@@ -282,7 +282,29 @@ class AdaptiveMovingAverage:
         angle_rad = math.atan2(x, pairXvalue/2)
         angle = int(f"{math.degrees(angle_rad):.0f}") if math.degrees else int(f"{angle_rad:.0f}")
         
-        if angle > 10 or angle < -10:
+        if angle > 12 or angle < -12:
+            return {"value": False, "angle": angle}
+        else:
+            return {"value": True, "angle": angle}
+
+    def checkFlatAlligator(self, df, pair, dictPairXvalue):
+
+        close_prices = df['close'].values
+        # Расчет AMA (период 10, fast=2, slow=30)
+        ama = talib.KAMA(close_prices, timeperiod=10)  # KAMA (Kaufman's AMA) — альтернатива AMA
+        # Добавление AMA в DataFrame
+        df['AMA'] = ama
+        last_two = df[['AMA']].tail(2)
+        
+        lastAma = last_two['AMA'].iloc[-2]
+        prevAma = last_two['AMA'].iloc[-3]
+        pairXvalue = dictPairXvalue.get(pair, 100)
+        
+        x = (lastAma - prevAma) / mt5.symbol_info(pair).point
+        angle_rad = math.atan2(x, pairXvalue/2)
+        angle = int(f"{math.degrees(angle_rad):.0f}") if math.degrees else int(f"{angle_rad:.0f}")
+        
+        if angle > 12 or angle < -12:
             return {"value": False, "angle": angle}
         else:
             return {"value": True, "angle": angle}

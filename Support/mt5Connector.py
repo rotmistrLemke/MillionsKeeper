@@ -220,9 +220,9 @@ class MT5Connector:
             if not mt5.symbol_select(symbol,True):
                 print("symbol_select({}}) failed, exit",symbol)     
         if symbol == 'XAGUSDrfd':
-            volume = 4
+            volume = 0.04
         else:
-            volume = 2   
+            volume = 0.02   
         deviation = 20
         point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).ask
@@ -267,10 +267,10 @@ class MT5Connector:
         symbol_info = mt5.symbol_info(symbol) 
         if symbol == 'XAGUSDrfd':
             stopLossPoint = 2000
-            volume = 4
+            volume = 0.04
         else:
-            stopLossPoint = 1000
-            volume = 2
+            stopLossPoint = 2000
+            volume = 0.02
         
         if not symbol_info.visible:
             if not mt5.symbol_select(symbol,True):
