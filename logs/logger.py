@@ -4,7 +4,7 @@ from plistlib import InvalidFileException
 import zipfile
 from datetime import datetime
 
-INTERVAL_MINUTES = 10  # Интервал записи (10 минут)
+INTERVAL_MINUTES = 5  # Интервал записи (10 минут)
 
 class Logger:
     def getNextLogTime(self, current_time):
