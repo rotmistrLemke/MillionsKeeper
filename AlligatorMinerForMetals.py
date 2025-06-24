@@ -89,7 +89,7 @@ if __name__ == '__main__':
                         logger.saveToExcel(pair, "ALLIGATOR_LOG", lastJaw, angle, f"{timeFrame}__{checkFlat["value"]}", Settings.filenameAlligator)
 
                 
-                    if isNewBar_H1 and timeFrame == mt5.TIMEFRAME_H1 and checkFlat["value"] == False:
+                    if checkFlat["value"] == False:
                         checkOpen(angle, pair, timeFrame) 
                     #if isNewBar_H4 and timeFrame == mt5.TIMEFRAME_H4:
                         #checkOpen(angle, pair, timeFrame)       

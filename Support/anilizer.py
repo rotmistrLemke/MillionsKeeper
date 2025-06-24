@@ -294,7 +294,7 @@ class AdaptiveMovingAverage:
         ama = talib.KAMA(close_prices, timeperiod=10)  # KAMA (Kaufman's AMA) — альтернатива AMA
         # Добавление AMA в DataFrame
         df['AMA'] = ama
-        last_two = df[['AMA']].tail(2)
+        last_two = df[['AMA']].tail(3)
         
         lastAma = last_two['AMA'].iloc[-2]
         prevAma = last_two['AMA'].iloc[-3]
