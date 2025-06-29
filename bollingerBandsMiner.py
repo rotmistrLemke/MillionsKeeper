@@ -102,7 +102,7 @@ if __name__ == '__main__':
                     
                 for pair in pairs:
                     currentTime = mt5Connector.ServerTime('XAUUSDrfd')
-                    currentPrice = mt5.symbol_info_tick(pair).ask
+                    currentPrice = mt5.symbol_info_tick(pair).bid
                     data = symbolData(pair, timeFrame)
                     checkFlat = AMA.checkFlat(data, pair, Settings.dictPairXvalue)
                     lastLower, lastMiddle, lastUpper = getBBData(data)
@@ -111,9 +111,9 @@ if __name__ == '__main__':
                         logger.saveBBToExcel(pair, "LOG", currentPrice, lastLower, lastMiddle, lastUpper, "", checkFlat["angle"], Settings.filenameBollingerBands)
 
                 
-                    if checkFlat["value"] == True:
+                    if checkFlat["angle"] < 20 and checkFlat["angle"] > -20:
                         checkOpen(currentPrice, lastUpper, lastLower, pair, timeFrame) 
-                        checkClose(currentPrice, lastMiddle, pair, timeFrame) 
+                    checkClose(currentPrice, lastMiddle, pair, timeFrame) 
                         
                     print(f"Пара: {pair} флэт: {checkFlat["value"]} угол: {checkFlat["angle"]}")
                     #Обновляем время следующей записи

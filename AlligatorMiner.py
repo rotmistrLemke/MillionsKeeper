@@ -87,7 +87,7 @@ if __name__ == '__main__':
         isNewBar, lastCheckedTime = alligator.IsNewBar(df, lastCheckedTime)    
         for pair in pairs:
             currentTime = mt5Connector.ServerTime('EURUSDrfd')
-            currentPrice = mt5.symbol_info_tick(pair).ask
+            currentPrice = mt5.symbol_info_tick(pair).bid
             df = alligator.Df(pair)
             medianPrice,jaw,teeth,lips,openPrice = alligator.MainData(df) # Основные значения
             jawShifted,teethShifted,lipsShifted = alligator.ShiftedData(jaw,teeth,lips,medianPrice) # Значения со сдвигом            

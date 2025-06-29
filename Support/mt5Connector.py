@@ -127,7 +127,7 @@ class MT5Connector:
         volume = 0.01
         deviation = 20
         point = mt5.symbol_info(symbol).point
-        price = mt5.symbol_info_tick(symbol).ask
+        price = mt5.symbol_info_tick(symbol).bid
         result = None
         if type == TargetType.LONG:            
             result = mt5.order_send({
@@ -174,7 +174,7 @@ class MT5Connector:
                 print("symbol_select({}}) failed, exit",symbol)        
         volume = 0.01
         deviation = 20
-        price = mt5.symbol_info_tick(symbol).ask
+        price = mt5.symbol_info_tick(symbol).bid
         result = None
         if type == TargetType.LONG:            
             result = mt5.order_send({
@@ -225,7 +225,7 @@ class MT5Connector:
             volume = 0.02   
         deviation = 20
         point = mt5.symbol_info(symbol).point
-        price = mt5.symbol_info_tick(symbol).ask
+        price = mt5.symbol_info_tick(symbol).bid
         result = None
         if type == TargetType.LONG:            
             result = mt5.order_send({
@@ -277,7 +277,8 @@ class MT5Connector:
                 print("symbol_select({}}) failed, exit",symbol)        
         deviation = 20
         point = mt5.symbol_info(symbol).point
-        price = mt5.symbol_info_tick(symbol).ask
+        price = mt5.symbol_info_tick(symbol).bid
+        
         result = None
         if type == TargetType.LONG:            
             result = mt5.order_send({
@@ -322,7 +323,7 @@ class MT5Connector:
                 print("symbol_select({}}) failed, exit",symbol)        
         volume = 0.01
         deviation = 20
-        price = mt5.symbol_info_tick(symbol).ask
+        price = mt5.symbol_info_tick(symbol).bid
         result = None
         if type == TargetType.LONG:            
             result = mt5.order_send({

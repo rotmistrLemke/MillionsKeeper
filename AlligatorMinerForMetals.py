@@ -76,7 +76,7 @@ if __name__ == '__main__':
                     
                 for pair in pairs:
                     currentTime = mt5Connector.ServerTime('XAUUSDrfd')
-                    currentPrice = mt5.symbol_info_tick(pair).ask
+                    currentPrice = mt5.symbol_info_tick(pair).bid
                     df = alligator.Df(pair, timeFrame)
                     checkFlat = AMA.checkFlat(df, pair, Settings.dictPairXvalue)
                     medianPrice,jaw,teeth,lips,openPrice = alligator.MainData(df) # Основные значения
@@ -95,7 +95,7 @@ if __name__ == '__main__':
                         #checkOpen(angle, pair, timeFrame)       
                         
                     checkClose(currentPrice, openPrice, lastJaw, pair, timeFrame) 
-                    print(f"Пара: {pair} флэт: {checkFlat["value"]} угол: {checkFlat["angle"]}")
+                    print(f"Пара: {pair} флэт: {checkFlat["value"]} угол флета: {checkFlat["angle"]} угол губ: {angle}")
                     #Обновляем время следующей записи
                     
                 
