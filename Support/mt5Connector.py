@@ -268,8 +268,11 @@ class MT5Connector:
         if symbol == 'XAGUSDrfd':
             stopLossPoint = 2000
             volume = 0.04
-        else:
+        elif symbol == 'XAUUSDrfd':
             stopLossPoint = 2000
+            volume = 0.02
+        else:
+            stopLossPoint = 500
             volume = 0.02
         
         if not symbol_info.visible:
