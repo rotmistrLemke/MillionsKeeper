@@ -111,7 +111,7 @@ if __name__ == '__main__':
                         logger.saveBBToExcel(pair, "LOG", currentPrice, lastLower, lastMiddle, lastUpper, "", checkFlat["angle"], Settings.filenameBollingerBands)
 
                 
-                    if checkFlat["angle"] < 20 and checkFlat["angle"] > -20:
+                    if checkFlat["angle"] < 15 and checkFlat["angle"] > -15:
                         checkOpen(currentPrice, lastUpper, lastLower, pair, timeFrame) 
                     checkClose(currentPrice, lastMiddle, pair, timeFrame) 
                         
@@ -127,4 +127,4 @@ if __name__ == '__main__':
             logger.saveErrorsToExcel("BollingerBands", str(e), Settings.filenameErrors)
             continue
                 
-        time.sleep(5)
+        time.sleep(1)

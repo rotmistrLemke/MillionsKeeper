@@ -282,7 +282,7 @@ class AdaptiveMovingAverage:
         angle_rad = math.atan2(x, pairXvalue/2)
         angle = int(f"{math.degrees(angle_rad):.0f}") if math.degrees else int(f"{angle_rad:.0f}")
         
-        if angle > 12 or angle < -12:
+        if angle > 4 or angle < -4:
             return {"value": False, "angle": angle}
         else:
             return {"value": True, "angle": angle}
