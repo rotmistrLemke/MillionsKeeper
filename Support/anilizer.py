@@ -1,5 +1,8 @@
 
 import numpy as np
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent))
 from Support.appEnum import TargetType
 import math
 from decimal import Decimal
@@ -265,7 +268,7 @@ class Alligator:
 
 class AdaptiveMovingAverage:
     
-    def checkFlat(self, df, pair, dictPairXvalue):
+    def checkFlat(self, df, pair, dictPairXvalue, minRefValue, maxRefValue):
 
         close_prices = df['close'].values
         # Расчет AMA (период 10, fast=2, slow=30)
@@ -282,10 +285,10 @@ class AdaptiveMovingAverage:
         angle_rad = math.atan2(x, pairXvalue/2)
         angle = int(f"{math.degrees(angle_rad):.0f}") if math.degrees else int(f"{angle_rad:.0f}")
         
-        if angle > 4 or angle < -4:
-            return {"value": False, "angle": angle}
-        else:
+        if minRefValue < angle < maxRefValue:
             return {"value": True, "angle": angle}
+        else:
+            return {"value": False, "angle": angle}
 
     
     

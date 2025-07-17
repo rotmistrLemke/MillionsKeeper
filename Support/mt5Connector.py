@@ -3,6 +3,8 @@ import pandas as pd
 import numpy as np
 from Support.appEnum import TargetType, Settings
 
+settings = Settings()
+
 class MT5Connector:
     def __init__(self,account):
         self.rates = None
@@ -259,8 +261,10 @@ class MT5Connector:
         elif result.retcode != mt5.TRADE_RETCODE_DONE:
                 print("4. order_send failed, retcode={}".format(result.retcode))
                 print("   result",result) 
-        else:   
-            print(f"Пара {symbol} Ордер {result.order} цена {result.price}")
+        else:
+            settings.dictPairTradingStop[symbol] = 1   
+            print(f"Пара {symbol} Ордер {result.order} цена {result.price} статус торговли: {settings.dictPairTradingStop[symbol]}")
+        
         return {"order":result.order,"price":result.price,"symbol":symbol,"targetType":type}
     
     def orderOpenForBB(self,symbol,type,comment):

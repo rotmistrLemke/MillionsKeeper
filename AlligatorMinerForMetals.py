@@ -1,3 +1,6 @@
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent)) 
 from Support.mt5Connector import MT5Connector
 from Support.appEnum import TargetType,IndicatorType, Settings
 import time
@@ -56,7 +59,17 @@ def checkClose(currentPrice, openPrice, jaw, pair, timeFrame):
             mt5Connector.orderClose(ticket,pair)
             print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \nteeth: {jaw} \nopenPrice: {openPrice} \ncomment: Ордер LONG снят \n{"-" * 50}")
             logger.saveToExcel(pair, "CLOSE_LONG",jaw, angle,  "Ордер LONG снят", Settings.filenameAlligator)
-          
+
+def checkPairTicket(pair):
+        
+    ticketShort = mt5Connector.getTicket(pair,TargetType.SHORT,f"{IndicatorType.ALLIGATOR_MAIN}_{timeFrame}")
+    ticketLong = mt5Connector.getTicket(pair,TargetType.LONG,f"{IndicatorType.ALLIGATOR_MAIN}_{timeFrame}")
+        
+    if ticketShort or ticketLong:
+        return True
+    else:
+        return False
+           
 
 if __name__ == '__main__':
 
@@ -78,24 +91,27 @@ if __name__ == '__main__':
                     currentTime = mt5Connector.ServerTime('XAUUSDrfd')
                     currentPrice = mt5.symbol_info_tick(pair).bid
                     df = alligator.Df(pair, timeFrame)
-                    checkFlat = AMA.checkFlat(df, pair, Settings.dictPairXvalue)
+                    checkFlatforStatus = AMA.checkFlat(df, pair, Settings.dictPairXvalue, -4, 4)
+                    checkFlatforOpen = AMA.checkFlat(df, pair, Settings.dictPairXvalue, -4, 4)
                     medianPrice,jaw,teeth,lips,openPrice = alligator.MainData(df) # Основные значения
                     jawShifted,teethShifted,lipsShifted = alligator.ShiftedData(jaw,teeth,lips,medianPrice) # Значения со сдвигом            
                     lastJaw,lastTeeth,lastLips,prelastLips = alligator.LastData(pair,jawShifted,teethShifted,lipsShifted) # Последние значения            
                     angle, candleDiff,lipsVsTeethDiff = alligator.SupportData(lastLips,prelastLips,pair,Settings.dictPairXvalue,lastTeeth) #Вспомогательные значения
 
                             
-                    if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
-                        logger.saveToExcel(pair, "ALLIGATOR_LOG", lastJaw, angle, f"{timeFrame}__{checkFlat["value"]}__{checkFlat["angle"]}", Settings.filenameAlligator)
+                    #if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
+                        #logger.saveToExcel(pair, "ALLIGATOR_LOG", lastJaw, angle, f"{timeFrame}__{checkFlat["value"]}__{checkFlat["angle"]}", Settings.filenameAlligator)
 
-                
-                    if checkFlat["value"] == False:
+                    if checkFlatforStatus["value"] == True:
+                        settings.dictPairTradingStop[pair] = 0
+
+                    if checkFlatforOpen["value"] == False and settings.dictPairTradingStop[pair] == 0:
                         checkOpen(angle, pair, timeFrame) 
                     #if isNewBar_H4 and timeFrame == mt5.TIMEFRAME_H4:
                         #checkOpen(angle, pair, timeFrame)       
                         
-                    checkClose(currentPrice, openPrice, lastJaw, pair, timeFrame) 
-                    print(f"Пара: {pair} флэт: {checkFlat["value"]} угол флета: {checkFlat["angle"]} угол губ: {angle}")
+                    #checkClose(currentPrice, openPrice, lastJaw, pair, timeFrame) 
+                    print(f"Пара: {pair} флэт: {checkFlatforStatus["value"]} угол: {checkFlatforStatus["angle"]} угол зубов:{angle} статус торговли: {settings.dictPairTradingStop[pair]}")
                     #Обновляем время следующей записи
                     
                 

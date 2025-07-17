@@ -30,7 +30,7 @@ class Settings:
     "GBPCHFrfd": 135,
     "EURCADrfd": 210,
     "GBPCADrfd": 160,
-    "XAUUSDrfd": 1005,
+    "XAUUSDrfd": 425,
     "GBPJPYrfd": 195,
     "XAGUSDrfd": 1230,
     "USDSGDrfd": 135    
@@ -74,7 +74,6 @@ class Settings:
     "XAGUSDrfd": 1230  
 }
 
-
     onlyForex = {
     "EURUSDrfd": 100,
     "NZDUSDrfd": 110,
@@ -98,6 +97,37 @@ class Settings:
   
 }
 
+    dictPairTradingStop = {
+        "EURUSDrfd": 1,
+        "NZDUSDrfd": 1,
+        "EURGBPrfd": 1,
+        "USDCHFrfd": 1,
+        "USDJPYrfd": 1,
+        "EURCHFrfd": 1,
+        "GBPUSDrfd": 1,
+        "USDCADrfd": 1,
+        "EURJPYrfd": 1,
+        "AUDCADrfd": 1,
+        "AUDUSDrfd": 1,
+        "AUDJPYrfd": 1,
+        "AUDCHFrfd": 1,
+        "CHFJPYrfd": 1,
+        "EURAUDrfd": 1,
+        "GBPCHFrfd": 1,
+        "EURCADrfd": 1,
+        "GBPCADrfd": 1,
+        "XAUUSDrfd": 1,
+        "GBPJPYrfd": 1,
+        "XAGUSDrfd": 1,
+        "USDSGDrfd": 1    
+    }
+    
+    dictPairTrailingStopValue = {
+       
+        "XAUUSDrfd": 1500,
+        "XAGUSDrfd": 2000   
+    }
+    
     filenameAlligator = "C:/MillionsKeeper/logs/alligator_data_2.0.xlsx"
     filenameCCIStoch = "C:/MillionsKeeper/logs/CCI_Stoch_data.xlsx"
     filenameErrors = "C:/MillionsKeeper/logs/errors.xlsx"
