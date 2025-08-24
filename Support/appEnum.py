@@ -70,8 +70,7 @@ class Settings:
     }
     
     onlyMetalsH1 = {
-    "XAUUSDrfd": 1005,
-    "XAGUSDrfd": 1230  
+    "XAUUSDrfd": 425
 }
 
     onlyForex = {

@@ -4,6 +4,7 @@ sys.path.append(str(Path(__file__).parent))
 from Support.mt5Connector import MT5Connector
 from Support.appEnum import TargetType,IndicatorType, Settings
 import time
+import datetime
 import pandas as pd
 import MetaTrader5 as mt5
 from Support.anilizer import Alligator, AdaptiveMovingAverage
@@ -20,6 +21,24 @@ lastCheckedTime_H1 = None
 lastCheckedTime_H4 = None
 checkFlat = None
 
+def isTradingAllowed():
+    now = datetime.datetime.now()
+    current_time = now.time()
+    current_weekday = now.weekday()  # 0-понедельник, 6-воскресенье
+    
+    # Проверка ежедневного запрета (23:40-02:00)
+    daily_off_period = (
+        datetime.time(23, 40) <= current_time or 
+        current_time < datetime.time(2, 0))
+    
+    # Проверка пятничного запрета (23:40 пятницы - 02:00 понедельника)
+    friday_off_period = (
+        current_weekday == 4 and current_time >= datetime.time(23, 40)) or (
+        current_weekday == 5) or (
+        current_weekday == 6) or (
+        current_weekday == 0 and current_time < datetime.time(3, 0))
+    
+    return not (daily_off_period or friday_off_period)
 
 def checkOpen(angle, pair, timeFrame):    
     serverTime = mt5Connector.ServerTime(pair)
@@ -80,6 +99,11 @@ if __name__ == '__main__':
     
     while True:
         try:
+            if not isTradingAllowed():
+                print("Сейчас торговля запрещена (23:40-02:00 ежедневно или пятница 23:40 - понедельник 03:00)")
+                time.sleep(60)  # Проверяем каждую минуту
+                continue
+
             df_H1 = alligator.Df('XAUUSDrfd', mt5.TIMEFRAME_H1)
             #df_H4 = alligator.Df('XAUUSDrfd', mt5.TIMEFRAME_H4)
             isNewBar_H1, lastCheckedTime_H1 = alligator.IsNewBar(df_H1, lastCheckedTime_H1, mt5.TIMEFRAME_H1)
@@ -89,7 +113,7 @@ if __name__ == '__main__':
                     
                 for pair in pairs:
                     currentTime = mt5Connector.ServerTime('XAUUSDrfd')
-                    currentPrice = mt5.symbol_info_tick(pair).bid
+                    currentPrice = mt5.symbol_info_tick(pair).bid # type: ignore
                     df = alligator.Df(pair, timeFrame)
                     checkFlatforStatus = AMA.checkFlat(df, pair, Settings.dictPairXvalue, -4, 4)
                     checkFlatforOpen = AMA.checkFlat(df, pair, Settings.dictPairXvalue, -4, 4)
@@ -102,13 +126,13 @@ if __name__ == '__main__':
                     #if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
                         #logger.saveToExcel(pair, "ALLIGATOR_LOG", lastJaw, angle, f"{timeFrame}__{checkFlat["value"]}__{checkFlat["angle"]}", Settings.filenameAlligator)
 
-                    if checkFlatforStatus["value"] == True:
+                    if checkFlatforStatus["value"] == True and settings.dictPairTradingStop[pair] != 2:
                         settings.dictPairTradingStop[pair] = 0
 
                     if checkFlatforOpen["value"] == False and settings.dictPairTradingStop[pair] == 0:
                         checkOpen(angle, pair, timeFrame) 
-                    #if isNewBar_H4 and timeFrame == mt5.TIMEFRAME_H4:
-                        #checkOpen(angle, pair, timeFrame)       
+                    if isNewBar_H1 and settings.dictPairTradingStop[pair] != 0:
+                        settings.dictPairTradingStop[pair] = 1       
                         
                     #checkClose(currentPrice, openPrice, lastJaw, pair, timeFrame) 
                     print(f"Пара: {pair} флэт: {checkFlatforStatus["value"]} угол: {checkFlatforStatus["angle"]} угол зубов:{angle} статус торговли: {settings.dictPairTradingStop[pair]}")
@@ -120,7 +144,7 @@ if __name__ == '__main__':
             nextLogTime = logger.getNextLogTime(currentTime)
         except Exception as e:
             print(f"Ошибка хуибка читай логи: {str(e)}")
-            logger.saveErrorsToExcel("alligatorForMetalls", str(e), Settings.filenameErrors)
+            #logger.saveErrorsToExcel("alligatorForMetalls", str(e), Settings.filenameErrors)
             continue
                 
         time.sleep(5)

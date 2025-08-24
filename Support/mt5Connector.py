@@ -224,7 +224,7 @@ class MT5Connector:
         if symbol == 'XAGUSDrfd':
             volume = 0.04
         else:
-            volume = 0.02   
+            volume = 0.04   
         deviation = 20
         point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).bid
@@ -262,7 +262,7 @@ class MT5Connector:
                 print("4. order_send failed, retcode={}".format(result.retcode))
                 print("   result",result) 
         else:
-            settings.dictPairTradingStop[symbol] = 1   
+            settings.dictPairTradingStop[symbol] = 2   
             print(f"Пара {symbol} Ордер {result.order} цена {result.price} статус торговли: {settings.dictPairTradingStop[symbol]}")
         
         return {"order":result.order,"price":result.price,"symbol":symbol,"targetType":type}
