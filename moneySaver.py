@@ -16,8 +16,10 @@ def calculateStopLoss(pair, priceCurrent, orderType):
     trailingStopValue = settings.dictPairTrailingStopValue.get(pair, 200)
     if orderType == TargetType.LONG:
         stopLoss = priceCurrent - (trailingStopValue * mt5.symbol_info(pair).point)         # type: ignore
+        stopLoss = priceCurrent - (trailingStopValue * mt5.symbol_info(pair).point)         # type: ignore
     
     if orderType == TargetType.SHORT:
+        stopLoss = priceCurrent + (trailingStopValue * mt5.symbol_info(pair).point) # type: ignore
         stopLoss = priceCurrent + (trailingStopValue * mt5.symbol_info(pair).point) # type: ignore
 
     return stopLoss # type: ignore
@@ -33,6 +35,7 @@ def setStopLoss(ticket, new_sl , oldSl, orderType):
         }
 
         # Отправляем запрос на изменение
+        result = mt5.order_send(request) # type: ignore
         result = mt5.order_send(request) # type: ignore
         
         if result.retcode == mt5.TRADE_RETCODE_DONE:
@@ -51,6 +54,7 @@ def setStopLoss(ticket, new_sl , oldSl, orderType):
 
         # Отправляем запрос на изменение
         result = mt5.order_send(request) # type: ignore
+        result = mt5.order_send(request) # type: ignore
         
         if result.retcode == mt5.TRADE_RETCODE_DONE:
             print(f"Ордер {ticket} успешно изменён.")
@@ -60,6 +64,7 @@ def setStopLoss(ticket, new_sl , oldSl, orderType):
             return False
 
 if orders is None:
+    print("Ошибка получения ордеров: ", mt5.last_error()) # type: ignore
     print("Ошибка получения ордеров: ", mt5.last_error()) # type: ignore
 else:
     # Преобразуем в DataFrame для удобного вывода

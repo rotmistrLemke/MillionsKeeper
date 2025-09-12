@@ -2,6 +2,7 @@ import datetime
 from Support.mt5Connector import MT5Connector
 from Support.appEnum import TargetType,IndicatorType, Settings
 import time
+import datetime
 import pandas as pd
 import MetaTrader5 as mt5
 from Support.anilizer import Alligator, AdaptiveMovingAverage
@@ -203,7 +204,7 @@ if __name__ == '__main__':
             print(f"AlligatorForMetals все в порядке, время:{mt5Connector.ServerTime('XAUUSDrfd')}")
         except Exception as e:
             print(f"Ошибка хуибка читай логи: {str(e)}")
-            logger.saveErrorsToExcel("alligatorForMetalls", str(e), Settings.filenameErrors)
+            #logger.saveErrorsToExcel("alligatorForMetalls", str(e), Settings.filenameErrors)
             continue
                 
         time.sleep(5)

@@ -272,7 +272,7 @@ class MT5Connector:
         if symbol == 'XAGUSDrfd':
             volume = 0.04
         else:
-            volume = 0.04   
+            volume = 0.04    
         deviation = 20
         point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).bid
