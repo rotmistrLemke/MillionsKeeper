@@ -1,10 +1,8 @@
 
 import numpy as np
-import sys
-from pathlib import Path
-sys.path.append(str(Path(__file__).parent))
 from Support.appEnum import TargetType
 import math
+from datetime import datetime
 from decimal import Decimal
 import pandas as pd
 import MetaTrader5 as mt5
@@ -12,7 +10,7 @@ from Support.mt5Connector import MT5Connector
 import talib
 from Support.account import Account
 
-account = Account.accountReal
+account = Account.accountDemo
 
 class ZeroIntersection:    
     def check(self, cciValues):
@@ -50,7 +48,30 @@ class Extremum:
     def __init__(self,settings):
         self.CCI_ReferenceLimitForEnter = settings["CCI_ReferenceLimitForEnter"]
     
-    def tryAngleCoefficient(self,current,prev):
+    def checkFlat(self, df, pair, dictPairXvalue):
+
+        close_prices = df['close'].values
+        # Расчет AMA (период 10, fast=2, slow=30)
+        ama = talib.KAMA(close_prices, timeperiod=10)  # KAMA (Kaufman's AMA) — альтернатива AMA
+        # Добавление AMA в DataFrame
+        df['AMA'] = ama
+        last_two = df[['AMA']].tail(2)
+        
+        lastAma = last_two['AMA'].iloc[-1]
+        prevAma = last_two['AMA'].iloc[-2]
+        pairXvalue = dictPairXvalue.get(pair, 100)
+        
+        x = (lastAma - prevAma) / mt5.symbol_info(pair).point
+        angle_rad = math.atan2(x, pairXvalue/2)
+        angle = int(f"{math.degrees(angle_rad):.0f}") if math.degrees else int(f"{angle_rad:.0f}")
+        
+        if angle > 12 or angle < -12:
+            return {"value": False, "angle": angle}
+        else:
+            return {"value": True, "angle": angle}
+
+    
+    def tryAngleCoefficient(self, current, prev):
         current = abs(current)
         prev = abs(prev)
         if current < prev:
@@ -140,18 +161,19 @@ class Extremum:
         else:
             return TargetType.NEUTRAL
 
-    def checkForEnter(self, cciValues, stochasticValues,pair):
+    def checkForEnter(self, cciValues, stochasticValues, pair, flatValue):
         """Основной метод проверки условий"""
         cciReverse_result = self.cciReverse(cciValues, self.CCI_ReferenceLimitForEnter)
         stochasticReverse_result = self.stochasticReverse(stochasticValues)
-        parentPeriodTrendResult = self.checkTrendForParentPeriod(pair)
+        #parentPeriodTrendResult = self.checkTrendForParentPeriod(pair)
+        
         if cciReverse_result["value"] and stochasticReverse_result["value"]:
             if (cciReverse_result["target"] == TargetType.LONG and 
-                stochasticReverse_result["target"] == TargetType.LONG) and parentPeriodTrendResult == TargetType.LONG:
+                stochasticReverse_result["target"] == TargetType.LONG) and flatValue == True:
                 return {"value": True, "target": TargetType.LONG, "cciAngle": cciReverse_result["angle"], "stochAngle": stochasticReverse_result["angle"]}
             
             if (cciReverse_result["target"] == TargetType.SHORT and 
-                stochasticReverse_result["target"] == TargetType.SHORT) and parentPeriodTrendResult == TargetType.SHORT:
+                stochasticReverse_result["target"] == TargetType.SHORT) and flatValue == True:
                 return {"value": True, "target": TargetType.SHORT, "cciAngle": cciReverse_result["angle"], "stochAngle": stochasticReverse_result["angle"]}
         
         return {"value": False, "cciAngle": cciReverse_result["angle"], "stochAngle": stochasticReverse_result["angle"]}
@@ -232,12 +254,74 @@ class Alligator:
 
         return jawShifted,teethShifted,lipsShifted
     
+    def get_filtered_fractals(self, symbol, timeframe, lipsShifted, jawShifted, num_bars=500):
+        """
+        Находит последний верхний фрактал выше lastLips и последний нижний фрактал ниже lastJaw
+        """
+        # Получаем исторические данные
+        rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, num_bars)
+        
+        if rates is None or len(rates) == 0:
+            print("Не удалось получить данные")
+            return None, None
+        
+        # Инициализируем переменные для результатов
+        last_upper_above_lips = None
+        last_lower_below_jaw = None
+        countDecimalPlace = self.CountDecimalPlace(symbol)
+        
+        # Ищем с конца для скорости (последние фракталы)
+        for i in range(len(rates)-3, 2, -1):
+            current_high = rates[i]['high']
+            current_low = rates[i]['low']
+            # Получаем значения индикаторов на этой свече
+            lips_value = float(f"{lipsShifted.iloc[i-500]:.{countDecimalPlace}f}")
+            jaw_value = float(f"{jawShifted.iloc[i-500]:.{countDecimalPlace}f}")
+            
+            # Проверяем верхний фрактал (выше lastLips)
+            if (current_high > lips_value and
+                current_high > rates[i-2]['high'] and 
+                current_high > rates[i-1]['high'] and 
+                current_high > rates[i+1]['high'] and 
+                current_high > rates[i+2]['high']):
+                
+                if last_upper_above_lips is None:
+                    last_upper_above_lips = {
+                        'price': current_high,
+                        'time': datetime.fromtimestamp(rates[i]['time']),
+                        'index': i,
+                        'type': 'upper'
+                    }
+            
+            # Проверяем нижний фрактал (ниже lastJaw)
+            if (current_low < jaw_value and
+                current_low < rates[i-2]['low'] and 
+                current_low < rates[i-1]['low'] and 
+                current_low < rates[i+1]['low'] and 
+                current_low < rates[i+2]['low']):
+                
+                if last_lower_below_jaw is None:
+                    last_lower_below_jaw = {
+                        'price': current_low,
+                        'time': datetime.fromtimestamp(rates[i]['time']),
+                        'index': i,
+                        'type': 'lower'
+                    }
+            
+            # Если оба фрактала найдены, выходим из цикла
+            if last_upper_above_lips is not None and last_lower_below_jaw is not None:
+                break
+        
+        return last_upper_above_lips, last_lower_below_jaw
+
+      
+    
     def LastData(self,pair,jawShifted,teethShifted,lipsShifted): 
         countDecimalPlace = self.CountDecimalPlace(pair)
-        lastJaw = float(f"{jawShifted.iloc[-2]:.{countDecimalPlace}f}")
-        lastTeeth =  float(f"{teethShifted.iloc[-2]:.{countDecimalPlace}f}")
-        lastLips = float(f"{lipsShifted.iloc[-2]:.{countDecimalPlace}f}")
-        prelastLips = float(f"{lipsShifted.iloc[-3]:.{countDecimalPlace}f}")
+        lastJaw = float(f"{jawShifted.iloc[-1]:.{countDecimalPlace}f}")
+        lastTeeth =  float(f"{teethShifted.iloc[-1]:.{countDecimalPlace}f}")
+        lastLips = float(f"{lipsShifted.iloc[-1]:.{countDecimalPlace}f}")
+        prelastLips = float(f"{lipsShifted.iloc[-2]:.{countDecimalPlace}f}")
         return lastJaw,lastTeeth,lastLips,prelastLips
     
     def SupportData(self,lastLips,prelastLips,pair,dictPairXvalue, lastTeeth):
@@ -268,7 +352,7 @@ class Alligator:
 
 class AdaptiveMovingAverage:
     
-    def checkFlat(self, df, pair, dictPairXvalue, minRefValue, maxRefValue):
+    def checkFlat(self, df, pair, dictPairXvalue):
 
         close_prices = df['close'].values
         # Расчет AMA (период 10, fast=2, slow=30)
@@ -285,10 +369,29 @@ class AdaptiveMovingAverage:
         angle_rad = math.atan2(x, pairXvalue/2)
         angle = int(f"{math.degrees(angle_rad):.0f}") if math.degrees else int(f"{angle_rad:.0f}")
         
-        if minRefValue < angle < maxRefValue:
-            return {"value": True, "angle": angle}
-        else:
+        if angle > 4 or angle < -4:
             return {"value": False, "angle": angle}
+        else:
+            return {"value": True, "angle": angle}
 
-    
+
+class MovingAverage:
+    def maData(self,data):
+
+        data['MA_8'] = data['close'].rolling(window=8).mean()
+        ma = data['MA_8'].iloc[-2]
+        ma2 = data['MA_8'].iloc[-3]
+        ma3 = data['MA_8'].iloc[-4]
+        ma4 = data['MA_8'].iloc[-5]
+        openPrice = data['open'].iloc[-2]
+        high2 = data['high'].iloc[-3]
+        low2 = data['low'].iloc[-3]
+        high3 = data['high'].iloc[-4]
+        low3 = data['low'].iloc[-4]
+        high4 = data['high'].iloc[-5]
+        low4 = data['low'].iloc[-5]
+        closePrice = data['close'].iloc[-2]
+
+        return ma, closePrice, openPrice        
+        
     

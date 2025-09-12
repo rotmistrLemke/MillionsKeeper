@@ -1,4 +1,4 @@
-import time
+﻿import time
 import pandas as pd
 from Support.mt5Connector import MT5Connector
 import MetaTrader5 as mt5
@@ -7,7 +7,7 @@ from Support.anilizer import Extremum, Alligator
 from logs.logger import Logger
 from Support.account import Account
 
-account = Account.accountReal
+account = Account.accountDemo
 mt5Connector = MT5Connector(account)
 logger = Logger()
 alligator = Alligator()
@@ -16,6 +16,7 @@ settings = {
 }
 extremum = Extremum(settings)
 settingsTrue = Settings()
+lastCheckedTime_H1 = None
 
 # Получение всех открытых ордеров
 orders = mt5Connector.getPositions()
@@ -29,7 +30,6 @@ def calculateStopLoss(pair, priceCurrent, orderType):
         stopLoss = priceCurrent + (trailingStopValue * mt5.symbol_info(pair).point)
 
     return stopLoss
-
 
 
 def setStopLoss(ticket, new_sl , oldSl, orderType):
@@ -69,10 +69,12 @@ def setStopLoss(ticket, new_sl , oldSl, orderType):
             print(f"Ошибка изменения ордера {ticket}. Код ошибки:", result.retcode)
             return False
 
+
 if orders is None:
     print("Ошибка получения ордеров: ", mt5.last_error())
 else:
     # Преобразуем в DataFrame для удобного вывода
+    
     while True:
         try:
             orders = mt5Connector.getPositions()
@@ -80,7 +82,7 @@ else:
             filtered_orders_4 = []
             filtered_orders_6 = []
             cciFIlteredOrders = []
-
+           
             if len(orders) == 0:
                 print("Нет открытых ордеров.")
             else:
@@ -103,7 +105,7 @@ else:
                         setStopLoss(ticketId, calculateStopLoss( symbol, order_dict.get("price_current", 0), order_dict.get("type", 0)), stopLoss, order_dict.get("type", 0))
                         filtered_orders_4.append(order_dict)
 
-                    if str(comment) == "4_16385":  # Проверяем комментарий
+                    if str(comment) == "6":  # Проверяем комментарий
                         setStopLoss(ticketId, calculateStopLoss( symbol, order_dict.get("price_current", 0), order_dict.get("type", 0)), stopLoss, order_dict.get("type", 0))
                         filtered_orders_6.append(order_dict)
                     
@@ -148,6 +150,10 @@ else:
                     print("="*50 + "\n")
                     
                 orders = mt5Connector.getPositions()
+            
+            
+
+
         except Exception as e:
             print(f"Ошибка хуибка читай логи: {str(e)}")
             logger.saveErrorsToExcel("moneySaver", str(e), Settings.filenameErrors)
