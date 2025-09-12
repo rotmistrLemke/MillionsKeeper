@@ -3,113 +3,127 @@ from Support.appEnum import TargetType,IndicatorType, Settings
 import time
 import pandas as pd
 import MetaTrader5 as mt5
-from Support.anilizer import Alligator
+from Support.anilizer import Alligator, AdaptiveMovingAverage
 from logs.logger import Logger
 from Support.account import Account
 
-account = Account.accountReal
+account = Account.accountDemo
 mt5Connector = MT5Connector(account)
 alligator = Alligator()
 logger = Logger()
 settings = Settings()
-lastCheckedTime = None
+AMA = AdaptiveMovingAverage()
+lastCheckedTime_H1 = None
+lastCheckedTime_H4 = None
+checkFlat = None
 
 
-def checkOpen(angle, pair):    
+def checkOpen(angle, pair, timeFrame):    
     serverTime = mt5Connector.ServerTime(pair)
-    if mt5Connector.symbolInPostions(pair,TargetType.LONG,IndicatorType.ALLIGATOR_MAIN) or mt5Connector.symbolInPostions(pair,TargetType.SHORT,IndicatorType.ALLIGATOR_MAIN):
+    if mt5Connector.symbolInPostions(pair,TargetType.LONG,f"{IndicatorType.ALLIGATOR_MAIN}") or mt5Connector.symbolInPostions(pair,TargetType.SHORT,f"{IndicatorType.ALLIGATOR_MAIN}"):
         #Уже есть ордер по данной паре и данному индикатору
         return
     
     if angle > 15:
-        mt5Connector.orderOpenForAlligatorMain(pair,TargetType.LONG,IndicatorType.ALLIGATOR_MAIN)
+        mt5Connector.orderOpenForAlligatorMain(pair, TargetType.LONG, f"{IndicatorType.ALLIGATOR_MAIN}")
         print(f"\n{"-" * 50}, \ntime:{serverTime} \npair: {pair} \nangle: {angle} \ncomment: Ордер LONG выставлен по условию, \n{"-" * 50}")
-        logger.saveToExcel(pair, "OPEN_LONG", 0, angle, "Ордер LONG выставлен по условию")
+        logger.saveToExcel(pair, "OPEN_LONG", 0, angle, "Ордер LONG выставлен по условию", Settings.filenameAlligator)
             
     if angle < -15:        
-        mt5Connector.orderOpenForAlligatorMain(pair,TargetType.SHORT,IndicatorType.ALLIGATOR_MAIN)
+        mt5Connector.orderOpenForAlligatorMain(pair, TargetType.SHORT, f"{IndicatorType.ALLIGATOR_MAIN}")
         print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \nangle: {angle} \ncomment: Ордер SHORT выставлен по условию, \n{"-" * 50}")
-        logger.saveToExcel(pair, "OPEN_SHORT", 0,  angle, "Ордер SHORT выставлен по условию")
+        logger.saveToExcel(pair, "OPEN_SHORT", 0,  angle, "Ордер SHORT выставлен по условию", Settings.filenameAlligator)
             
-def checkClose(currentPrice, openPrice, teeth, pair):
+def checkClose(currentPrice, openPrice, jaw, pair, timeFrame):
     serverTime = mt5Connector.ServerTime(pair)
     
-    if currentPrice > teeth > openPrice:
+    if currentPrice > jaw > openPrice:
         
-        ticket = mt5Connector.getTicket(pair,TargetType.SHORT,IndicatorType.ALLIGATOR_MAIN)
-        
-        if ticket:
-            
-            mt5Connector.orderClose(ticket,pair)
-            print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \nteeth: {teeth} \nopenPrice: {openPrice} \ncomment: Ордер SHORT снят \n{"-" * 50}")
-            logger.saveToExcel(pair, "CLOSE_SHORT",teeth, angle,  "Ордер SHORT снят")
-            
-    if currentPrice < teeth < openPrice:
-        
-        ticket = mt5Connector.getTicket(pair,TargetType.LONG,IndicatorType.ALLIGATOR_MAIN)
+        ticket = mt5Connector.getTicket(pair,TargetType.SHORT,f"{IndicatorType.ALLIGATOR_MAIN}")
         
         if ticket:
             
             mt5Connector.orderClose(ticket,pair)
-            print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \nteeth: {teeth} \nopenPrice: {openPrice} \ncomment: Ордер LONG снят \n{"-" * 50}")
-            logger.saveToExcel(pair, "CLOSE_LONG",teeth, angle,  "Ордер LONG снят")
+            print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \nteeth: {jaw} \nopenPrice: {openPrice} \ncomment: Ордер SHORT снят \n{"-" * 50}")
+            logger.saveToExcel(pair, "CLOSE_SHORT",jaw, angle,  "Ордер SHORT снят", Settings.filenameAlligator)
+            
+    if currentPrice < jaw < openPrice:
+        
+        ticket = mt5Connector.getTicket(pair,TargetType.LONG,f"{IndicatorType.ALLIGATOR_MAIN}")
+        
+        if ticket:
+            
+            mt5Connector.orderClose(ticket,pair)
+            print(f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \ncurrentPrice: {currentPrice} \nteeth: {jaw} \nopenPrice: {openPrice} \ncomment: Ордер LONG снят \n{"-" * 50}")
+            logger.saveToExcel(pair, "CLOSE_LONG",jaw, angle,  "Ордер LONG снят", Settings.filenameAlligator)
           
 
-            
-def IsNewBar(pair,df):
-    new_time = df['time'].iloc[0]
-    if lastCheckedTime[pair] == None:
-        lastCheckedTime[pair] = new_time
+def checkPairTicket(pair):
+        
+    ticketShort = mt5Connector.getTicket(pair,TargetType.SHORT,f"{IndicatorType.ALLIGATOR_MAIN}")
+    ticketLong = mt5Connector.getTicket(pair,TargetType.LONG,f"{IndicatorType.ALLIGATOR_MAIN}")
+        
+    if ticketShort or ticketLong:
+        return True
+    else:
         return False
-    if new_time != lastCheckedTime[pair]:
-            lastCheckedTime[pair] = new_time
-            print("Обнаружена новая свеча!")
-            return True
-    return False
+        
 
-def Df(pair):
-    bars = mt5.copy_rates_from_pos(pair, mt5.TIMEFRAME_H1, 0, 500)
-    if bars is None:
-        print("Не удалось получить данные:", mt5.last_error())
-    df = pd.DataFrame(bars)
-    return df
 
 if __name__ == '__main__':
 
     pairs = Settings.onlyForex.keys()
-    last_log_time = None
+    timeFrames = [mt5.TIMEFRAME_H1]
     nextLogTime = logger.getNextLogTime(mt5Connector.ServerTime('EURUSDrfd'))
-    prev_bar_time = None
     currentTime = mt5Connector.ServerTime('EURUSDrfd')
     
     while True:
-        df = alligator.Df('EURUSDrfd')
-        isNewBar, lastCheckedTime = alligator.IsNewBar(df, lastCheckedTime)    
-        for pair in pairs:
-            currentTime = mt5Connector.ServerTime('EURUSDrfd')
-            currentPrice = mt5.symbol_info_tick(pair).bid
-            df = alligator.Df(pair)
-            medianPrice,jaw,teeth,lips,openPrice = alligator.MainData(df) # Основные значения
-            jawShifted,teethShifted,lipsShifted = alligator.ShiftedData(jaw,teeth,lips,medianPrice) # Значения со сдвигом            
-            lastJaw,lastTeeth,lastLips,prelastLips = alligator.LastData(pair,jawShifted,teethShifted,lipsShifted) # Последние значения            
-            angle,candleDiff,lipsVsTeethDiff = alligator.SupportData(lastLips,prelastLips,pair,Settings.dictPairXvalue,lastTeeth) #Вспомогательные значения
+        try:
+            df_H1 = alligator.Df('EURUSDrfd', mt5.TIMEFRAME_H1)
+            #df_H4 = alligator.Df('EURUSDrfd', mt5.TIMEFRAME_H4)
+            isNewBar_H1, lastCheckedTime_H1 = alligator.IsNewBar(df_H1, lastCheckedTime_H1, mt5.TIMEFRAME_H1)
+      
+            #isNewBar_H4, lastCheckedTime_H4 = alligator.IsNewBar(df_H4, lastCheckedTime_H4, mt5.TIMEFRAME_H4)
+            for timeFrame in timeFrames:
+                    
 
-                     
-            if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
-                logger.saveToExcel(pair, "ALLIGATOR_LOG", lastTeeth, angle, "")
+                for pair in pairs:
+                    currentTime = mt5Connector.ServerTime('EURUSDrfd')
+                    currentPrice = mt5.symbol_info_tick(pair).bid
+                    df = alligator.Df(pair, timeFrame)
+                    checkFlat = AMA.checkFlat(df, pair, Settings.dictPairXvalue)
+                    medianPrice,jaw,teeth,lips,openPrice = alligator.MainData(df) # Основные значения
+                    jawShifted,teethShifted,lipsShifted = alligator.ShiftedData(jaw,teeth,lips,medianPrice) # Значения со сдвигом            
+                    lastJaw,lastTeeth,lastLips,prelastLips = alligator.LastData(pair,jawShifted,teethShifted,lipsShifted) # Последние значения            
+                    angle, candleDiff,lipsVsTeethDiff = alligator.SupportData(lastLips,prelastLips,pair,Settings.dictPairXvalue,lastTeeth) #Вспомогательные значения
 
-        
-            if isNewBar:
-                checkOpen(angle,pair)    
+                            
+                    if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время
+                        logger.saveToExcel(pair, "ALLIGATOR_LOG", lastJaw, angle, f"{timeFrame}__{checkFlat["value"]}", Settings.filenameAlligator)
+
+                    if checkFlat["value"] == True and checkPairTicket(pair) == False:
+                        settings.dictPairTradingStop[pair] = 0
                 
-            checkClose(currentPrice, openPrice, lastTeeth, pair) 
-            #Обновляем время следующей записи
-               
-          
-           
-        print(f"Все в порядке, время:{mt5Connector.ServerTime('EURUSDrfd')}")
-        nextLogTime = logger.getNextLogTime(currentTime)
-        time.sleep(40)
+                    if checkFlat["value"] == False and settings.dictPairTradingStop[pair] == 0:
+                        checkOpen(angle, pair, timeFrame) 
+                    #if isNewBar_H4 and timeFrame == mt5.TIMEFRAME_H4:
+                        #checkOpen(angle, pair, timeFrame)       
+                        
+                    #checkClose(currentPrice, openPrice, lastJaw, pair, timeFrame) 
+                    
+                    print(f"Пара: {pair} флэт: {checkFlat["value"]} угол: {checkFlat["angle"]} угол зубов:{angle} статус торговли: {settings.dictPairTradingStop[pair]}")
+                    #Обновляем время следующей записи
+                    
+                
+                
+            print(f"AlligatorForMetals все в порядке, время:{mt5Connector.ServerTime('EURUSDrfd')}")
+            nextLogTime = logger.getNextLogTime(currentTime)
+        except Exception as e:
+            print(f"Ошибка хуибка читай логи: {str(e)}")
+            logger.saveErrorsToExcel("alligatorForMetalls", str(e), Settings.filenameErrors)
+            continue
+                
+        time.sleep(5)
         
 
     

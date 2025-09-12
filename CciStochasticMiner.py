@@ -1,11 +1,13 @@
+import pandas as pd
 from Support.mt5Connector import MT5Connector
 from Support.appEnum import TargetType,IndicatorType, Settings
 from logs.logger import Logger
+import MetaTrader5 as mt5
 from Support.anilizer import Extremum
 import time
 from Support.account import Account
 
-account = Account.accountReal
+account = Account.accountDemo
 mt5Connector = MT5Connector(account)
 logger = Logger()
 settings = {
@@ -33,9 +35,17 @@ def ExtremumDisplay(result, cciValues, pair, cciAngle, stochAngle) :
         logger.saveToExcel(pair, "CCI_STOCH_OPEN_SHORT", cciAngle, stochAngle, "", Settings.filenameCCIStoch)
         print(f"{pair}\nПерекупленность, ставлю ордер на шорт\nОрдер: {response["order"]}")   
 
+def symbolData(pair, timeframe):
+    bars = mt5.copy_rates_from_pos(pair, timeframe, 0, 500)
+    if bars is None:
+        print("Не удалось получить данные:", mt5.last_error())
+    data = pd.DataFrame(bars)
+    return data
+
 if __name__ == '__main__':
     pairs = Settings.dictPairXvalue.keys()
     nextLogTime = logger.getNextLogTime(mt5Connector.ServerTime('EURUSDrfd'))
+    timeFrame = mt5.TIMEFRAME_H1
     currentTime = mt5Connector.ServerTime('EURUSDrfd')
     
     while True: 
@@ -43,9 +53,11 @@ if __name__ == '__main__':
             pairs = Settings.dictPairXvalue.keys()
             for pair in pairs:
 
-                currentTime = mt5Connector.ServerTime('EURUSDrfd') 
-                cci,signal,main = mt5Connector.getData(pair,30)                        
-                resultExtremum = extremum.checkForEnter(cci, signal,pair)
+                currentTime = mt5Connector.ServerTime('EURUSDrfd')
+                data = symbolData(pair, timeFrame) 
+                checkFlat = extremum.checkFlat(data, pair, Settings.dictPairXvalue)
+                cci, signal, main = mt5Connector.getData(pair,30)                        
+                resultExtremum = extremum.checkForEnter(cci, signal, pair, checkFlat["value"])
                 ExtremumDisplay(resultExtremum, cci, pair, resultExtremum["cciAngle"], resultExtremum["stochAngle"])   
                 
                 if currentTime >= nextLogTime: # Проверяем, нужно ли записывать время

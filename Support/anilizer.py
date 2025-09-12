@@ -1,8 +1,5 @@
 
 import numpy as np
-import sys
-from pathlib import Path
-sys.path.append(str(Path(__file__).parent))
 from Support.appEnum import TargetType
 import math
 from decimal import Decimal
@@ -12,7 +9,7 @@ from Support.mt5Connector import MT5Connector
 import talib
 from Support.account import Account
 
-account = Account.accountReal
+account = Account.accountDemo
 
 class ZeroIntersection:    
     def check(self, cciValues):
@@ -50,7 +47,30 @@ class Extremum:
     def __init__(self,settings):
         self.CCI_ReferenceLimitForEnter = settings["CCI_ReferenceLimitForEnter"]
     
-    def tryAngleCoefficient(self,current,prev):
+    def checkFlat(self, df, pair, dictPairXvalue):
+
+        close_prices = df['close'].values
+        # Расчет AMA (период 10, fast=2, slow=30)
+        ama = talib.KAMA(close_prices, timeperiod=10)  # KAMA (Kaufman's AMA) — альтернатива AMA
+        # Добавление AMA в DataFrame
+        df['AMA'] = ama
+        last_two = df[['AMA']].tail(2)
+        
+        lastAma = last_two['AMA'].iloc[-1]
+        prevAma = last_two['AMA'].iloc[-2]
+        pairXvalue = dictPairXvalue.get(pair, 100)
+        
+        x = (lastAma - prevAma) / mt5.symbol_info(pair).point
+        angle_rad = math.atan2(x, pairXvalue/2)
+        angle = int(f"{math.degrees(angle_rad):.0f}") if math.degrees else int(f"{angle_rad:.0f}")
+        
+        if angle > 12 or angle < -12:
+            return {"value": False, "angle": angle}
+        else:
+            return {"value": True, "angle": angle}
+
+    
+    def tryAngleCoefficient(self, current, prev):
         current = abs(current)
         prev = abs(prev)
         if current < prev:
@@ -140,18 +160,19 @@ class Extremum:
         else:
             return TargetType.NEUTRAL
 
-    def checkForEnter(self, cciValues, stochasticValues,pair):
+    def checkForEnter(self, cciValues, stochasticValues, pair, flatValue):
         """Основной метод проверки условий"""
         cciReverse_result = self.cciReverse(cciValues, self.CCI_ReferenceLimitForEnter)
         stochasticReverse_result = self.stochasticReverse(stochasticValues)
-        parentPeriodTrendResult = self.checkTrendForParentPeriod(pair)
+        #parentPeriodTrendResult = self.checkTrendForParentPeriod(pair)
+        
         if cciReverse_result["value"] and stochasticReverse_result["value"]:
             if (cciReverse_result["target"] == TargetType.LONG and 
-                stochasticReverse_result["target"] == TargetType.LONG) and parentPeriodTrendResult == TargetType.LONG:
+                stochasticReverse_result["target"] == TargetType.LONG) and flatValue == True:
                 return {"value": True, "target": TargetType.LONG, "cciAngle": cciReverse_result["angle"], "stochAngle": stochasticReverse_result["angle"]}
             
             if (cciReverse_result["target"] == TargetType.SHORT and 
-                stochasticReverse_result["target"] == TargetType.SHORT) and parentPeriodTrendResult == TargetType.SHORT:
+                stochasticReverse_result["target"] == TargetType.SHORT) and flatValue == True:
                 return {"value": True, "target": TargetType.SHORT, "cciAngle": cciReverse_result["angle"], "stochAngle": stochasticReverse_result["angle"]}
         
         return {"value": False, "cciAngle": cciReverse_result["angle"], "stochAngle": stochasticReverse_result["angle"]}
@@ -268,7 +289,7 @@ class Alligator:
 
 class AdaptiveMovingAverage:
     
-    def checkFlat(self, df, pair, dictPairXvalue, minRefValue, maxRefValue):
+    def checkFlat(self, df, pair, dictPairXvalue):
 
         close_prices = df['close'].values
         # Расчет AMA (период 10, fast=2, slow=30)
@@ -285,10 +306,29 @@ class AdaptiveMovingAverage:
         angle_rad = math.atan2(x, pairXvalue/2)
         angle = int(f"{math.degrees(angle_rad):.0f}") if math.degrees else int(f"{angle_rad:.0f}")
         
-        if minRefValue < angle < maxRefValue:
-            return {"value": True, "angle": angle}
-        else:
+        if angle > 4 or angle < -4:
             return {"value": False, "angle": angle}
+        else:
+            return {"value": True, "angle": angle}
 
-    
+
+class MovingAverage:
+    def maData(self,data):
+
+        data['MA_8'] = data['close'].rolling(window=8).mean()
+        ma = data['MA_8'].iloc[-2]
+        ma2 = data['MA_8'].iloc[-3]
+        ma3 = data['MA_8'].iloc[-4]
+        ma4 = data['MA_8'].iloc[-5]
+        openPrice = data['open'].iloc[-2]
+        high2 = data['high'].iloc[-3]
+        low2 = data['low'].iloc[-3]
+        high3 = data['high'].iloc[-4]
+        low3 = data['low'].iloc[-4]
+        high4 = data['high'].iloc[-5]
+        low4 = data['low'].iloc[-5]
+        closePrice = data['close'].iloc[-2]
+
+        return ma, closePrice, openPrice        
+        
     

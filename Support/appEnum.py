@@ -9,32 +9,66 @@ class IndicatorType:
     ZERO_INTERSECTION = 3
     ALLIGATOR_MAIN = 4
     BOLLINGER_BANDS = 5
+    ALLIGATOR_METALLS = 6
+    ALLIGATOR_METALLS_SAVE = 7
+    test = 8
     
 class Settings:
     dictPairXvalue = {
-    "EURUSDrfd": 100,
-    "NZDUSDrfd": 110,
-    "EURGBPrfd": 90,
-    "USDCHFrfd": 120,
-    "USDJPYrfd": 245,
-    "EURCHFrfd": 100,
-    "GBPUSDrfd": 180,
-    "USDCADrfd": 240,
-    "EURJPYrfd": 265,
-    "AUDCADrfd": 100,
-    "AUDUSDrfd": 105,
-    "AUDJPYrfd": 150,
-    "AUDCHFrfd": 85,
-    "CHFJPYrfd": 210,
-    "EURAUDrfd": 175,
-    "GBPCHFrfd": 135,
-    "EURCADrfd": 210,
-    "GBPCADrfd": 160,
+    "EURUSDrfd": 95,
+    "NZDUSDrfd": 65,
+    "EURGBPrfd": 40,
+    "USDCHFrfd": 55,
+    "USDJPYrfd": 170,
+    "EURCHFrfd": 25,
+    "GBPUSDrfd": 90,
+    "USDCADrfd": 50,
+    "EURJPYrfd": 120,
+    "AUDCADrfd": 55,
+    "AUDUSDrfd": 55,
+    "AUDJPYrfd": 70,
+    "AUDCHFrfd": 30,
+    "CHFJPYrfd": 120,
+    "EURAUDrfd": 75,
+    "GBPCHFrfd": 55,
+    "EURCADrfd": 90,
+    "GBPCADrfd": 95,
     "XAUUSDrfd": 425,
-    "GBPJPYrfd": 195,
+    "GBPJPYrfd": 130,
     "XAGUSDrfd": 1230,
-    "USDSGDrfd": 135    
+    "USDSGDrfd": 60    
 }
+
+    dictPairTradingStop = {
+        "EURUSDrfd": 3,
+        "NZDUSDrfd": 3,
+        "EURGBPrfd": 3,
+        "USDCHFrfd": 3,
+        "USDJPYrfd": 3,
+        "EURCHFrfd": 3,
+        "GBPUSDrfd": 3,
+        "USDCADrfd": 3,
+        "EURJPYrfd": 3,
+        "AUDCADrfd": 3,
+        "AUDUSDrfd": 3,
+        "AUDJPYrfd": 3,
+        "AUDCHFrfd": 3,
+        "CHFJPYrfd": 3,
+        "EURAUDrfd": 3,
+        "GBPCHFrfd": 3,
+        "EURCADrfd": 3,
+        "GBPCADrfd": 3,
+        "XAUUSDrfd": 1,
+        "GBPJPYrfd": 3,
+        "XAGUSDrfd": 3,
+        "USDSGDrfd": 3    
+    }
+    
+    dictPairTrailingStopValue = {
+       
+        "XAUUSDrfd": 1500,
+        "XAGUSDrfd": 2000   
+    }
 
     dictLipsCandleDiff = {
         "EURUSDrfd": 100,
@@ -70,8 +104,36 @@ class Settings:
     }
     
     onlyMetalsH1 = {
-    "XAUUSDrfd": 1005,
+    "XAUUSDrfd": 425,
     "XAGUSDrfd": 1230  
+}
+    
+    onlyMetalsM1 = {
+    "XAUUSDrfd": 30,
+    "XAGUSDrfd": 135,
+    "EURUSDrfd": 40
+}
+    
+    onlyMetalsM5 = {
+    "XAUUSDrfd": 185,
+    "XAGUSDrfd": 135,
+    "EURUSDrfd": 40
+}
+    
+    goldH1 = {
+    "EURUSDrfd": 95,
+    "XAUUSDrfd": 425,
+    "XAGUSDrfd": 1230
+
+}
+    
+    dictIndicatorStatus = {
+    "XAUUSDrfd_KAMA": 1, # 1 - stop 0 - start 
+    "XAUUSDrfd_Alligator": 1,
+    "EURUSDrfd_KAMA": 1, # 1 - stop 0 - start 
+    "EURUSDrfd_Alligator": 1,
+    "XAGUSDrfd_KAMA": 1, # 1 - stop 0 - start 
+    "XAGUSDrfd_Alligator": 1   
 }
 
     onlyForex = {
@@ -97,40 +159,9 @@ class Settings:
   
 }
 
-    dictPairTradingStop = {
-        "EURUSDrfd": 1,
-        "NZDUSDrfd": 1,
-        "EURGBPrfd": 1,
-        "USDCHFrfd": 1,
-        "USDJPYrfd": 1,
-        "EURCHFrfd": 1,
-        "GBPUSDrfd": 1,
-        "USDCADrfd": 1,
-        "EURJPYrfd": 1,
-        "AUDCADrfd": 1,
-        "AUDUSDrfd": 1,
-        "AUDJPYrfd": 1,
-        "AUDCHFrfd": 1,
-        "CHFJPYrfd": 1,
-        "EURAUDrfd": 1,
-        "GBPCHFrfd": 1,
-        "EURCADrfd": 1,
-        "GBPCADrfd": 1,
-        "XAUUSDrfd": 1,
-        "GBPJPYrfd": 1,
-        "XAGUSDrfd": 1,
-        "USDSGDrfd": 1    
-    }
-    
-    dictPairTrailingStopValue = {
-       
-        "XAUUSDrfd": 1500,
-        "XAGUSDrfd": 2000   
-    }
-    
-    filenameAlligator = "C:/MillionsKeeper/logs/alligator_data_2.0.xlsx"
-    filenameCCIStoch = "C:/MillionsKeeper/logs/CCI_Stoch_data.xlsx"
-    filenameErrors = "C:/MillionsKeeper/logs/errors.xlsx"
-    filenameBollingerBands="C:/MillionsKeeper/logs/bollinger_bands_data.xlsx"
+    filenameAlligator = "C:/Users/Administrator/projects/MillionsKeeper/logs/alligator_data_2.0.xlsx"
+    filenameCCIStoch = "C:/Users/Administrator/projects/MillionsKeeper/logs/CCI_Stoch_data.xlsx"
+    filenameErrors = "C:/Users/Administrator/projects/MillionsKeeper/logs/errors.xlsx"
+    filenameBollingerBands="C:/Users/Administrator/projects/MillionsKeeper/logs/bollinger_bands_data.xlsx"
 
    

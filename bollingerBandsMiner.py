@@ -8,7 +8,7 @@ from Support.appEnum import TargetType,IndicatorType, Settings
 from logs.logger import Logger
 from Support.account import Account
 
-account = Account.accountReal
+account = Account.accountDemo
 mt5Connector = MT5Connector(account)
 symbol = "XAUUSDrfd"
 alligator = Alligator()
@@ -91,8 +91,8 @@ def getBBData(data):
 
 if __name__ == '__main__':
 
-    pairs = Settings.onlyMetalsH1.keys()
-    timeFrames = [mt5.TIMEFRAME_H1]
+    pairs = Settings.onlyForex.keys()
+    timeFrames = [mt5.TIMEFRAME_M15]
     nextLogTime = logger.getNextLogTime(mt5Connector.ServerTime('XAUUSDrfd'))
     currentTime = mt5Connector.ServerTime('XAUUSDrfd')
     
@@ -111,8 +111,9 @@ if __name__ == '__main__':
                         logger.saveBBToExcel(pair, "LOG", currentPrice, lastLower, lastMiddle, lastUpper, "", checkFlat["angle"], Settings.filenameBollingerBands)
 
                 
-                    if checkFlat["angle"] < 15 and checkFlat["angle"] > -15:
+                    if checkFlat["angle"] > -12 and checkFlat["angle"] < 12 and mt5Connector.ServerTime('XAUUSDrfd').time() > pd.to_datetime('04:00:00').time():
                         checkOpen(currentPrice, lastUpper, lastLower, pair, timeFrame) 
+
                     checkClose(currentPrice, lastMiddle, pair, timeFrame) 
                         
                     print(f"Пара: {pair} флэт: {checkFlat["value"]} угол: {checkFlat["angle"]}")
@@ -127,4 +128,4 @@ if __name__ == '__main__':
             logger.saveErrorsToExcel("BollingerBands", str(e), Settings.filenameErrors)
             continue
                 
-        time.sleep(1)
+        time.sleep(5)

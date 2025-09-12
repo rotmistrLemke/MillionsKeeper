@@ -111,11 +111,11 @@ class MT5Connector:
  
     def getData(self, symbol, count):
         if self.authorized:            
-            if self.getHistoricalData(symbol,mt5.TIMEFRAME_H4,count):
+            if self.getHistoricalData(symbol,mt5.TIMEFRAME_H1, count):
                 cci = self.CCI()
-                signal,main = self.Stochastic()
+                signal, main = self.Stochastic()
 
-                return cci,signal,main
+                return cci, signal, main
             else:
                 print("Ошибка при получении данных")
         else:
@@ -129,7 +129,7 @@ class MT5Connector:
         volume = 0.01
         deviation = 20
         point = mt5.symbol_info(symbol).point
-        price = mt5.symbol_info_tick(symbol).bid
+        price = mt5.symbol_info_tick(symbol).ask
         result = None
         if type == TargetType.LONG:            
             result = mt5.order_send({
@@ -176,7 +176,7 @@ class MT5Connector:
                 print("symbol_select({}}) failed, exit",symbol)        
         volume = 0.01
         deviation = 20
-        price = mt5.symbol_info_tick(symbol).bid
+        price = mt5.symbol_info_tick(symbol).ask
         result = None
         if type == TargetType.LONG:            
             result = mt5.order_send({
@@ -216,7 +216,55 @@ class MT5Connector:
             print(f"Пара {symbol} Ордер {result.order} цена {result.price}")
         return {"order":result.order,"price":result.price,"symbol":symbol,"targetType":type}
     
+    def orderOpenForAlligator(self, symbol, type, comment, volume, stopLoss):
+        symbol_info = mt5.symbol_info(symbol) 
+        if not symbol_info.visible:
+            if not mt5.symbol_select(symbol,True):
+                print("symbol_select({}}) failed, exit",symbol)     
+        deviation = 20
+        price = mt5.symbol_info_tick(symbol).ask
+        result = None
+        if type == TargetType.LONG:            
+            result = mt5.order_send({
+                "action": mt5.TRADE_ACTION_DEAL,
+                "symbol": symbol,
+                "volume": volume,
+                "type": mt5.ORDER_TYPE_BUY,
+                "sl": stopLoss,
+                "price": price,                
+                "deviation": deviation,
+                "comment": str(comment),
+                "type_time": mt5.ORDER_TIME_GTC,
+                "type_filling": mt5.ORDER_FILLING_FOK,
+            })
+        if type == TargetType.SHORT:            
+            result = mt5.order_send({
+                "action": mt5.TRADE_ACTION_DEAL,
+                "symbol": symbol,
+                "volume": volume,
+                "type": mt5.ORDER_TYPE_SELL,
+                "sl": stopLoss,
+                "price": price,                
+                "deviation": deviation,
+                "comment": str(comment),
+                "type_time": mt5.ORDER_TIME_GTC,
+                "type_filling": mt5.ORDER_FILLING_FOK,
+            })
+        if not result:
+            print(mt5.last_error()) 
+
+        elif result.retcode != mt5.TRADE_RETCODE_DONE:
+                print("4. order_send failed, retcode={}".format(result.retcode))
+                print("   result",result) 
+        else:   
+            settings.dictPairTradingStop[symbol] = 2
+            print(f"Пара {symbol} Ордер {result.order} цена {result.price} статус торговли: {settings.dictPairTradingStop[symbol]}")
+            
+        return {"order":result.order,"price":result.price,"symbol":symbol,"targetType":type}
+    
     def orderOpenForAlligatorMain(self,symbol,type,comment):
+        kamaIdicator = f"{symbol}_KAMA"
+        alligatorIdicator = f"{symbol}_Alligator"
         symbol_info = mt5.symbol_info(symbol) 
         if not symbol_info.visible:
             if not mt5.symbol_select(symbol,True):
@@ -224,7 +272,7 @@ class MT5Connector:
         if symbol == 'XAGUSDrfd':
             volume = 0.04
         else:
-            volume = 0.02   
+            volume = 0.04   
         deviation = 20
         point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).bid
@@ -262,7 +310,9 @@ class MT5Connector:
                 print("4. order_send failed, retcode={}".format(result.retcode))
                 print("   result",result) 
         else:
-            settings.dictPairTradingStop[symbol] = 1   
+            settings.dictPairTradingStop[symbol] = 2 
+            settings.dictIndicatorStatus[kamaIdicator] = 1
+            settings.dictIndicatorStatus[alligatorIdicator] = 1 
             print(f"Пара {symbol} Ордер {result.order} цена {result.price} статус торговли: {settings.dictPairTradingStop[symbol]}")
         
         return {"order":result.order,"price":result.price,"symbol":symbol,"targetType":type}
@@ -271,21 +321,20 @@ class MT5Connector:
         symbol_info = mt5.symbol_info(symbol) 
         if symbol == 'XAGUSDrfd':
             stopLossPoint = 2000
-            volume = 0.04
+            volume = 0.06
         elif symbol == 'XAUUSDrfd':
             stopLossPoint = 2000
-            volume = 0.02
+            volume = 0.03
         else:
-            stopLossPoint = 500
-            volume = 0.02
+            stopLossPoint = 200
+            volume = 0.31
         
         if not symbol_info.visible:
             if not mt5.symbol_select(symbol,True):
                 print("symbol_select({}}) failed, exit",symbol)        
         deviation = 20
         point = mt5.symbol_info(symbol).point
-        price = mt5.symbol_info_tick(symbol).bid
-        
+        price = mt5.symbol_info_tick(symbol).ask
         result = None
         if type == TargetType.LONG:            
             result = mt5.order_send({
@@ -330,7 +379,7 @@ class MT5Connector:
                 print("symbol_select({}}) failed, exit",symbol)        
         volume = 0.01
         deviation = 20
-        price = mt5.symbol_info_tick(symbol).bid
+        price = mt5.symbol_info_tick(symbol).ask
         result = None
         if type == TargetType.LONG:            
             result = mt5.order_send({

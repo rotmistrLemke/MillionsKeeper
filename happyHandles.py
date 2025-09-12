@@ -33,7 +33,7 @@ if __name__ == '__main__':
                 
             for pair in pairs:
                 currentTime = mt5Connector.ServerTime('XAUUSDrfd')
-                currentPrice = mt5.symbol_info_tick(pair).bid
+                currentPrice = mt5.symbol_info_tick(pair).ask
                 df = alligator.Df(pair, timeFrame)
                 # Расчет Aroon вручную
                 df['Aroon_Up'], df['Aroon_Down'] = talib.AROON(df['high'], df['low'], timeperiod=14)
