@@ -1,6 +1,6 @@
 
 import numpy as np
-from Support.appEnum import TargetType
+from Support.Settings import TargetType
 import math
 from datetime import datetime
 from decimal import Decimal

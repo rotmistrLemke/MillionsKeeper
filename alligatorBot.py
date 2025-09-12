@@ -8,7 +8,7 @@ import datetime
 from Support.account import Account
 from Support.anilizer import AdaptiveMovingAverage, Alligator
 from Support.mt5Connector import MT5Connector
-from Support.appEnum import TargetType, IndicatorType, Settings
+from Support.Settings import TargetType, IndicatorType, Settings
 from logs.logger import Logger
 
 # Конфигурация бота

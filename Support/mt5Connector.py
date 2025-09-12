@@ -1,7 +1,7 @@
 import MetaTrader5 as mt5
 import pandas as pd
 import numpy as np
-from Support.appEnum import TargetType, Settings
+from Support.Settings import TargetType, Settings
 
 settings = Settings()
 
