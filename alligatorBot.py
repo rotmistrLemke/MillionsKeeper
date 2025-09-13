@@ -5,11 +5,12 @@ import asyncio
 import threading
 import MetaTrader5 as mt5
 import datetime
-from Support.account import Account
-from Support.anilizer import AdaptiveMovingAverage, Alligator
-from Support.mt5Connector import MT5Connector
-from Support.Settings import TargetType, IndicatorType, Settings
+from account import Account
+from indicators import AdaptiveMovingAverage, Alligator
+from trading import Trading
+from settings import TargetType, IndicatorType, Dictionary
 from logs.logger import Logger
+from authenticator import MT5Auth
 
 # Конфигурация бота
 TOKEN = "8062299925:AAFA14ISWThGN9D0ktg7lXxRtX2lvglzG9w"
@@ -21,19 +22,22 @@ ALLOWED_USERS = {
 }
 
 account = Account.accountDemo2
-mt5Connector = MT5Connector(account)
+auth = MT5Auth(account)
+auth.login()
+trading = Trading()
 alligator = Alligator()
 logger = Logger()
-settings = Settings()
+dict = Dictionary()
 AMA = AdaptiveMovingAverage()
-X_VALUE_DICT = Settings.onlyMetalsH1
+X_VALUE_DICT = Dictionary.symbolXvalueH1
 lastCheckedTime = None
 checkFlat = None
+TIME_FRAME = mt5.TIMEFRAME_H1
 
 class TradingBot:
-    def __init__(self, mt5_connector, settings, alligator, ama):
-        self.mt5 = mt5_connector
-        self.settings = settings
+    def __init__(self, trading, dict, alligator, ama):
+        self.mt5 = trading
+        self.dict = dict
         self.alligator = alligator
         self.ama = ama
         self.lastCheckedTime = None
@@ -60,57 +64,11 @@ class TradingBot:
         )
         return False    
         
-    def calculateStopLoss(self, pair, priceCurrent, orderType):
-        trailingStopValue = settings.dictPairTrailingStopValue.get(pair, 200)
-        if orderType == TargetType.LONG:
-            stopLoss = priceCurrent - (trailingStopValue * mt5.symbol_info(pair).point)         # type: ignore
-        
-        if orderType == TargetType.SHORT:
-            stopLoss = priceCurrent + (trailingStopValue * mt5.symbol_info(pair).point) # type: ignore
-
-        return stopLoss # type: ignore
-
-    def setStopLossMoneySaver(self, ticket, new_sl , oldSl, orderType):
-
-        if (orderType == TargetType.LONG and new_sl > oldSl) or  oldSl == 0.0:
-            # Подготавливаем структуру для изменения
-            request = {
-                "action": mt5.TRADE_ACTION_SLTP,
-                "position": ticket,
-                "sl": new_sl
-            }
-
-            # Отправляем запрос на изменение
-            result = mt5.order_send(request) # type: ignore
-            
-            if result.retcode == mt5.TRADE_RETCODE_DONE:
-                print(f"Ордер {ticket} успешно изменён.")
-                return True
-            else:
-                print(f"Ошибка изменения ордера {ticket}. Код ошибки:", result.retcode)
-                return False
-        elif (orderType == TargetType.SHORT and new_sl < oldSl) or  oldSl == 0.0:
-            # Подготавливаем структуру для изменения
-            request = {
-                "action": mt5.TRADE_ACTION_SLTP,
-                "position": ticket,
-                "sl": new_sl
-            }
-
-            # Отправляем запрос на изменение
-            result = mt5.order_send(request) # type: ignore
-            
-            if result.retcode == mt5.TRADE_RETCODE_DONE:
-                print(f"Ордер {ticket} успешно изменён.")
-                return True
-            else:
-                print(f"Ошибка изменения ордера {ticket}. Код ошибки:", result.retcode)
-                return False
 
     def moneySaverLoop(self):
         while self.bot_running:
             try:
-                orders = mt5Connector.getPositions()
+                orders = trading.getPositions()
                 # Фильтруем ордера с комментарием "4"
                 if len(orders) == 0:
                     #print("Нет открытых ордеров.")
@@ -118,24 +76,18 @@ class TradingBot:
                 else:
                     for order in orders:
                         order_dict = order._asdict()
-                        comment = order_dict.get("comment", "")
                         profit = order_dict.get("profit", 0)
-                        volume = order_dict.get("volume", 0)
                         ticketId = order_dict.get("ticket", 0)
                         symbol = order_dict.get("symbol", 0)
-                        priceCurrent = order_dict.get("price_current", 0),
-                        orderType = order_dict.get("type", 0),
                         stopLoss = order_dict.get("sl", 0)
                         kamaIdicator = f"{symbol}_KAMA"
                         alligatorIdicator = f"{symbol}_Alligator"
-                        
-                        #if str(comment) == "4_16385":  # Проверяем комментарий
 
                         if profit > 2000:
-                            settings.dictPairTradingStop[symbol] = 1
-                            settings.dictIndicatorStatus[kamaIdicator] = 1
-                            settings.dictIndicatorStatus[alligatorIdicator] = 1 
-                            mt5Connector.orderClose(ticketId,symbol)
+                            dict.symbolTradingStatus[symbol] = 1
+                            dict.indicatorStatus[kamaIdicator] = 1
+                            dict.indicatorStatus[alligatorIdicator] = 1 
+                            trading.orderClose(ticketId,symbol)
                             
                             if CHAT_ID:
                                 telegram_message = (
@@ -148,7 +100,7 @@ class TradingBot:
                                     self.loop
                                 )   
 
-                        self.setStopLossMoneySaver(ticketId, self.calculateStopLoss( symbol, order_dict.get("price_current", 0), order_dict.get("type", 0)), stopLoss, order_dict.get("type", 0))
+                        trading.setStopLoss(ticketId, trading.calculateStopLoss( symbol, order_dict.get("price_current", 0), order_dict.get("type", 0)), stopLoss, order_dict.get("type", 0))
                             
             except Exception as e:
                 print(f"Ошибка хуибка читай логи: {str(e)}")
@@ -173,16 +125,16 @@ class TradingBot:
         
         return not (daily_off_period or friday_off_period)
 
-    def checkOpen(self, angle, pair, timeFrame, flatAngle):    
-        serverTime = mt5Connector.ServerTime(pair)
-        if mt5Connector.symbolInPostions(pair,TargetType.LONG,f"{IndicatorType.ALLIGATOR_MAIN}_{timeFrame}") or mt5Connector.symbolInPostions(pair,TargetType.SHORT,f"{IndicatorType.ALLIGATOR_MAIN}_{timeFrame}"):
+    def checkOpen(self, angle, symbol, flatAngle):    
+        serverTime = trading.ServerTime(symbol)
+        if trading.symbolInPostions(symbol,TargetType.LONG,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}") or trading.symbolInPostions(symbol,TargetType.SHORT,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}"):
             #Уже есть ордер по данной паре и данному индикатору
             return
         
         if angle > 15:
-            result = mt5Connector.orderOpenForAlligatorMain(pair, TargetType.LONG, f"{IndicatorType.ALLIGATOR_MAIN}_{timeFrame}")
+            result = trading.orderOpen(symbol, TargetType.LONG, f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}")
             
-            print_message = f"\n{"-" * 50}, \ntime:{serverTime} \npair: {pair} \nangle: {angle} \ncomment: Ордер LONG выставлен по условию, \n{"-" * 50}"
+            print_message = f"\n{"-" * 50}, \ntime:{serverTime} \npair: {symbol} \nangle: {angle} \ncomment: Ордер LONG выставлен по условию, \n{"-" * 50}"
             print(print_message)
             
             # Отправляем сообщение в Telegram
@@ -190,7 +142,7 @@ class TradingBot:
                 telegram_message = (
                     f"🎯 ОТКРЫТИЕ ПОЗИЦИИ\n\n"
                     f"🟦 Направление: LONG\n"
-                    f"💵 Пара: {pair}\n"
+                    f"💵 Пара: {symbol}\n"
                     f"📐 Угол флета: {flatAngle:.2f}°\n"
                     f"📐 Угол губ: {angle:.2f}°\n"
                     f"⏰ Время: {serverTime}\n"
@@ -201,9 +153,9 @@ class TradingBot:
                 )
                 
         if angle < -15:        
-            result = mt5Connector.orderOpenForAlligatorMain(pair, TargetType.SHORT, f"{IndicatorType.ALLIGATOR_MAIN}_{timeFrame}")
+            result = trading.orderOpen(symbol, TargetType.SHORT, f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}")
             
-            print_message = f"\n{"-" * 50} \ntime:{serverTime} \npair: {pair} \nangle: {angle} \ncomment: Ордер SHORT выставлен по условию, \n{"-" * 50}"
+            print_message = f"\n{"-" * 50} \ntime:{serverTime} \npair: {symbol} \nangle: {angle} \ncomment: Ордер SHORT выставлен по условию, \n{"-" * 50}"
             print(print_message)
             
             # Отправляем сообщение в Telegram
@@ -211,7 +163,7 @@ class TradingBot:
                 telegram_message = (
                     f"🎯 ОТКРЫТИЕ ПОЗИЦИИ\n\n"
                     f"🟥 Направление: SHORT\n"
-                    f"💵 Пара: {pair}\n"
+                    f"💵 Пара: {symbol}\n"
                     f"📐 Угол флета: {flatAngle:.2f}°\n"
                     f"📐 Угол губ: {angle:.2f}°\n"
                     f"⏰ Время: {serverTime}\n"
@@ -220,31 +172,7 @@ class TradingBot:
                     self.send_telegram_message(telegram_message),
                     self.loop
                 )
-            #logger.saveToExcel(pair, "OPEN_SHORT", 0,  angle, "Ордер SHORT выставлен по условию", Settings.filenameAlligator)
- 
-    def getPreviousCandleHighLow(self, pair, timeframe, shift=1):
-        """
-        Возвращает максимум (High) предыдущей свечи.
-
-        Параметры:
-            symbol (str):   Название символа (например, "EURUSD").
-            timeframe (int): Таймфрейм (например, mt5.TIMEFRAME_H1).
-            shift (int):    Смещение (1 = предыдущая свеча, 2 = две свечи назад и т.д.).
-
-        Возвращает:
-            float: Значение High предыдущей свечи или None в случае ошибки.
-        """
-
-        
-        # Получаем нужное количество свечей (shift + 1, чтобы учесть текущую свечу)
-        rates = mt5.copy_rates_from_pos(pair, timeframe, 0, shift + 1)
-        
-        if rates is None or len(rates) < shift + 1:
-            print(f"Не удалось получить данные для {pair} на таймфрейме {timeframe}")
-            return None
-        
-        # Возвращаем High предыдущей свечи (shift=1 → rates[-2])
-        return rates[-1 - shift]['high'], rates[-1 - shift]['low']
+            #logger.saveToExcel(symbol, "OPEN_SHORT", 0,  angle, "Ордер SHORT выставлен по условию", Settings.filenameAlligator)
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not await self.is_user_allowed(update):
@@ -274,7 +202,7 @@ class TradingBot:
         if CHAT_ID and str(update.effective_chat.id) != CHAT_ID:
             return
             
-        pairs = X_VALUE_DICT.keys()
+        symbols = X_VALUE_DICT.keys()
         trading_allowed = self.is_trading_allowed()
         
         message = (
@@ -284,8 +212,8 @@ class TradingBot:
             f"Статус по парам:\n"
         )
         
-        for pair in pairs:
-            status = self.settings.dictPairTradingStop.get(pair, 0)
+        for symbol in symbols:
+            status = self.dict.symbolTradingStatus.get(symbol, 0)
             status_text = {
                 0: "🟢 Торговля разрешена",
                 1: "🟡 Торговля приостановлена",
@@ -293,7 +221,7 @@ class TradingBot:
                 3: "⚫️ Торговля выключена"
             }.get(status, "❓ Неизвестный статус")
             
-            message += f"{pair}: {status_text}\n"
+            message += f"{symbol}: {status_text}\n"
         
         await update.message.reply_text(message)
 
@@ -353,8 +281,8 @@ class TradingBot:
         if CHAT_ID and str(update.effective_chat.id) != CHAT_ID:
             return
             
-        for pair in X_VALUE_DICT.keys():
-            self.settings.dictPairTradingStop[pair] = 0
+        for symbol in X_VALUE_DICT.keys():
+            self.dict.symbolTradingStatus[symbol] = 0
             
         await update.message.reply_text("✅ Торговля разрешена для всех пар")
 
@@ -367,15 +295,15 @@ class TradingBot:
         
         # Создаем инлайн-клавиатуру с парами
         keyboard = []
-        pairs = list(X_VALUE_DICT.keys())
+        symbols = list(X_VALUE_DICT.keys())
         
         # Разбиваем пары на строки по 2 кнопки
-        for i in range(0, len(pairs), 2):
+        for i in range(0, len(symbols), 2):
             row = []
-            for pair in pairs[i:i+2]:
-                current_status = self.settings.dictPairTradingStop.get(pair, 0)
+            for symbol in symbols[i:i+2]:
+                current_status = self.dict.symbolTradingStatus.get(symbol, 0)
                 status_emoji = {0: "🟢", 1: "🟡", 2: "🔴", 3: "⚫️"}.get(current_status, "❓")
-                row.append(InlineKeyboardButton(f"{status_emoji} {pair}", callback_data=f"manage_{pair}"))
+                row.append(InlineKeyboardButton(f"{status_emoji} {symbol}", callback_data=f"manage_{symbol}"))
             keyboard.append(row)
         
         # Добавляем кнопку для управления всеми парами
@@ -396,9 +324,9 @@ class TradingBot:
         await query.answer()
         
         if query.data.startswith("manage_"):
-            pair = query.data.replace("manage_", "")
+            symbol = query.data.replace("manage_", "")
             
-            if pair == "ALL":
+            if symbol == "ALL":
                 # Меню для всех пар
                 keyboard = [
                     [
@@ -418,23 +346,23 @@ class TradingBot:
                 )
             else:
                 # Меню для конкретной пары
-                current_status = self.settings.dictPairTradingStop.get(pair, 0)
+                current_status = self.dict.symbolTradingStatus.get(symbol, 0)
                 status_text = {0: "🟢 Разрешена", 1: "🟡 Приостановлена", 2: "🔴 Заблокирована", 3: "⚫️ Выключена"}.get(current_status, "❓ Неизвестно")
                 
                 keyboard = [
                     [
-                        InlineKeyboardButton("🟢 Разрешить", callback_data=f"status_{pair}_0"),
-                        InlineKeyboardButton("🟡 Приостановить", callback_data=f"status_{pair}_1")
+                        InlineKeyboardButton("🟢 Разрешить", callback_data=f"status_{symbol}_0"),
+                        InlineKeyboardButton("🟡 Приостановить", callback_data=f"status_{symbol}_1")
                     ],
                     [
-                        InlineKeyboardButton("🔴 Заблокировать", callback_data=f"status_{pair}_2"),
-                        InlineKeyboardButton("⚫️ Выключить", callback_data=f"status_{pair}_3")
+                        InlineKeyboardButton("🔴 Заблокировать", callback_data=f"status_{symbol}_2"),
+                        InlineKeyboardButton("⚫️ Выключить", callback_data=f"status_{symbol}_3")
                     ],
                     [InlineKeyboardButton("↩️ Назад к парам", callback_data="back_to_pairs")]
                 ]
                 
                 await query.edit_message_text(
-                    f"📊 Управление парой {pair}\nТекущий статус: {status_text}",
+                    f"📊 Управление парой {symbol}\nТекущий статус: {status_text}",
                     reply_markup=InlineKeyboardMarkup(keyboard)
                 )
 
@@ -447,27 +375,27 @@ class TradingBot:
         
         if query.data.startswith("status_"):
             data_parts = query.data.split("_")
-            pair = data_parts[1]
+            symbol = data_parts[1]
             new_status = int(data_parts[2])
             
             status_names = {0: "🟢 РАЗРЕШЕНА", 1: "🟡 ПРИОСТАНОВЛЕНА", 2: "🔴 ЗАБЛОКИРОВАНА", 3: "⚫️ ВЫКЛЮЧЕНА"}
             
-            if pair == "ALL":
+            if symbol == "ALL":
                 # Изменяем статус для всех пар
                 changed_count = 0
                 for p in X_VALUE_DICT.keys():
-                    old_status = self.settings.dictPairTradingStop.get(p, 0)
+                    old_status = self.dict.symbolTradingStatus.get(p, 0)
                     if old_status != new_status:
-                        self.settings.dictPairTradingStop[p] = new_status
+                        self.dict.symbolTradingStatus[p] = new_status
                         changed_count += 1
                 
                 message = f"✅ Статус изменен для {changed_count} пар: {status_names[new_status]}"
             else:
                 # Изменяем статус для конкретной пары
-                old_status = self.settings.dictPairTradingStop.get(pair, 0)
-                self.settings.dictPairTradingStop[pair] = new_status
+                old_status = self.dict.symbolTradingStatus.get(symbol, 0)
+                self.dict.symbolTradingStatus[symbol] = new_status
                 
-                message = f"✅ Пара {pair}: {status_names[old_status]} → {status_names[new_status]}"
+                message = f"✅ Пара {symbol}: {status_names[old_status]} → {status_names[new_status]}"
             
             await query.edit_message_text(message)
             
@@ -495,14 +423,14 @@ class TradingBot:
         if query.data == "back_to_pairs":
             # Возвращаемся к меню выбора пар
             keyboard = []
-            pairs = list(X_VALUE_DICT.keys())
+            symbols = list(X_VALUE_DICT.keys())
             
-            for i in range(0, len(pairs), 2):
+            for i in range(0, len(symbols), 2):
                 row = []
-                for pair in pairs[i:i+2]:
-                    current_status = self.settings.dictPairTradingStop.get(pair, 0)
+                for symbol in symbols[i:i+2]:
+                    current_status = self.dict.symbolTradingStatus.get(symbol, 0)
                     status_emoji = {0: "🟢", 1: "🟡", 2: "🔴", 3: "⚫️"}.get(current_status, "❓")
-                    row.append(InlineKeyboardButton(f"{status_emoji} {pair}", callback_data=f"manage_{pair}"))
+                    row.append(InlineKeyboardButton(f"{status_emoji} {symbol}", callback_data=f"manage_{symbol}"))
                 keyboard.append(row)
             
             keyboard.append([InlineKeyboardButton("🌐 Все пары", callback_data="manage_ALL")])
@@ -537,19 +465,19 @@ class TradingBot:
         await query.answer()
         
         if query.data.startswith("pair_"):
-            pair = query.data.replace("pair_", "")
+            symbol = query.data.replace("pair_", "")
             
             try:
-                df = self.alligator.Df(pair, mt5.TIMEFRAME_H1)
-                check_flat = self.ama.checkFlat(df, pair, self.settings.dictPairXvalue)
+                df = self.alligator.Df(symbol, mt5.TIMEFRAME_H1)
+                check_flat = self.ama.checkFlat(df, symbol, self.dict.dictPairXvalue)
                 median_price, jaw, teeth, lips, open_price = self.alligator.MainData(df)
                 jaw_shifted, teeth_shifted, lips_shifted = self.alligator.ShiftedData(jaw, teeth, lips, median_price)
-                last_jaw, last_teeth, last_lips, prelast_lips = self.alligator.LastData(pair, jaw_shifted, teeth_shifted, lips_shifted)
-                angle, candle_diff, lips_vs_teeth_diff = self.alligator.SupportData(last_lips, prelast_lips, pair, X_VALUE_DICT, last_teeth)
+                last_jaw, last_teeth, last_lips, prelast_lips = self.alligator.LastData(symbol, jaw_shifted, teeth_shifted, lips_shifted)
+                angle, candle_diff, lips_vs_teeth_diff = self.alligator.SupportData(last_lips, prelast_lips, symbol, X_VALUE_DICT, last_teeth)
                 
                 message = (
-                    f"📈 Информация по паре {pair}:\n\n"
-                    f"📊 Статус торговли: {self.settings.dictPairTradingStop.get(pair, 0)}\n"
+                    f"📈 Информация по паре {symbol}:\n\n"
+                    f"📊 Статус торговли: {self.dict.symbolTradingStatus.get(symbol, 0)}\n"
                     f"🔄 Флэт: {'Да' if check_flat['value'] else 'Нет'}\n"
                     f"📐 Угол губ: {angle:.2f}°\n"
                     f"📏 Угол флэта: {check_flat['angle']:.2f}°\n"
@@ -558,7 +486,7 @@ class TradingBot:
                 
                 await query.edit_message_text(message)
             except Exception as e:
-                await query.edit_message_text(f"❌ Ошибка при получении информации по паре {pair}: {str(e)}")
+                await query.edit_message_text(f"❌ Ошибка при получении информации по паре {symbol}: {str(e)}")
 
     async def pair_info(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not await self.is_user_allowed(update):
@@ -568,13 +496,13 @@ class TradingBot:
             
         # Создаем инлайн-клавиатуру с парами
         keyboard = []
-        pairs = list(X_VALUE_DICT.keys())
+        symbols = list(X_VALUE_DICT.keys())
         
         # Разбиваем пары на строки по 2 кнопки
-        for i in range(0, len(pairs), 2):
+        for i in range(0, len(symbols), 2):
             row = []
-            for pair in pairs[i:i+2]:
-                row.append(InlineKeyboardButton(pair, callback_data=f"pair_{pair}"))
+            for symbol in symbols[i:i+2]:
+                row.append(InlineKeyboardButton(symbol, callback_data=f"pair_{symbol}"))
             keyboard.append(row)
         
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -645,12 +573,11 @@ class TradingBot:
 
 # Основной торговый цикл
 def trading_loop():
-    pairs = X_VALUE_DICT.keys()
-    timeFrame = mt5.TIMEFRAME_H1
+    symbols = X_VALUE_DICT.keys()
     global lastCheckedTime
     
     # Словарь для хранения предыдущих статусов
-    previous_statuses = {pair: settings.dictPairTradingStop.get(pair, 0) for pair in pairs}
+    previous_statuses = {symbol: dict.symbolTradingStatus.get(symbol, 0) for symbol in symbols}
     
     while True:
         try:
@@ -663,42 +590,40 @@ def trading_loop():
                 time.sleep(5)
                 continue
                 
-            df = alligator.Df('XAUUSDrfd', timeFrame)
-            isNewBar, lastCheckedTime = alligator.IsNewBar(df, lastCheckedTime, timeFrame)
+            df = alligator.Df('XAUUSDrfd', TIME_FRAME)
+            isNewBar, lastCheckedTime = alligator.IsNewBar(df, lastCheckedTime, TIME_FRAME)
             
             # Фильтруем пары: только те, у которых статус <= 3
-            active_pairs = [pair for pair in pairs if settings.dictPairTradingStop.get(pair, 0) < 3]
+            active_symbols = [symbol for symbol in symbols if dict.symbolTradingStatus.get(symbol, 0) < 3]
             
             
-            for pair in active_pairs:
-                kamaIdicator = f"{pair}_KAMA"
-                alligatorIdicator = f"{pair}_Alligator"
-                currentTime = mt5Connector.ServerTime('XAUUSDrfd')
-                currentPrice = mt5.symbol_info_tick(pair).bid
-                df = alligator.Df(pair, timeFrame)
-                checkFlat = AMA.checkFlat(df, pair, X_VALUE_DICT)
-                medianPrice,jaw,teeth,lips,openPrice = alligator.MainData(df)
-                jawShifted,teethShifted,lipsShifted = alligator.ShiftedData(jaw,teeth,lips,medianPrice)
-                lastJaw,lastTeeth,lastLips,prelastLips = alligator.LastData(pair,jawShifted,teethShifted,lipsShifted)
-                angle, candleDiff,lipsVsTeethDiff = alligator.SupportData(lastLips,prelastLips,pair,X_VALUE_DICT,lastTeeth)
-                high, low = trading_bot.getPreviousCandleHighLow(pair, timeFrame)
+            for symbol in active_symbols:
+                kamaIdicator = f"{symbol}_KAMA"
+                alligatorIdicator = f"{symbol}_Alligator"
+                df = alligator.Df(symbol, TIME_FRAME)
+                checkFlat = AMA.checkFlat(df, symbol, X_VALUE_DICT)
+                medianPrice, jaw, teeth, lips,openPrice = alligator.MainData(df)
+                jawShifted, teethShifted, lipsShifted = alligator.ShiftedData(jaw, teeth, lips, medianPrice)
+                lastJaw, lastTeeth, lastLips, prelastLips = alligator.LastData(symbol, jawShifted, teethShifted, lipsShifted)
+                angle, candleDiff, lipsVsTeethDiff = alligator.SupportData(lastLips, prelastLips, symbol, X_VALUE_DICT, lastTeeth)
+
                 
                 # Сохраняем предыдущий статус
-                previous_status = previous_statuses.get(pair, 0)
-                current_status = settings.dictPairTradingStop.get(pair, 0)
+                previous_status = previous_statuses.get(symbol, 0)
+                current_status = dict.symbolTradingStatus.get(symbol, 0)
                 
                 if isNewBar and current_status == 2:
-                    settings.dictPairTradingStop[pair] = 1
+                    dict.symbolTradingStatus[symbol] = 1
                     current_status = 1
                     
                 if checkFlat["value"] == True and current_status == 1:
-                    settings.dictIndicatorStatus[kamaIdicator] = 0
+                    dict.indicatorStatus[kamaIdicator] = 0
                     
                 if -10 < angle < 10 and current_status == 1:
-                    settings.dictIndicatorStatus[alligatorIdicator] = 0
+                    dict.indicatorStatus[alligatorIdicator] = 0
                     
-                if settings.dictIndicatorStatus[kamaIdicator] == 0 and settings.dictIndicatorStatus[alligatorIdicator] == 0:
-                    settings.dictPairTradingStop[pair] = 0
+                if dict.indicatorStatus[kamaIdicator] == 0 and dict.indicatorStatus[alligatorIdicator] == 0:
+                    dict.symbolTradingStatus[symbol] = 0
                     current_status = 0
                     
                 # Проверяем изменение статуса и отправляем сообщение
@@ -720,11 +645,11 @@ def trading_loop():
                     
                     message = (
                         f"📊 ИЗМЕНЕНИЕ СТАТУСА ТОРГОВЛИ\n\n"
-                        f"🔢 Пара: {pair}\n"
+                        f"🔢 Пара: {symbol}\n"
                         f"📈 Статус: {status_names.get(current_status, 'НЕИЗВЕСТНО')}\n"
                         f"📉 Предыдущий: {status_names.get(previous_status, 'НЕИЗВЕСТНО')}\n"
                         f"📋 Причина: {reason}\n"
-                        f"⏰ Время: {mt5Connector.ServerTime(pair)}\n"
+                        f"⏰ Время: {trading.ServerTime(symbol)}\n"
                         f"📊 Флэт: {'Да' if checkFlat['value'] else 'Нет'}\n"
                         f"📐 Угол аллигатора: {angle:.2f}°"
                     )
@@ -737,18 +662,18 @@ def trading_loop():
                         )
                     
                     # Обновляем предыдущий статус
-                    previous_statuses[pair] = current_status
+                    previous_statuses[symbol] = current_status
                 
-                if checkFlat["value"] == False and settings.dictPairTradingStop[pair] == 0:
-                    #trading_bot.checkOpenStrengthLine(angle, pair)
-                    #trading_bot.checkOpenSaveLine(angle, pair, high, low)
-                    trading_bot.checkOpen(angle, pair, timeFrame, checkFlat['angle'])
+                if checkFlat["value"] == False and dict.symbolTradingStatus[symbol] == 0:
+                    #trading_bot.checkOpenStrengthLine(angle, symbol)
+                    #trading_bot.checkOpenSaveLine(angle, symbol, high, low)
+                    trading_bot.checkOpen(angle, symbol, checkFlat['angle'])
 
                 
                     
-                print(f"Пара: {pair} флэт: {checkFlat['value']} угол: {checkFlat['angle']} угол зубов:{angle} статус торговли: {settings.dictPairTradingStop[pair]}")
+                print(f"Пара: {symbol} флэт: {checkFlat['value']} угол: {checkFlat['angle']} угол зубов:{angle} статус торговли: {dict.symbolTradingStatus[symbol]}")
             
-            #print(f"AlligatorForMetals все в порядке, время:{mt5Connector.ServerTime('XAUUSDrfd')}")
+            #print(f"AlligatorForMetals все в порядке, время:{trading.ServerTime('XAUUSDrfd')}")
         except Exception as e:
             print(f"Ошибка: {str(e)}")
             #logger.saveErrorsToExcel("alligatorForMetalls", str(e), Settings.filenameErrors)
@@ -758,7 +683,7 @@ def trading_loop():
 
 if __name__ == '__main__':
     # Инициализация торгового бота
-    trading_bot = TradingBot(mt5Connector, settings, alligator, AMA)
+    trading_bot = TradingBot(trading, dict, alligator, AMA)
     
     # Запуск телеграм бота в отдельном потоке
     bot_thread = threading.Thread(target=trading_bot.run_bot, daemon=True)
