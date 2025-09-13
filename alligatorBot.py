@@ -34,6 +34,7 @@ lastCheckedTime = None
 checkFlat = None
 TIME_FRAME = mt5.TIMEFRAME_H1
 
+
 class TradingBot:
     def __init__(self, trading, dict, alligator, ama):
         self.mt5 = trading
@@ -77,13 +78,17 @@ class TradingBot:
                     for order in orders:
                         order_dict = order._asdict()
                         profit = order_dict.get("profit", 0)
+                        volume = order_dict.get("volume", 0)
                         ticketId = order_dict.get("ticket", 0)
                         symbol = order_dict.get("symbol", 0)
-                        stopLoss = order_dict.get("sl", 0)
+                        oldStopLossValue = dict.symbolStopLossValue[symbol]
                         kamaIdicator = f"{symbol}_KAMA"
                         alligatorIdicator = f"{symbol}_Alligator"
 
-                        if profit > 2000:
+                        takeProfitValue = dict.symbolTakeProfitPoint[symbol] * trading.calculate_pip_value(symbol, volume, order_dict.get("type", 0)) * 100
+                        stopLossValue = trading.calculateStopLoss(symbol, profit, oldStopLossValue, volume)
+                        
+                        if profit > takeProfitValue:
                             dict.symbolTradingStatus[symbol] = 1
                             dict.indicatorStatus[kamaIdicator] = 1
                             dict.indicatorStatus[alligatorIdicator] = 1 
@@ -100,10 +105,25 @@ class TradingBot:
                                     self.loop
                                 )   
 
-                        trading.setStopLoss(ticketId, trading.calculateStopLoss( symbol, order_dict.get("price_current", 0), order_dict.get("type", 0)), stopLoss, order_dict.get("type", 0))
+                        if  profit < stopLossValue:
+                            dict.symbolTradingStatus[symbol] = 1
+                            dict.indicatorStatus[kamaIdicator] = 1
+                            dict.indicatorStatus[alligatorIdicator] = 1 
+                            trading.orderClose(ticketId,symbol)
+
+                            if CHAT_ID:
+                                telegram_message = (
+                                    f"🎯 ЗАКРЫИЕ ПОЗИЦИИ\n\n"
+                                    f"💵 Пара: {symbol}\n"
+                                    f"🤡 Потери: {profit}"
+                                )
+                                asyncio.run_coroutine_threadsafe(
+                                    self.send_telegram_message(telegram_message),
+                                    self.loop
+                                ) 
                             
             except Exception as e:
-                print(f"Ошибка хуибка читай логи: {str(e)}")
+                print(f"Ошибка в moneySaver: {str(e)}")
                 continue
             time.sleep(0.1)
         
@@ -126,13 +146,21 @@ class TradingBot:
         return not (daily_off_period or friday_off_period)
 
     def checkOpen(self, angle, symbol, flatAngle):    
-        serverTime = trading.ServerTime(symbol)
+        serverTime = trading.serverTime(symbol)
+
         if trading.symbolInPostions(symbol,TargetType.LONG,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}") or trading.symbolInPostions(symbol,TargetType.SHORT,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}"):
             #Уже есть ордер по данной паре и данному индикатору
             return
-        
+
         if angle > 15:
-            result = trading.orderOpen(symbol, TargetType.LONG, f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}")
+
+            safeVolume = trading.calculate_safe_trade_with_margin(
+                symbol, 
+                risk_percent=90, 
+                stop_loss_pips=dict.symbolStopLossPoint[symbol], 
+                order_type=TargetType.LONG
+            )
+            result = trading.orderOpen(symbol, TargetType.LONG, safeVolume, f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}")
             
             print_message = f"\n{"-" * 50}, \ntime:{serverTime} \npair: {symbol} \nangle: {angle} \ncomment: Ордер LONG выставлен по условию, \n{"-" * 50}"
             print(print_message)
@@ -152,8 +180,14 @@ class TradingBot:
                     self.loop
                 )
                 
-        if angle < -15:        
-            result = trading.orderOpen(symbol, TargetType.SHORT, f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}")
+        if angle < -15:
+            safeVolume = trading.calculate_safe_trade_with_margin(
+                symbol, 
+                risk_percent=90, 
+                stop_loss_pips=dict.symbolStopLossPoint[symbol], 
+                order_type=TargetType.SHORT
+            )
+            result = trading.orderOpen(symbol, TargetType.SHORT, safeVolume, f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}")
             
             print_message = f"\n{"-" * 50} \ntime:{serverTime} \npair: {symbol} \nangle: {angle} \ncomment: Ордер SHORT выставлен по условию, \n{"-" * 50}"
             print(print_message)

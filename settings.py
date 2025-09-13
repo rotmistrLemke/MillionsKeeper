@@ -64,10 +64,22 @@ class Dictionary:
         "USDSGDrfd": 3    
     }
     
-    symbolTrailingStopValue = {
+    symbolStopLossPoint = {
        
         "XAUUSDrfd": 1500,
         "XAGUSDrfd": 2000   
+    }
+
+    symbolStopLossValue = {
+        
+            "XAUUSDrfd": 0.0,
+            "XAGUSDrfd": 0.0   
+        }
+
+    symbolTakeProfitPoint = {
+       
+        "XAUUSDrfd": 500,
+        "XAGUSDrfd": 1000   
     }
  
     indicatorStatus = {
