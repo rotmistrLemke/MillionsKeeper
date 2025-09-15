@@ -1,13 +1,12 @@
 import MetaTrader5 as mt5
 from datetime import datetime, timedelta
+from authenticator import MT5Auth
+from account import Account
+
 # выведем данные о пакете MetaTrader5
 print("MetaTrader5 package author: ",mt5.__author__)
 print("MetaTrader5 package version: ",mt5.__version__)
 
-# Правильное подключение с указанием сервера
-account = 2000108835
-password = "E@kAm72GGc"
-server = "AlfaForexRU-Real"  # Замените на правильное имя сервера
 NOW = datetime.now() + timedelta(hours=3)
  
 # установим подключение к терминалу MetaTrader 5
@@ -15,11 +14,9 @@ if not mt5.initialize():
     print("initialize() failed, error code =",mt5.last_error())
     quit()
 
-authorized=mt5.login(login=account, password=password, server=server)  # пароль будет взят из базы терминала, если указано помнить данные для подключения
-if authorized:
-    print("connected to account #{}".format(account))
-else:
-    print("failed to connect at account #{}, error code: {}".format(account, mt5.last_error()))
+account = Account.accountDemo2
+auth = MT5Auth(account)
+auth.login()
 
 def get_closed_profit_period(date_from, date_to, symbol=None):
     """
@@ -63,7 +60,6 @@ def get_closed_profit_period(date_from, date_to, symbol=None):
     except Exception as e:
         print(f"Ошибка при получении истории сделок: {e}")
         return 0, []
-
 
 def get_profit_today(symbol=None):
     """Профит за сегодня"""

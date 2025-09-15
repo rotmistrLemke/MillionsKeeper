@@ -15,7 +15,6 @@ class Trading:
                 print("symbol_select({}}) failed, exit",symbol)     
         volume = maxVolume
         deviation = 20
-        point = mt5.symbol_info(symbol).point
         price = mt5.symbol_info_tick(symbol).bid
         result = None
         if type == TargetType.LONG:            
@@ -24,7 +23,6 @@ class Trading:
                 "symbol": symbol,
                 "volume": volume,
                 "type": mt5.ORDER_TYPE_BUY,
-                #"sl": price - stopLossPoint * point,
                 "price": price,                
                 "deviation": deviation,
                 "comment": str(comment),
@@ -37,7 +35,6 @@ class Trading:
                 "symbol": symbol,
                 "volume": volume,
                 "type": mt5.ORDER_TYPE_SELL,
-                #"sl": price + stopLossPoint * point,
                 "price": price,                
                 "deviation": deviation,
                 "comment": str(comment),
@@ -86,11 +83,14 @@ class Trading:
   
     def calculateStopLoss(self, symbol, profit, oldStopLossValue, volume):
         stopLossPoint = dict.symbolStopLossPoint.get(symbol, 200)
-        newStopLossValue = profit - (stopLossPoint * volume * 100)
+        newStopLossValue = profit - (stopLossPoint * volume)
         if newStopLossValue > oldStopLossValue or oldStopLossValue == 0.0:
+            dict.symbolStopLossValue[symbol] = newStopLossValue
             return newStopLossValue
+        else: 
+            return oldStopLossValue
 
-    def calculate_pip_value(self, symbol, volume, order_type):
+    def calculatePipValue(self, symbol, volume, order_type):
         """
         Расчет стоимости одного пункта для валютной пары
         
@@ -116,7 +116,7 @@ class Trading:
             contract_size = symbol_info.trade_contract_size
             
             # Стоимость пункта в валюте котировки
-            pip_value = (contract_size *  symbol_info.point)
+            pip_value = (symbol_info.point * contract_size * volume)
             
             # Если валюта прибыли отличается от валюты депозита
             profit_currency = symbol_info.currency_profit
@@ -144,7 +144,7 @@ class Trading:
             print(f"Ошибка расчета стоимости пункта: {e}")
             return 0
         
-    def calculate_max_volume_with_margin_check(self, symbol, risk_percent, stop_loss_pips, order_type=None, margin_safety=1.2):
+    def calculateMaxVolumeWithMarginCheck(self, symbol, risk_percent, stop_loss_pips, order_type=None, margin_safety=1.2):
         """
         Расчет максимального объема ордера с проверкой маржинальных требований (120%+)
         
@@ -161,37 +161,39 @@ class Trading:
             if account_info is None:
                 print("Не удалось получить информацию о счете")
                 return 0
+
+            active_symbols = [symbol for symbol in dict.symbolXvalueH1.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]
             
             balance = account_info.balance
             equity = account_info.equity
-            free_margin = account_info.margin_free
+            free_margin = account_info.margin_free / len(active_symbols)
             
             if balance <= 0:
                 print("Баланс счета должен быть положительным")
                 return 0
             
-            print(f"Баланс: ₽{balance:.2f}")
-            print(f"Свободная маржа: {free_margin:.2f} ₽")
+            print(f"Баланс: {balance:.2f} $")
+            print(f"Свободная маржа: {free_margin:.2f} $")
             
             # Рассчитываем допустимый риск в деньгах
             risk_money = balance * (risk_percent / 100)
-            print(f"Допустимый риск ({risk_percent}%): {risk_money:.2f} ₽")
+            print(f"Допустимый риск ({risk_percent}%): {risk_money:.2f} $")
             
             # Если тип ордера не указан, определяем его
             if order_type is None:
                 order_type = mt5.ORDER_TYPE_BUY
             
             # Рассчитываем стоимость одного пункта
-            pip_value_per_lot = self.calculate_pip_value(symbol, 0.01, order_type) * 100
+            pip_value_per_lot = self.calculatePipValue(symbol, 1, order_type)
             if pip_value_per_lot <= 0:
                 print("Не удалось рассчитать стоимость пункта")
                 return 0
             
-            print(f"Стоимость 1 пункта для 1 лота: {pip_value_per_lot:.2f} ₽")
+            print(f"Стоимость 1 пункта для 1 лота: {pip_value_per_lot:.2f} $")
             
             # Рассчитываем стоимость стоп-лосса для 1 лота
             stop_loss_cost = pip_value_per_lot * stop_loss_pips
-            print(f"Стоимость SL {stop_loss_pips} пунктов для 1 лота: {stop_loss_cost:.2f} ₽")
+            print(f"Стоимость SL {stop_loss_pips} пунктов для 1 лота: {stop_loss_cost:.2f} $")
             
             if stop_loss_cost <= 0:
                 print("Стоимость стоп-лосса должна быть положительной")
@@ -214,9 +216,9 @@ class Trading:
             
             # Доступная маржа с учетом требования 120%
             available_margin = free_margin / margin_safety
-            volume_by_margin = (available_margin / margin_per_lot) / (pip_value_per_lot / 100)
+            volume_by_margin = available_margin / margin_per_lot
             
-            print(f"Маржа на 1 лот: {margin_per_lot:.2f} ₽")
+            print(f"Маржа на 1 лот: {margin_per_lot:.2f} $")
             print(f"Доступный объем по марже (с учетом {margin_safety*100}%): {volume_by_margin:.2f} лотов")
             
             # Берем минимальный объем из двух ограничений (риск и маржа)
@@ -237,7 +239,7 @@ class Trading:
             margin_ratio = (free_margin / final_margin_required) if final_margin_required > 0 else 0
             
             print(f"Максимальный объем: {max_volume:.2f} лотов")
-            print(f"Требуемая маржа: {final_margin_required:.2f} ₽")
+            print(f"Требуемая маржа: {final_margin_required:.2f} $")
             print(f"Коэффициент маржи: {margin_ratio:.2%}")
             
             if margin_ratio < margin_safety:
@@ -259,7 +261,7 @@ class Trading:
             print(f"Ошибка расчета максимального объема: {e}")
             return 0
 
-    def check_margin_with_sl(self, symbol, volume, order_type, stop_loss_pips, margin_safety=1.2):
+    def checkMarginWithStopLoss(self, symbol, volume, order_type, stop_loss_pips, margin_safety=1.2):
         """
         Проверка маржинальных требований с учетом стоп-лосса (120%+)
         """
@@ -284,7 +286,7 @@ class Trading:
                 return False, 0
             
             # Рассчитываем потенциальные убытки
-            pip_value = self.calculate_pip_value(symbol, volume, order_type)  * 100
+            pip_value = self.calculatePipValue(symbol, volume, order_type)
             potential_loss = pip_value * stop_loss_pips * volume
             
             # Общая требуемая маржа с учетом потенциальных убытков
@@ -293,10 +295,10 @@ class Trading:
             # Коэффициент маржи с учетом безопасности
             margin_ratio = free_margin / total_required
             
-            print(f"Свободная маржа: {free_margin:.2f} ₽")
-            print(f"Требуемая маржа: {margin_required:.2f} ₽")
-            print(f"Потенциальные убытки: {potential_loss:.2f} ₽")
-            print(f"Общая потребность: {total_required:.2f} ₽")
+            print(f"Свободная маржа: {free_margin:.2f} $")
+            print(f"Требуемая маржа: {margin_required:.2f} $")
+            print(f"Потенциальные убытки: {potential_loss:.2f} $")
+            print(f"Общая потребность: {total_required:.2f} $")
             print(f"Коэффициент маржи: {margin_ratio:.2%}")
             
             return margin_ratio >= margin_safety, margin_ratio
@@ -305,14 +307,14 @@ class Trading:
             print(f"Ошибка проверки маржи: {e}")
             return False, 0
 
-    def calculate_safe_trade_with_margin(self, symbol, risk_percent, stop_loss_pips, order_type=mt5.ORDER_TYPE_BUY):
+    def calculateSafeTradeWithMargin(self, symbol, risk_percent, stop_loss_pips, order_type=mt5.ORDER_TYPE_BUY):
         """
         Комплексный расчет с учетом требования маржи 120%+
         """
         print(f"\n=== Безопасный расчет для {symbol} ===")
         
         # Рассчитываем максимальный объем с проверкой маржи
-        max_volume = self.calculate_max_volume_with_margin_check(
+        max_volume = self.calculateMaxVolumeWithMarginCheck(
             symbol, risk_percent, stop_loss_pips, order_type, margin_safety=1.2
         )
         
@@ -321,7 +323,7 @@ class Trading:
             return 0
         
         # Дополнительная проверка маржи с учетом стоп-лосса
-        margin_ok, margin_ratio = self.check_margin_with_sl(
+        margin_ok, margin_ratio = self.checkMarginWithStopLoss(
             symbol, max_volume, order_type, stop_loss_pips, margin_safety=1.2
         )
         
@@ -341,7 +343,7 @@ class Trading:
                 # Пробуем найти безопасный объем
                 safe_volume = max_volume
                 while safe_volume >= min_volume:
-                    margin_ok, margin_ratio = self.check_margin_with_sl(
+                    margin_ok, margin_ratio = self.checkMarginWithStopLoss(
                         symbol, safe_volume, order_type, stop_loss_pips, margin_safety=1.2
                     )
                     if margin_ok:

@@ -11,6 +11,7 @@ from trading import Trading
 from settings import TargetType, IndicatorType, Dictionary
 from logs.logger import Logger
 from authenticator import MT5Auth
+from history import History
 
 # Конфигурация бота
 TOKEN = "8062299925:AAFA14ISWThGN9D0ktg7lXxRtX2lvglzG9w"
@@ -25,6 +26,7 @@ account = Account.accountDemo2
 auth = MT5Auth(account)
 auth.login()
 trading = Trading()
+history = History()
 alligator = Alligator()
 logger = Logger()
 dict = Dictionary()
@@ -33,6 +35,8 @@ X_VALUE_DICT = Dictionary.symbolXvalueH1
 lastCheckedTime = None
 checkFlat = None
 TIME_FRAME = mt5.TIMEFRAME_H1
+
+
 
 
 class TradingBot:
@@ -48,7 +52,7 @@ class TradingBot:
         self.loop = asyncio.new_event_loop() 
         self.allowed_users = ALLOWED_USERS  
 
-    async def is_user_allowed(self, update: Update) -> bool:
+    async def isUserAllowed(self, update: Update) -> bool:
         """Проверяет, есть ли пользователь в белом списке"""
         user_id = str(update.effective_user.id)
         if user_id in self.allowed_users:
@@ -85,7 +89,7 @@ class TradingBot:
                         kamaIdicator = f"{symbol}_KAMA"
                         alligatorIdicator = f"{symbol}_Alligator"
 
-                        takeProfitValue = dict.symbolTakeProfitPoint[symbol] * trading.calculate_pip_value(symbol, volume, order_dict.get("type", 0)) * 100
+                        takeProfitValue = dict.symbolTakeProfitPoint[symbol] * trading.calculatePipValue(symbol, volume, order_dict.get("type", 0))
                         stopLossValue = trading.calculateStopLoss(symbol, profit, oldStopLossValue, volume)
                         
                         if profit > takeProfitValue:
@@ -127,7 +131,7 @@ class TradingBot:
                 continue
             time.sleep(0.1)
         
-    def is_trading_allowed(self):
+    def isTradingAlowed(self):
         """Проверка разрешенного времени для торговли"""
         now = datetime.datetime.now()
         current_time = now.time()
@@ -154,7 +158,7 @@ class TradingBot:
 
         if angle > 15:
 
-            safeVolume = trading.calculate_safe_trade_with_margin(
+            safeVolume = trading.calculateSafeTradeWithMargin(
                 symbol, 
                 risk_percent=90, 
                 stop_loss_pips=dict.symbolStopLossPoint[symbol], 
@@ -181,7 +185,7 @@ class TradingBot:
                 )
                 
         if angle < -15:
-            safeVolume = trading.calculate_safe_trade_with_margin(
+            safeVolume = trading.calculateSafeTradeWithMargin(
                 symbol, 
                 risk_percent=90, 
                 stop_loss_pips=dict.symbolStopLossPoint[symbol], 
@@ -209,7 +213,7 @@ class TradingBot:
             #logger.saveToExcel(symbol, "OPEN_SHORT", 0,  angle, "Ордер SHORT выставлен по условию", Settings.filenameAlligator)
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not await self.is_user_allowed(update):
+        if not await self.isUserAllowed(update):
             return
         global CHAT_ID
         CHAT_ID = str(update.effective_chat.id)
@@ -217,11 +221,12 @@ class TradingBot:
         keyboard = [
         ["🤖 Старт", "📊 Статус"],  # Было: "/status", "/positions"
         ["💼 Позиции", "⚙️ Управление торговлей"],  # Было: "/enable_trading", "/disable_trading"
-        ["🕒 График", "📈 Инфо по паре"]  # Было: "/trading_schedule", "/pair_info"
+        ["🕒 График", "📈 Инфо по паре"],  # Было: "/trading_schedule", "/pair_info"
+        ["📊 История"]
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
-        trading_status = "🟢 Разрешена" if self.is_trading_allowed() else "🔴 Запрещена"
+        trading_status = "🟢 Разрешена" if self.isTradingAlowed() else "🔴 Запрещена"
         message = (
             f"🤖 Торговый бот Alligator Strategy\n\n"
             f"Текущий статус торговли: {trading_status}\n"
@@ -231,13 +236,13 @@ class TradingBot:
         await update.message.reply_text(message, reply_markup=reply_markup)
 
     async def status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not await self.is_user_allowed(update):
+        if not await self.isUserAllowed(update):
             return
         if CHAT_ID and str(update.effective_chat.id) != CHAT_ID:
             return
             
         symbols = X_VALUE_DICT.keys()
-        trading_allowed = self.is_trading_allowed()
+        trading_allowed = self.isTradingAlowed()
         
         message = (
             f"📊 Статус системы:\n\n"
@@ -260,7 +265,7 @@ class TradingBot:
         await update.message.reply_text(message)
 
     async def positions(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not await self.is_user_allowed(update):
+        if not await self.isUserAllowed(update):
             return
         if CHAT_ID and str(update.effective_chat.id) != CHAT_ID:
             return
@@ -310,7 +315,7 @@ class TradingBot:
             await update.message.reply_text(f"❌ Ошибка при получении позиций: {str(e)}")
 
     async def enable_trading(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not await self.is_user_allowed(update):
+        if not await self.isUserAllowed(update):
             return
         if CHAT_ID and str(update.effective_chat.id) != CHAT_ID:
             return
@@ -321,7 +326,7 @@ class TradingBot:
         await update.message.reply_text("✅ Торговля разрешена для всех пар")
 
     async def disable_trading(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not await self.is_user_allowed(update):
+        if not await self.isUserAllowed(update):
             return
         """Меню выбора пар для изменения статуса"""
         if CHAT_ID and str(update.effective_chat.id) != CHAT_ID:
@@ -351,7 +356,7 @@ class TradingBot:
         )
 
     async def handle_manage_pair(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not await self.is_user_allowed(update):
+        if not await self.isUserAllowed(update):
             return
         """Обработка выбора пары для управления"""
         query = update.callback_query
@@ -401,7 +406,7 @@ class TradingBot:
                 )
 
     async def handle_status_change(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not await self.is_user_allowed(update):
+        if not await self.isUserAllowed(update):
             return
         """Обработка изменения статуса"""
         query = update.callback_query
@@ -448,7 +453,7 @@ class TradingBot:
                 )
 
     async def handle_back_button(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not await self.is_user_allowed(update):
+        if not await self.isUserAllowed(update):
             return
         """Обработка кнопки назад"""
         query = update.callback_query
@@ -475,7 +480,7 @@ class TradingBot:
             )
 
     async def trading_schedule(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not await self.is_user_allowed(update):
+        if not await self.isUserAllowed(update):
             return
         if CHAT_ID and str(update.effective_chat.id) != CHAT_ID:
             return
@@ -486,13 +491,13 @@ class TradingBot:
             "🔴 23:40 - 02:00 (следующего дня) - торговля запрещена\n\n"
             "Еженедельные ограничения:\n"
             "🔴 Пятница 23:40 - Понедельник 03:00 - торговля запрещена\n\n"
-            f"Текущий статус: {'🟢 Разрешена' if self.is_trading_allowed() else '🔴 Запрещена'}"
+            f"Текущий статус: {'🟢 Разрешена' if self.isTradingAlowed() else '🔴 Запрещена'}"
         )
         
         await update.message.reply_text(message)
 
     async def handle_pair_selection(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not await self.is_user_allowed(update):
+        if not await self.isUserAllowed(update):
             return
         """Обработка выбора пары из инлайн-клавиатуры"""
         query = update.callback_query
@@ -523,7 +528,7 @@ class TradingBot:
                 await query.edit_message_text(f"❌ Ошибка при получении информации по паре {symbol}: {str(e)}")
 
     async def pair_info(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not await self.is_user_allowed(update):
+        if not await self.isUserAllowed(update):
             return
         if CHAT_ID and str(update.effective_chat.id) != CHAT_ID:
             return
@@ -545,6 +550,141 @@ class TradingBot:
             "📈 Выберите пару для получения информации:",
             reply_markup=reply_markup
         )
+
+    async def history_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Меню истории сделок"""
+        if not await self.isUserAllowed(update):
+            return
+            
+        keyboard = [
+            ["📅 За день", "📆 За неделю"],
+            ["📊 За месяц", "🔄 За все время"],
+            ["🥇 По XAUUSDrfd", "🥈 По XAGUSDrfd"],
+            ["↩️ Назад в главное меню"]
+        ]
+        reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        
+        await update.message.reply_text(
+            "📊 История сделок\n\nВыберите период или инструмент:",
+            reply_markup=reply_markup
+        )
+
+    async def handle_history_buttons(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Обработка кнопок истории"""
+        text = update.message.text
+        
+        if text == "📅 За день":
+            await self.show_daily_history(update, context)
+        elif text == "📆 За неделю":
+            await self.show_weekly_history(update, context)
+        elif text == "📊 За месяц":
+            await self.show_monthly_history(update, context)
+        elif text == "🔄 За все время":
+            await self.show_all_time_history(update, context)
+        elif text == "🥇 По XAUUSDrfd":
+            await self.show_symbol_history(update, context, "XAUUSDrfd")
+        elif text == "🥈 По XAGUSDrfd":
+            await self.show_symbol_history(update, context, "XAGUSDrfd")
+        elif text == "↩️ Назад в главное меню":
+            await self.start(update, context)
+
+    async def show_daily_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Показать историю за день"""
+        try:
+            total_profit, deals = history.get_profit_today()
+            
+            message = self.format_history_message("📅 История за день", total_profit, deals)
+            await update.message.reply_text(message)
+            
+        except Exception as e:
+            await update.message.reply_text(f"❌ Ошибка получения истории: {str(e)}")
+
+    async def show_weekly_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Показать историю за неделю"""
+        try:
+            total_profit, deals = history.get_profit_this_week()
+            
+            message = self.format_history_message("📆 История за неделю", total_profit, deals)
+            await update.message.reply_text(message)
+            
+        except Exception as e:
+            await update.message.reply_text(f"❌ Ошибка получения истории: {str(e)}")
+
+    async def show_monthly_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Показать историю за месяц"""
+        try:
+            total_profit, deals = history.get_profit_this_month()
+            
+            message = self.format_history_message("📊 История за месяц", total_profit, deals)
+            await update.message.reply_text(message)
+            
+        except Exception as e:
+            await update.message.reply_text(f"❌ Ошибка получения истории: {str(e)}")
+
+    async def show_all_time_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Показать историю за все время"""
+        try:
+            # За последние 365 дней (примерно год)
+            total_profit, deals = history.get_profit_last_days(365)
+            
+            message = self.format_history_message("🔄 История за все время", total_profit, deals)
+            await update.message.reply_text(message)
+            
+        except Exception as e:
+            await update.message.reply_text(f"❌ Ошибка получения истории: {str(e)}")
+
+    async def show_symbol_history(self, update: Update, context: ContextTypes.DEFAULT_TYPE, symbol: str):
+        """Показать историю по конкретному символу"""
+        try:
+            # За последние 30 дней для символа
+            date_to = datetime.datetime.now()
+            date_from = date_to - datetime.timedelta(days=30)
+            total_profit, deals = history.get_closed_profit_period(date_from, date_to, symbol)
+            
+            # Фильтруем сделки только по нужному символу
+            symbol_deals = [deal for deal in deals if deal['symbol'] == symbol]
+            
+            message = self.format_history_message(f"🥇 История по {symbol}", total_profit, symbol_deals)
+            await update.message.reply_text(message)
+            
+        except Exception as e:
+            await update.message.reply_text(f"❌ Ошибка получения истории: {str(e)}")
+
+    def format_history_message(self, title: str, total_profit: float, deals: list) -> str:
+        """Форматирование сообщения с историей"""
+        if not deals:
+            return f"{title}\n\n📭 Нет закрытых сделок за выбранный период"
+        
+        message = f"{title}\n\n"
+        message += f"💰 Общий профит: {total_profit:.2f}\n"
+        message += f"📊 Количество сделок: {len(deals)}\n\n"
+        
+        # Группируем сделки по символам
+        by_symbol = {}
+        for deal in deals:
+            symbol = deal['symbol']
+            if symbol not in by_symbol:
+                by_symbol[symbol] = {'profit': 0, 'count': 0}
+            by_symbol[symbol]['profit'] += deal['profit']
+            by_symbol[symbol]['count'] += 1
+        
+        # Добавляем статистику по символам
+        message += "📈 По инструментам:\n"
+        for symbol, data in by_symbol.items():
+            emoji = "🟢" if data['profit'] > 0 else "🔴"
+            message += f"{emoji} {symbol}: {data['profit']:.2f} ({data['count']} сделок)\n"
+        
+        # Добавляем последние 5 сделок
+        message += "\n📋 Последние сделки:\n"
+        recent_deals = sorted(deals, key=lambda x: x['time'], reverse=True)[:5]
+        
+        for deal in recent_deals:
+            emoji = "🟦" if deal['type'] == 'BUY' else "🟥"
+            profit_emoji = "✅" if deal['profit'] > 0 else "❌"
+            time_str = deal['time'].strftime('%d.%m %H:%M')
+            message += f"{emoji} {deal['symbol']} {profit_emoji} {deal['profit']:.2f} ({time_str})\n"
+        
+        return message
 
     async def send_telegram_message(self, message):
         """Отправка сообщения в Telegram"""
@@ -571,6 +711,7 @@ class TradingBot:
             CommandHandler("disable_trading", self.disable_trading),
             CommandHandler("trading_schedule", self.trading_schedule),
             CommandHandler("pair_info", self.pair_info),
+            CommandHandler("history", self.history_menu),
             CallbackQueryHandler(self.handle_manage_pair, pattern="^manage_"),
             CallbackQueryHandler(self.handle_status_change, pattern="^status_"),
             CallbackQueryHandler(self.handle_back_button, pattern="^back_to_pairs"),
@@ -604,6 +745,11 @@ class TradingBot:
             await self.trading_schedule(update, context)
         elif text == "📈 Инфо по паре":
             await self.pair_info(update, context)
+        elif text == "📊 История":  
+            await self.history_menu(update, context)
+        elif text in ["📅 За день", "📆 За неделю", "📊 За месяц", "🔄 За все время", 
+                    "🥇 По XAUUSDrfd", "🥈 По XAGUSDrfd", "↩️ Назад в главное меню"]:
+            await self.handle_history_buttons(update, context)
 
 # Основной торговый цикл
 def trading_loop():
@@ -615,7 +761,7 @@ def trading_loop():
     
     while True:
         try:
-            if not trading_bot.is_trading_allowed():
+            if not trading_bot.isTradingAlowed():
                 print("Сейчас торговля запрещена (23:40-02:00 ежедневно или пятница 23:40 - понедельник 03:00)")
                 time.sleep(60)
                 continue
@@ -631,6 +777,7 @@ def trading_loop():
             active_symbols = [symbol for symbol in symbols if dict.symbolTradingStatus.get(symbol, 0) < 3]
             
             
+            
             for symbol in active_symbols:
                 kamaIdicator = f"{symbol}_KAMA"
                 alligatorIdicator = f"{symbol}_Alligator"
@@ -639,8 +786,7 @@ def trading_loop():
                 medianPrice, jaw, teeth, lips,openPrice = alligator.MainData(df)
                 jawShifted, teethShifted, lipsShifted = alligator.ShiftedData(jaw, teeth, lips, medianPrice)
                 lastJaw, lastTeeth, lastLips, prelastLips = alligator.LastData(symbol, jawShifted, teethShifted, lipsShifted)
-                angle, candleDiff, lipsVsTeethDiff = alligator.SupportData(lastLips, prelastLips, symbol, X_VALUE_DICT, lastTeeth)
-
+                angle = alligator.SupportData(lastLips, prelastLips, symbol, X_VALUE_DICT)
                 
                 # Сохраняем предыдущий статус
                 previous_status = previous_statuses.get(symbol, 0)
@@ -683,7 +829,7 @@ def trading_loop():
                         f"📈 Статус: {status_names.get(current_status, 'НЕИЗВЕСТНО')}\n"
                         f"📉 Предыдущий: {status_names.get(previous_status, 'НЕИЗВЕСТНО')}\n"
                         f"📋 Причина: {reason}\n"
-                        f"⏰ Время: {trading.ServerTime(symbol)}\n"
+                        f"⏰ Время: {trading.serverTime(symbol)}\n"
                         f"📊 Флэт: {'Да' if checkFlat['value'] else 'Нет'}\n"
                         f"📐 Угол аллигатора: {angle:.2f}°"
                     )
@@ -707,7 +853,7 @@ def trading_loop():
                     
                 print(f"Пара: {symbol} флэт: {checkFlat['value']} угол: {checkFlat['angle']} угол зубов:{angle} статус торговли: {dict.symbolTradingStatus[symbol]}")
             
-            #print(f"AlligatorForMetals все в порядке, время:{trading.ServerTime('XAUUSDrfd')}")
+            #print(f"AlligatorForMetals все в порядке, время:{trading.serverTime('XAUUSDrfd')}")
         except Exception as e:
             print(f"Ошибка: {str(e)}")
             #logger.saveErrorsToExcel("alligatorForMetalls", str(e), Settings.filenameErrors)
