@@ -15,7 +15,7 @@ class IndicatorType:
     
 class Dictionary:
     symbolXvalueH1 = {
-    "EURUSDrfd": 95,
+    "EURUSDrfd": 100,
     "NZDUSDrfd": 65,
     "EURGBPrfd": 40,
     "USDCHFrfd": 55,
@@ -67,19 +67,22 @@ class Dictionary:
     symbolStopLossPoint = {
        
         "XAUUSDrfd": 1500,
-        "XAGUSDrfd": 2000   
+        "XAGUSDrfd": 2000,
+        "EURUSDrfd": 500
     }
 
     symbolStopLossValue = {
         
             "XAUUSDrfd": 0.0,
-            "XAGUSDrfd": 0.0   
+            "XAGUSDrfd": 0.0,
+            "EURUSDrfd": 0.0   
         }
 
     symbolTakeProfitPoint = {
        
         "XAUUSDrfd": 500,
-        "XAGUSDrfd": 1000   
+        "XAGUSDrfd": 1000,
+        "EURUSDrfd": 200  
     }
  
     indicatorStatus = {

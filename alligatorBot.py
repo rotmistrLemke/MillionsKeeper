@@ -67,8 +67,7 @@ class TradingBot:
             "У вас нет прав для использования этого бота. "
             "Если вы должны иметь доступ, свяжитесь с администратором."
         )
-        return False    
-        
+        return False      
 
     def moneySaverLoop(self):
         while self.bot_running:
@@ -110,10 +109,9 @@ class TradingBot:
                                 )   
 
                         if  profit < stopLossValue:
-                            dict.symbolTradingStatus[symbol] = 1
-                            dict.indicatorStatus[kamaIdicator] = 1
-                            dict.indicatorStatus[alligatorIdicator] = 1 
-                            trading.orderClose(ticketId,symbol)
+                            #dict.indicatorStatus[kamaIdicator] = 1
+                            #dict.indicatorStatus[alligatorIdicator] = 1 
+                            #trading.orderClose(ticketId,symbol)
 
                             if CHAT_ID:
                                 telegram_message = (
@@ -302,6 +300,7 @@ class TradingBot:
                     message += (
                         f"  {direction}: {pos.volume} лот(ов)\n"
                         f"💰  Прибыль: {pos.profit}\n"
+                        f"🛑  Стоп-лосс значение: {dict.symbolStopLossValue[symbol]}\n"
 
                     )
                 has_positions = True
@@ -508,11 +507,11 @@ class TradingBot:
             
             try:
                 df = self.alligator.Df(symbol, mt5.TIMEFRAME_H1)
-                check_flat = self.ama.checkFlat(df, symbol, self.dict.dictPairXvalue)
+                check_flat = self.ama.checkFlat(df, symbol, self.dict.symbolXvalueH1)
                 median_price, jaw, teeth, lips, open_price = self.alligator.MainData(df)
                 jaw_shifted, teeth_shifted, lips_shifted = self.alligator.ShiftedData(jaw, teeth, lips, median_price)
                 last_jaw, last_teeth, last_lips, prelast_lips = self.alligator.LastData(symbol, jaw_shifted, teeth_shifted, lips_shifted)
-                angle, candle_diff, lips_vs_teeth_diff = self.alligator.SupportData(last_lips, prelast_lips, symbol, X_VALUE_DICT, last_teeth)
+                angle = self.alligator.SupportData(last_lips, prelast_lips, symbol, X_VALUE_DICT)
                 
                 message = (
                     f"📈 Информация по паре {symbol}:\n\n"

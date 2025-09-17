@@ -1,7 +1,6 @@
 import MetaTrader5 as mt5
 from datetime import datetime, timedelta
 
-NOW = datetime.now() + timedelta(hours=3)
 
 class History:
 
@@ -51,25 +50,25 @@ class History:
     def get_profit_today(self, symbol=None):
         """Профит за сегодня"""
         date_from = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        date_to = NOW
+        date_to = datetime.now() + timedelta(hours=3)
         return self.get_closed_profit_period(date_from, date_to, symbol)
 
     def get_profit_this_week(self, symbol=None):
         """Профит за текущую неделю"""
-        today = NOW
+        today = datetime.now() + timedelta(hours=3)
         date_from = today - timedelta(days=today.weekday())
         date_from = date_from.replace(hour=0, minute=0, second=0, microsecond=0)
         return self.get_closed_profit_period(date_from, today, symbol)
 
     def get_profit_this_month(self, symbol=None):
         """Профит за текущий месяц"""
-        today = NOW
+        today = datetime.now() + timedelta(hours=3)
         date_from = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         return self.get_closed_profit_period(date_from, today, symbol)
 
     def get_profit_last_days(self, days, symbol=None):
         """Профит за последние N дней"""
-        date_to = NOW
+        date_to = datetime.now() + timedelta(hours=3)
         date_from = date_to - timedelta(days=days)
         date_from = date_from.replace(hour=0, minute=0, second=0, microsecond=0)
         return self.get_closed_profit_period(date_from, date_to, symbol)
