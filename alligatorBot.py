@@ -81,17 +81,13 @@ class TradingBot:
                     for order in orders:
                         order_dict = order._asdict()
                         profit = order_dict.get("profit", 0)
-                        volume = order_dict.get("volume", 0)
                         ticketId = order_dict.get("ticket", 0)
                         symbol = order_dict.get("symbol", 0)
-                        oldStopLossValue = dict.symbolStopLossValue[symbol]
                         kamaIdicator = f"{symbol}_KAMA"
                         alligatorIdicator = f"{symbol}_Alligator"
 
-                        takeProfitValue = dict.symbolTakeProfitPoint[symbol] * trading.calculatePipValue(symbol, volume, order_dict.get("type", 0))
-                        stopLossValue = trading.calculateStopLoss(symbol, profit, oldStopLossValue, volume)
                         
-                        if profit > takeProfitValue:
+                        if profit > dict.symbolTakeProfitValue[symbol]:
                             dict.symbolTradingStatus[symbol] = 1
                             dict.indicatorStatus[kamaIdicator] = 1
                             dict.indicatorStatus[alligatorIdicator] = 1 
@@ -108,10 +104,10 @@ class TradingBot:
                                     self.loop
                                 )   
 
-                        if  profit < stopLossValue:
+                        if  profit < dict.symbolStopLossValue[symbol]:
                             #dict.indicatorStatus[kamaIdicator] = 1
                             #dict.indicatorStatus[alligatorIdicator] = 1 
-                            #trading.orderClose(ticketId,symbol)
+                            trading.orderClose(ticketId,symbol)
 
                             if CHAT_ID:
                                 telegram_message = (
@@ -164,6 +160,9 @@ class TradingBot:
             )
             result = trading.orderOpen(symbol, TargetType.LONG, safeVolume, f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}")
             
+            dict.symbolTakeProfitValue[symbol] = dict.symbolTakeProfitPoint[symbol] * trading.calculatePipValue(symbol, safeVolume, TargetType.LONG)
+            dict.symbolStopLossValue[symbol] = 0 - (dict.symbolStopLossPoint.get(symbol, 200) * safeVolume)
+
             print_message = f"\n{"-" * 50}, \ntime:{serverTime} \npair: {symbol} \nangle: {angle} \ncomment: Ордер LONG выставлен по условию, \n{"-" * 50}"
             print(print_message)
             
@@ -190,6 +189,9 @@ class TradingBot:
                 order_type=TargetType.SHORT
             )
             result = trading.orderOpen(symbol, TargetType.SHORT, safeVolume, f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}")
+
+            dict.symbolTakeProfitValue[symbol] = dict.symbolTakeProfitPoint[symbol] * trading.calculatePipValue(symbol, safeVolume, TargetType.SHORT)
+            dict.symbolStopLossValue[symbol] = 0 - (dict.symbolStopLossPoint.get(symbol, 200) * safeVolume)
             
             print_message = f"\n{"-" * 50} \ntime:{serverTime} \npair: {symbol} \nangle: {angle} \ncomment: Ордер SHORT выставлен по условию, \n{"-" * 50}"
             print(print_message)

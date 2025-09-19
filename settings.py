@@ -78,6 +78,14 @@ class Dictionary:
             "EURUSDrfd": 0.0   
         }
 
+    symbolTakeProfitValue = {
+            
+                "XAUUSDrfd": 0.0,
+                "XAGUSDrfd": 0.0,
+                "EURUSDrfd": 0.0   
+            }
+
+
     symbolTakeProfitPoint = {
        
         "XAUUSDrfd": 500,
