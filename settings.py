@@ -73,15 +73,15 @@ class Dictionary:
 
     symbolStopLossValue = {
         
-            "XAUUSDrfd": 0.0,
-            "XAGUSDrfd": 0.0,
+            "XAUUSDrfd": 4500,
+            "XAGUSDrfd": 4500,
             "EURUSDrfd": 0.0   
         }
 
     symbolTakeProfitValue = {
             
-                "XAUUSDrfd": 0.0,
-                "XAGUSDrfd": 0.0,
+                "XAUUSDrfd": 1500,
+                "XAGUSDrfd": 1500,
                 "EURUSDrfd": 0.0   
             }
 

@@ -144,7 +144,7 @@ class Trading:
             print(f"Ошибка расчета стоимости пункта: {e}")
             return 0
         
-    def calculateMaxVolumeWithMarginCheck(self, symbol, risk_percent, stop_loss_pips, order_type=None, margin_safety=1.2):
+    def calculateMaxVolumeWithMarginCheck(self, symbol, risk_percent, stop_loss_pips, order_type=None, margin_safety=1.1):
         """
         Расчет максимального объема ордера с проверкой маржинальных требований (120%+)
         
@@ -261,9 +261,9 @@ class Trading:
             print(f"Ошибка расчета максимального объема: {e}")
             return 0
 
-    def checkMarginWithStopLoss(self, symbol, volume, order_type, stop_loss_pips, margin_safety=1.2):
+    def checkMarginWithStopLoss(self, symbol, volume, order_type, stop_loss_pips, margin_safety=1.1):
         """
-        Проверка маржинальных требований с учетом стоп-лосса (120%+)
+        Проверка маржинальных требований с учетом стоп-лосса (110%+)
         """
         try:
             account_info = mt5.account_info()

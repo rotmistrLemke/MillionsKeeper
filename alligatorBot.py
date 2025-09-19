@@ -22,7 +22,7 @@ ALLOWED_USERS = {
     # "987654321": "Другой пользователь",  # Можно добавить других
 }
 
-account = Account.accountDemo2
+account = Account.accountReal
 auth = MT5Auth(account)
 auth.login()
 trading = Trading()
@@ -160,8 +160,8 @@ class TradingBot:
             )
             result = trading.orderOpen(symbol, TargetType.LONG, safeVolume, f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}")
             
-            dict.symbolTakeProfitValue[symbol] = dict.symbolTakeProfitPoint[symbol] * trading.calculatePipValue(symbol, safeVolume, TargetType.LONG)
-            dict.symbolStopLossValue[symbol] = 0 - (dict.symbolStopLossPoint.get(symbol, 200) * safeVolume)
+            #dict.symbolTakeProfitValue[symbol] = dict.symbolTakeProfitPoint[symbol] * trading.calculatePipValue(symbol, safeVolume, TargetType.LONG)
+            #dict.symbolStopLossValue[symbol] = 0 - (dict.symbolStopLossPoint.get(symbol, 200) * safeVolume)
 
             print_message = f"\n{"-" * 50}, \ntime:{serverTime} \npair: {symbol} \nangle: {angle} \ncomment: Ордер LONG выставлен по условию, \n{"-" * 50}"
             print(print_message)
@@ -190,8 +190,8 @@ class TradingBot:
             )
             result = trading.orderOpen(symbol, TargetType.SHORT, safeVolume, f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}")
 
-            dict.symbolTakeProfitValue[symbol] = dict.symbolTakeProfitPoint[symbol] * trading.calculatePipValue(symbol, safeVolume, TargetType.SHORT)
-            dict.symbolStopLossValue[symbol] = 0 - (dict.symbolStopLossPoint.get(symbol, 200) * safeVolume)
+            #dict.symbolTakeProfitValue[symbol] = dict.symbolTakeProfitPoint[symbol] * trading.calculatePipValue(symbol, safeVolume, TargetType.SHORT)
+            #dict.symbolStopLossValue[symbol] = 0 - (dict.symbolStopLossPoint.get(symbol, 200) * safeVolume)
             
             print_message = f"\n{"-" * 50} \ntime:{serverTime} \npair: {symbol} \nangle: {angle} \ncomment: Ордер SHORT выставлен по условию, \n{"-" * 50}"
             print(print_message)
@@ -849,6 +849,8 @@ def trading_loop():
                     #trading_bot.checkOpenStrengthLine(angle, symbol)
                     #trading_bot.checkOpenSaveLine(angle, symbol, high, low)
                     trading_bot.checkOpen(angle, symbol, checkFlat['angle'])
+
+
 
                 
                     
