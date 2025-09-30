@@ -204,10 +204,11 @@ class MACD:
             # Текущие значения
             current_macd = macd_line[99]
             prev_macd = signal_line[98]
+            prev2_macd = signal_line[97]
             
             print(f"Ручной MACD {symbol}: Current={current_macd:.5f}, Preview={prev_macd:.5f}")
-            return current_macd, prev_macd
+            return current_macd, prev_macd, prev2_macd
             
         except Exception as e:
             print(f"Ошибка ручного расчета MACD: {e}")
-            return None, None
+            return None, None, None

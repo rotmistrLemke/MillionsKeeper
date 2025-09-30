@@ -86,9 +86,9 @@ class TradingBot:
                         profit = order_dict.get("profit", 0)
                         ticketId = order_dict.get("ticket", 0)
                         symbol = order_dict.get("symbol", 0)
-                        current_macd, prev_macd = macd.calculate_macd_manual(symbol, TIME_FRAME)
+                        current_macd, prev_macd, prev2_macd = macd.calculate_macd_manual(symbol, TIME_FRAME)
 
-                        if order_dict.get("type", 0) == 0 and (prev_macd > current_macd):
+                        if order_dict.get("type", 0) == 0 and (prev2_macd > prev_macd):
                             trading.orderClose(ticketId,symbol)
                             
                             if CHAT_ID:
@@ -102,7 +102,7 @@ class TradingBot:
                                     self.loop
                                 )   
 
-                        if  order_dict.get("type", 0) == 1 and (prev_macd < current_macd):
+                        if  order_dict.get("type", 0) == 1 and (prev2_macd < prev_macd):
                             trading.orderClose(ticketId,symbol)
 
                             if CHAT_ID:
@@ -770,7 +770,7 @@ def trading_loop():
             
             for symbol in active_symbols:
                 
-                current_macd, prev_macd = macd.calculate_macd_manual(symbol, TIME_FRAME)
+                current_macd, prev_macd, prev2_macd = macd.calculate_macd_manual(symbol, TIME_FRAME)
                 
                 if (prev_macd < 0 and current_macd > 0) or(prev_macd > 0 and current_macd < 0):
                     trading_bot.checkOpen(symbol, prev_macd, current_macd)
