@@ -15,7 +15,7 @@ from history import History
 
 # Конфигурация бота
 #TOKEN = "8062299925:AAFA14ISWThGN9D0ktg7lXxRtX2lvglzG9w"
-TOKEN = "8235563483:AAF1gESvpoES7ttfJBlOKMfbA2z7BVl55LA"
+TOKEN = "8235563483:AAF1gESvpoES7ttfJBlOKMfbA2z7BVl55LA" #AlligatorMinerTesr
 CHAT_ID = None  # Будет заполнено после /start
 # Белый список разрешенных пользователей
 ALLOWED_USERS = {
@@ -33,7 +33,7 @@ bbp = BullsBearsPower()
 logger = Logger()
 dict = Dictionary()
 AMA = AdaptiveMovingAverage()
-X_VALUE_DICT = Dictionary.symbolXvalueM5
+X_VALUE_DICT = Dictionary.symbolXvalueH1
 lastCheckedTime = None
 checkFlat = None
 TIME_FRAME = mt5.TIMEFRAME_M5
@@ -84,15 +84,9 @@ class TradingBot:
                     for order in orders:
                         order_dict = order._asdict()
                         profit = order_dict.get("profit", 0)
-                        volume = order_dict.get("volume", 0)
                         ticketId = order_dict.get("ticket", 0)
-                        priceOpen = order_dict.get("price_open", 0)
                         symbol = order_dict.get("symbol", 0)
-                        oldStopLossValue = dict.symbolStopLossValue[symbol]
-                        kamaIdicator = f"{symbol}_KAMA"
-                        alligatorIdicator = f"{symbol}_Alligator"
                         current_macd, prev_macd = macd.calculate_macd_manual(symbol, TIME_FRAME)
-
 
                         if order_dict.get("type", 0) == 0 and (prev_macd > current_macd):
                             trading.orderClose(ticketId,symbol)
@@ -775,85 +769,12 @@ def trading_loop():
             
             
             for symbol in active_symbols:
-                kamaIdicator = f"{symbol}_KAMA"
-                alligatorIdicator = f"{symbol}_Alligator"
-                df = alligator.Df(symbol, TIME_FRAME)
-                checkFlat = AMA.checkFlat(df, symbol, X_VALUE_DICT)
-                medianPrice, jaw, teeth, lips,openPrice = alligator.MainData(df)
-                jawShifted, teethShifted, lipsShifted = alligator.ShiftedData(jaw, teeth, lips, medianPrice)
-                lastJaw, lastTeeth, lastLips, prelastLips = alligator.LastData(symbol, jawShifted, teethShifted, lipsShifted)
-                angle = alligator.SupportData(lastLips, prelastLips, symbol, X_VALUE_DICT)
+                
                 current_macd, prev_macd = macd.calculate_macd_manual(symbol, TIME_FRAME)
                 
-                # Сохраняем предыдущий статус
-                previous_status = previous_statuses.get(symbol, 0)
-                current_status = dict.symbolTradingStatus.get(symbol, 0)
-                
-                if isNewBar and current_status == 2:
-                    dict.symbolTradingStatus[symbol] = 1
-                    current_status = 1
-                    
-                if checkFlat["value"] == True and current_status == 1:
-                    dict.indicatorStatus[kamaIdicator] = 0
-                    
-                if -10 < angle < 10 and current_status == 1:
-                    dict.indicatorStatus[alligatorIdicator] = 0
-                    
-                if dict.indicatorStatus[kamaIdicator] == 0 and dict.indicatorStatus[alligatorIdicator] == 0:
-                    dict.symbolTradingStatus[symbol] = 0
-                    current_status = 0
-                    
-                # Проверяем изменение статуса и отправляем сообщение
-                if current_status != previous_status:
-                    status_names = {
-                        0: "🟢 РАЗРЕШЕНА",
-                        1: "🟡 ПРИОСТАНОВЛЕНА", 
-                        2: "🔴 ЗАБЛОКИРОВАНА",
-                        3: "⚫️ ВЫКЛЮЧЕНА"
-                    }
-                    
-                    reason = ""
-                    if current_status == 0:
-                        reason = "Флэт завершен и аллигатор выровнялся"
-                    elif current_status == 1:
-                        reason = "Обнаружен флэт или аллигатор в диапазоне"
-                    elif current_status == 2:
-                        reason = "Ручная блокировка или новый бар"
-                    
-                    message = (
-                        f"📊 ИЗМЕНЕНИЕ СТАТУСА ТОРГОВЛИ\n\n"
-                        f"🔢 Пара: {symbol}\n"
-                        f"📈 Статус: {status_names.get(current_status, 'НЕИЗВЕСТНО')}\n"
-                        f"📉 Предыдущий: {status_names.get(previous_status, 'НЕИЗВЕСТНО')}\n"
-                        f"📋 Причина: {reason}\n"
-                        f"⏰ Время: {trading.serverTime(symbol)}\n"
-                        f"📊 Флэт: {'Да' if checkFlat['value'] else 'Нет'}\n"
-                        f"📐 Угол аллигатора: {angle:.2f}°"
-                    )
-                    
-                    # Отправляем сообщение в Telegram
-                    if CHAT_ID:
-                        asyncio.run_coroutine_threadsafe(
-                            trading_bot.send_telegram_message(message),
-                            trading_bot.loop
-                        )
-                    
-                    # Обновляем предыдущий статус
-                    previous_statuses[symbol] = current_status
-                
                 if (prev_macd < 0 and current_macd > 0) or(prev_macd > 0 and current_macd < 0):
-                    #checkFlat["value"] == False and dict.symbolTradingStatus[symbol] == 0:
-                    #trading_bot.checkOpenStrengthLine(angle, symbol)
-                    #trading_bot.checkOpenSaveLine(angle, symbol, high, low)
                     trading_bot.checkOpen(symbol, prev_macd, current_macd)
 
-
-
-                
-                    
-                print(f"Пара: {symbol} флэт: {checkFlat['value']} угол: {checkFlat['angle']} угол зубов:{angle} статус торговли: {dict.symbolTradingStatus[symbol]}")
-            
-            #print(f"AlligatorForMetals все в порядке, время:{trading.serverTime('XAUUSDrfd')}")
         except Exception as e:
             print(f"Ошибка: {str(e)}")
             #logger.saveErrorsToExcel("alligatorForMetalls", str(e), Settings.filenameErrors)
