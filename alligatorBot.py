@@ -140,14 +140,14 @@ class TradingBot:
         
         return not (daily_off_period or friday_off_period)
 
-    def checkOpen(self, symbol, prev, current):    
+    def checkOpen(self, symbol, prev2, prev):    
         serverTime = trading.serverTime(symbol)
 
         if trading.symbolInPostions(symbol,TargetType.LONG,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}") or trading.symbolInPostions(symbol,TargetType.SHORT,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}"):
             #Уже есть ордер по данной паре и данному индикатору
             return
 
-        if prev < 0 and current > 0:
+        if prev2 < 0 and prev > 0:
 
             safeVolume = trading.calculateSafeTradeWithMargin(
                 symbol, 
@@ -173,7 +173,7 @@ class TradingBot:
                     self.loop
                 )
                 
-        if prev > 0 and current < 0:
+        if prev2 > 0 and prev < 0:
             safeVolume = trading.calculateSafeTradeWithMargin(
                 symbol, 
                 risk_percent = 90, 
@@ -773,7 +773,7 @@ def trading_loop():
                 current_macd, prev_macd, prev2_macd = macd.calculate_macd_manual(symbol, TIME_FRAME)
                 
                 if (prev2_macd < 0 and prev_macd > 0) or(prev2_macd > 0 and prev_macd < 0):
-                    trading_bot.checkOpen(symbol, prev_macd, current_macd)
+                    trading_bot.checkOpen(symbol, prev2_macd, prev_macd )
 
         except Exception as e:
             print(f"Ошибка: {str(e)}")
