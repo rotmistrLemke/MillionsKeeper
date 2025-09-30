@@ -113,4 +113,101 @@ class AdaptiveMovingAverage:
         else:
             return {"value": True, "angle": angle}
       
-    
+class BullsBearsPower:
+    def get_bulls_bears_power(self, symbol, timeframe, period=13, bars=100):
+        """
+        Ручной расчет Bulls Power и Bears Power
+        Bulls Power = High - EMA(Close, period)
+        Bears Power = Low - EMA(Close, period)
+        """
+        try:
+            # Получаем данные цен
+            rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, bars + period)
+            if rates is None:
+                print(f"Не удалось получить данные для {symbol}")
+                return None, None
+            
+            # Создаем DataFrame
+            df = pd.DataFrame(rates)
+            df['time'] = pd.to_datetime(df['time'], unit='s')
+            
+            # Рассчитываем EMA
+            df['ema'] = df['close'].ewm(span=period, adjust=False).mean()
+            
+            # Рассчитываем индикаторы
+            df['bulls_power'] = df['high'] - df['ema']
+            df['bears_power'] = df['low'] - df['ema']
+            
+            # Берем последние значения
+            current_bulls = df['bulls_power'].iloc[-1]
+            current_bears = df['bears_power'].iloc[-1]
+            
+            # Предыдущие значения для анализа тренда
+            prev_bulls = df['bulls_power'].iloc[-2]
+            prev_bears = df['bears_power'].iloc[-2]
+            
+            return current_bulls, current_bears
+            
+        except Exception as e:
+            print(f"Ошибка расчета Bulls/Bears Power: {e}")
+            return None, None
+
+class MACD:
+    def calculate_macd_manual(self, symbol, timeframe, fast_ema=15, slow_ema=21, signal_period=1):
+        """
+        Ручной расчет MACD по формулам
+        MACD = EMA(fast) - EMA(slow)
+        Signal = EMA(MACD, signal_period)
+        Histogram = MACD - Signal
+        """
+        try:
+            # Получаем достаточное количество данных
+            data_length = slow_ema + signal_period + 10
+            rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, 100)
+            if rates is None or len(rates) < data_length:
+                print(f"Недостаточно данных для расчета MACD {symbol}")
+                return None, None, None
+            
+            # Извлекаем цены закрытия
+            closes = [rate['close'] for rate in rates]
+            
+            # Функция для расчета EMA
+            def calculate_ema(prices, period):
+                alpha = 2 / (period + 1)
+                ema = [prices[0]]
+                
+                for i in range(1, len(prices)):
+                    ema_value = alpha * prices[i] + (1 - alpha) * ema[i-1]
+                    ema.append(ema_value)
+                
+                return ema
+            
+            # Рассчитываем быструю и медленную EMA
+            ema_fast = calculate_ema(closes, fast_ema)
+            ema_slow = calculate_ema(closes, slow_ema)
+            
+            # Рассчитываем MACD линию
+            macd_line = []
+            for i in range(len(closes)):
+                macd_value = ema_fast[i] - ema_slow[i]
+                macd_line.append(macd_value)
+            
+            # Рассчитываем сигнальную линию (EMA от MACD)
+            signal_line = calculate_ema(macd_line, signal_period)
+            
+            # Рассчитываем гистограмму
+            histogram = []
+            for i in range(len(closes)):
+                hist_value = macd_line[i] - signal_line[i]
+                histogram.append(hist_value)
+            
+            # Текущие значения
+            current_macd = macd_line[99]
+            prev_macd = signal_line[98]
+            
+            print(f"Ручной MACD {symbol}: Current={current_macd:.5f}, Preview={prev_macd:.5f}")
+            return current_macd, prev_macd
+            
+        except Exception as e:
+            print(f"Ошибка ручного расчета MACD: {e}")
+            return None, None

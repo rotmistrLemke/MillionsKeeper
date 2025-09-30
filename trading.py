@@ -163,10 +163,11 @@ class Trading:
                 return 0
 
             active_symbols = [symbol for symbol in dict.symbolXvalueH1.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]
-            
+            orders = self.getPositions()
+
             balance = account_info.balance
             equity = account_info.equity
-            free_margin = account_info.margin_free / len(active_symbols)
+            free_margin = account_info.margin_free / (len(active_symbols) - len(orders))
             
             if balance <= 0:
                 print("Баланс счета должен быть положительным")
@@ -309,13 +310,13 @@ class Trading:
 
     def calculateSafeTradeWithMargin(self, symbol, risk_percent, stop_loss_pips, order_type=mt5.ORDER_TYPE_BUY):
         """
-        Комплексный расчет с учетом требования маржи 120%+
+        Комплексный расчет с учетом требования маржи 110%+
         """
         print(f"\n=== Безопасный расчет для {symbol} ===")
         
         # Рассчитываем максимальный объем с проверкой маржи
         max_volume = self.calculateMaxVolumeWithMarginCheck(
-            symbol, risk_percent, stop_loss_pips, order_type, margin_safety=1.2
+            symbol, risk_percent, stop_loss_pips, order_type, margin_safety=1.1
         )
         
         if max_volume <= 0:
@@ -324,7 +325,7 @@ class Trading:
         
         # Дополнительная проверка маржи с учетом стоп-лосса
         margin_ok, margin_ratio = self.checkMarginWithStopLoss(
-            symbol, max_volume, order_type, stop_loss_pips, margin_safety=1.2
+            symbol, max_volume, order_type, stop_loss_pips, margin_safety=1.1
         )
         
         if margin_ok:
@@ -344,7 +345,7 @@ class Trading:
                 safe_volume = max_volume
                 while safe_volume >= min_volume:
                     margin_ok, margin_ratio = self.checkMarginWithStopLoss(
-                        symbol, safe_volume, order_type, stop_loss_pips, margin_safety=1.2
+                        symbol, safe_volume, order_type, stop_loss_pips, margin_safety=1.1
                     )
                     if margin_ok:
                         print(f"✅ Безопасный объем: {safe_volume:.2f} лотов")
@@ -354,3 +355,55 @@ class Trading:
                 print("❌ Не удалось найти безопасный объем")
         
         return max_volume
+
+    def calculateMaxMinValue(self, priceOpen, orderType, symbol, timeframe, volume):
+        """
+        Получить high текущей формирующейся свечи
+        """
+        try:
+            # Получаем несколько последних свечей
+            rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, 2)
+            if rates is None or len(rates) < 2:
+                print(f"Не удалось получить данные для {symbol}")
+                return None
+            
+            # Предпоследняя свеча - завершенная, последняя - текущая
+            current_candle = rates[0]  # Самая последняя свеча (текущая)
+            previous_candle = rates[1]  # Предыдущая завершенная свеча
+            
+            # Получаем текущие котировки для определения high текущей свечи
+            tick = mt5.symbol_info_tick(symbol)
+            if tick is None:
+                return current_candle['high'], current_candle['low']
+            
+           # Текущие цены
+            current_ask = tick.ask
+            current_bid = tick.bid
+            current_price = max(current_ask, current_bid)
+            current_low_price = min(current_ask, current_bid)
+            
+            # High текущей свечи - максимум из open, high и текущей цены
+            current_high = max(
+                current_candle['open'], 
+                current_candle['high'], 
+                current_price
+            )
+            
+            # Low текущей свечи - минимум из open, low и текущей цены
+            current_low = min(
+                current_candle['open'], 
+                current_candle['low'], 
+                current_low_price
+            )
+            
+            if orderType == TargetType.LONG:
+                maxMinValue = (current_high - priceOpen) * volume
+                return maxMinValue
+            
+            if orderType == TargetType.SHORT:
+                maxMinValue = (priceOpen - current_low) * volume
+                return maxMinValue
+            
+        except Exception as e:
+            print(f"Ошибка получения high текущей свечи: {e}")
+            return None

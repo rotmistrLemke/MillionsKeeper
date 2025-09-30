@@ -40,7 +40,7 @@ class Dictionary:
 }
 
     symbolTradingStatus = {
-        "EURUSDrfd": 3,
+        "EURUSDrfd": 1,
         "NZDUSDrfd": 3,
         "EURGBPrfd": 3,
         "USDCHFrfd": 3,
@@ -73,15 +73,15 @@ class Dictionary:
 
     symbolStopLossValue = {
         
-            "XAUUSDrfd": 4500,
-            "XAGUSDrfd": 4500,
+            "XAUUSDrfd": 0.0,
+            "XAGUSDrfd": 0.0,
             "EURUSDrfd": 0.0   
         }
 
     symbolTakeProfitValue = {
             
-                "XAUUSDrfd": 1500,
-                "XAGUSDrfd": 1500,
+                "XAUUSDrfd": 0.0,
+                "XAGUSDrfd": 0.0,
                 "EURUSDrfd": 0.0   
             }
 
