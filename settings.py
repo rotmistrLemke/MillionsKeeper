@@ -40,7 +40,7 @@ class Dictionary:
 }
 
     symbolTradingStatus = {
-        "EURUSDrfd": 1,
+        "EURUSDrfd": 3,
         "NZDUSDrfd": 3,
         "EURGBPrfd": 3,
         "USDCHFrfd": 3,
@@ -58,9 +58,9 @@ class Dictionary:
         "GBPCHFrfd": 3,
         "EURCADrfd": 3,
         "GBPCADrfd": 3,
-        "XAUUSDrfd": 1,
+        "XAUUSDrfd": 0,
         "GBPJPYrfd": 3,
-        "XAGUSDrfd": 1,
+        "XAGUSDrfd": 0,
         "USDSGDrfd": 3    
     }
     
