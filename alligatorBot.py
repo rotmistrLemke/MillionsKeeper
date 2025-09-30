@@ -772,7 +772,7 @@ def trading_loop():
                 
                 current_macd, prev_macd, prev2_macd = macd.calculate_macd_manual(symbol, TIME_FRAME)
                 
-                if (prev_macd < 0 and current_macd > 0) or(prev_macd > 0 and current_macd < 0):
+                if (prev2_macd < 0 and prev_macd > 0) or(prev2_macd > 0 and prev_macd < 0):
                     trading_bot.checkOpen(symbol, prev_macd, current_macd)
 
         except Exception as e:
