@@ -6,7 +6,7 @@ import threading
 import MetaTrader5 as mt5
 import datetime
 from account import Account
-from indicators import AdaptiveMovingAverage, Alligator, BullsBearsPower
+from indicators import AdaptiveMovingAverage, Alligator, BullsBearsPower, MACD
 from trading import Trading
 from settings import TargetType, IndicatorType, Dictionary
 from logs.logger import Logger
@@ -33,10 +33,11 @@ bbp = BullsBearsPower()
 logger = Logger()
 dict = Dictionary()
 AMA = AdaptiveMovingAverage()
-X_VALUE_DICT = Dictionary.symbolXvalueH1
+X_VALUE_DICT = Dictionary.symbolXvalueM5
 lastCheckedTime = None
 checkFlat = None
-TIME_FRAME = mt5.TIMEFRAME_H1
+TIME_FRAME = mt5.TIMEFRAME_M5
+macd = MACD()
 
 
 
@@ -90,16 +91,10 @@ class TradingBot:
                         oldStopLossValue = dict.symbolStopLossValue[symbol]
                         kamaIdicator = f"{symbol}_KAMA"
                         alligatorIdicator = f"{symbol}_Alligator"
-                        currentBulls, currentBears = bbp.get_bulls_bears_power(symbol, TIME_FRAME)
+                        current_macd, prev_macd = macd.calculate_macd_manual(symbol, TIME_FRAME)
 
-                        takeProfitValue = dict.symbolTakeProfitPoint[symbol] * trading.calculatePipValue(symbol, volume, order_dict.get("type", 0))
-                        stopLossValue = trading.calculateStopLoss(symbol, profit, oldStopLossValue, volume)
-                        minMaxValue = trading.calculateMaxMinValue(priceOpen, order_dict.get("type", 0), symbol, TIME_FRAME, volume)
-                        
-                        if profit > takeProfitValue:
-                            dict.symbolTradingStatus[symbol] = 1
-                            dict.indicatorStatus[kamaIdicator] = 1
-                            dict.indicatorStatus[alligatorIdicator] = 1 
+
+                        if order_dict.get("type", 0) == 0 and (prev_macd > current_macd):
                             trading.orderClose(ticketId,symbol)
                             
                             if CHAT_ID:
@@ -113,9 +108,7 @@ class TradingBot:
                                     self.loop
                                 )   
 
-                        if  profit < stopLossValue:
-                            #dict.indicatorStatus[kamaIdicator] = 1
-                            #dict.indicatorStatus[alligatorIdicator] = 1 
+                        if  order_dict.get("type", 0) == 1 and (prev_macd < current_macd):
                             trading.orderClose(ticketId,symbol)
 
                             if CHAT_ID:
@@ -153,27 +146,24 @@ class TradingBot:
         
         return not (daily_off_period or friday_off_period)
 
-    def checkOpen(self, angle, symbol, flatAngle):    
+    def checkOpen(self, symbol, prev, current):    
         serverTime = trading.serverTime(symbol)
 
         if trading.symbolInPostions(symbol,TargetType.LONG,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}") or trading.symbolInPostions(symbol,TargetType.SHORT,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}"):
             #Уже есть ордер по данной паре и данному индикатору
             return
 
-        if angle > 15:
+        if prev < 0 and current > 0:
 
             safeVolume = trading.calculateSafeTradeWithMargin(
                 symbol, 
                 risk_percent=90, 
-                stop_loss_pips=dict.symbolStopLossPoint[symbol], 
+                stop_loss_pips = dict.symbolStopLossPoint[symbol], 
                 order_type=TargetType.LONG
             )
             result = trading.orderOpen(symbol, TargetType.LONG, safeVolume, f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}")
             
-            dict.symbolTakeProfitValue[symbol] = dict.symbolTakeProfitPoint[symbol] * trading.calculatePipValue(symbol, safeVolume, TargetType.LONG)
-            dict.symbolStopLossValue[symbol] = 0 - (dict.symbolStopLossPoint.get(symbol, 200) * safeVolume)
-
-            print_message = f"\n{"-" * 50}, \ntime:{serverTime} \npair: {symbol} \nangle: {angle} \ncomment: Ордер LONG выставлен по условию, \n{"-" * 50}"
+            print_message = f"\n{"-" * 50}, \ntime:{serverTime} \npair: {symbol} \ncomment: Ордер LONG выставлен по условию, \n{"-" * 50}"
             print(print_message)
             
             # Отправляем сообщение в Telegram
@@ -182,8 +172,6 @@ class TradingBot:
                     f"🎯 ОТКРЫТИЕ ПОЗИЦИИ\n\n"
                     f"🟦 Направление: LONG\n"
                     f"💵 Пара: {symbol}\n"
-                    f"📐 Угол флета: {flatAngle:.2f}°\n"
-                    f"📐 Угол губ: {angle:.2f}°\n"
                     f"⏰ Время: {serverTime}\n"
                 )
                 asyncio.run_coroutine_threadsafe(
@@ -191,19 +179,16 @@ class TradingBot:
                     self.loop
                 )
                 
-        if angle < -15:
+        if prev > 0 and current < 0:
             safeVolume = trading.calculateSafeTradeWithMargin(
                 symbol, 
-                risk_percent=90, 
-                stop_loss_pips=dict.symbolStopLossPoint[symbol], 
+                risk_percent = 90, 
+                stop_loss_pips = dict.symbolStopLossPoint[symbol], 
                 order_type=TargetType.SHORT
             )
             result = trading.orderOpen(symbol, TargetType.SHORT, safeVolume, f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}")
 
-            dict.symbolTakeProfitValue[symbol] = dict.symbolTakeProfitPoint[symbol] * trading.calculatePipValue(symbol, safeVolume, TargetType.SHORT)
-            dict.symbolStopLossValue[symbol] = 0 - (dict.symbolStopLossPoint.get(symbol, 200) * safeVolume)
-            
-            print_message = f"\n{"-" * 50} \ntime:{serverTime} \npair: {symbol} \nangle: {angle} \ncomment: Ордер SHORT выставлен по условию, \n{"-" * 50}"
+            print_message = f"\n{"-" * 50} \ntime:{serverTime} \npair: {symbol} \ncomment: Ордер SHORT выставлен по условию, \n{"-" * 50}"
             print(print_message)
             
             # Отправляем сообщение в Telegram
@@ -212,8 +197,7 @@ class TradingBot:
                     f"🎯 ОТКРЫТИЕ ПОЗИЦИИ\n\n"
                     f"🟥 Направление: SHORT\n"
                     f"💵 Пара: {symbol}\n"
-                    f"📐 Угол флета: {flatAngle:.2f}°\n"
-                    f"📐 Угол губ: {angle:.2f}°\n"
+
                     f"⏰ Время: {serverTime}\n"
                 )
                 asyncio.run_coroutine_threadsafe(
@@ -799,6 +783,7 @@ def trading_loop():
                 jawShifted, teethShifted, lipsShifted = alligator.ShiftedData(jaw, teeth, lips, medianPrice)
                 lastJaw, lastTeeth, lastLips, prelastLips = alligator.LastData(symbol, jawShifted, teethShifted, lipsShifted)
                 angle = alligator.SupportData(lastLips, prelastLips, symbol, X_VALUE_DICT)
+                current_macd, prev_macd = macd.calculate_macd_manual(symbol, TIME_FRAME)
                 
                 # Сохраняем предыдущий статус
                 previous_status = previous_statuses.get(symbol, 0)
@@ -856,10 +841,11 @@ def trading_loop():
                     # Обновляем предыдущий статус
                     previous_statuses[symbol] = current_status
                 
-                if checkFlat["value"] == False and dict.symbolTradingStatus[symbol] == 0:
+                if (prev_macd < 0 and current_macd > 0) or(prev_macd > 0 and current_macd < 0):
+                    #checkFlat["value"] == False and dict.symbolTradingStatus[symbol] == 0:
                     #trading_bot.checkOpenStrengthLine(angle, symbol)
                     #trading_bot.checkOpenSaveLine(angle, symbol, high, low)
-                    trading_bot.checkOpen(angle, symbol, checkFlat['angle'])
+                    trading_bot.checkOpen(symbol, prev_macd, current_macd)
 
 
 
