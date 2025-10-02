@@ -7,8 +7,8 @@ dict = Dictionary()
 class Trading:
 
     def orderOpen(self, symbol, type, maxVolume, comment):
-        kamaIdicator = f"{symbol}_KAMA"
-        alligatorIdicator = f"{symbol}_Alligator"
+        point = mt5.symbol_info(symbol).point
+        stopLossPoint = mt5.symbol_info(symbol).spread * 5
         symbol_info = mt5.symbol_info(symbol) 
         if not symbol_info.visible:
             if not mt5.symbol_select(symbol,True):
@@ -23,7 +23,8 @@ class Trading:
                 "symbol": symbol,
                 "volume": volume,
                 "type": mt5.ORDER_TYPE_BUY,
-                "price": price,                
+                "price": price,     
+                "sl": price - stopLossPoint * point,           
                 "deviation": deviation,
                 "comment": str(comment),
                 "type_time": mt5.ORDER_TIME_GTC,
@@ -159,12 +160,9 @@ class Trading:
                 print("Не удалось получить информацию о счете")
                 return 0
 
-            active_symbols = [symbol for symbol in dict.symbolXvalueH1.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]
-            orders = self.getPositions()
-
             balance = account_info.balance
             equity = account_info.equity
-            free_margin = account_info.margin_free / (len(active_symbols) - len(orders))
+            free_margin = account_info.margin_free
             
             if balance <= 0:
                 print("Баланс счета должен быть положительным")

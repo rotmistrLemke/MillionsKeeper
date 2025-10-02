@@ -6,7 +6,7 @@ import threading
 import MetaTrader5 as mt5
 import datetime
 from account import Account
-from indicators import AdaptiveMovingAverage, Alligator, BullsBearsPower, MACD
+from indicators import AdaptiveMovingAverage, Alligator, BullsBearsPower, MACD, MovingAverage
 from trading import Trading
 from settings import TargetType, IndicatorType, Dictionary
 from logs.logger import Logger
@@ -14,8 +14,8 @@ from authenticator import MT5Auth
 from history import History
 
 # Конфигурация бота
-#TOKEN = "8062299925:AAFA14ISWThGN9D0ktg7lXxRtX2lvglzG9w"
-TOKEN = "8235563483:AAF1gESvpoES7ttfJBlOKMfbA2z7BVl55LA" #AlligatorMinerTesr
+TOKEN = "8062299925:AAFA14ISWThGN9D0ktg7lXxRtX2lvglzG9w"
+#TOKEN = "8235563483:AAF1gESvpoES7ttfJBlOKMfbA2z7BVl55LA" #AlligatorMinerTesr
 CHAT_ID = None  # Будет заполнено после /start
 # Белый список разрешенных пользователей
 ALLOWED_USERS = {
@@ -38,6 +38,7 @@ lastCheckedTime = None
 checkFlat = None
 TIME_FRAME = mt5.TIMEFRAME_M5
 macd = MACD()
+ma = MovingAverage()
 
 
 
@@ -140,19 +141,20 @@ class TradingBot:
         
         return not (daily_off_period or friday_off_period)
 
-    def checkOpen(self, symbol, prev2, prev):    
+    def checkOpen(self, symbol, signal):    
         serverTime = trading.serverTime(symbol)
+        orders = trading.getPositions()
 
-        if trading.symbolInPostions(symbol,TargetType.LONG,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}") or trading.symbolInPostions(symbol,TargetType.SHORT,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}"):
+        if len(orders) > 0:
             #Уже есть ордер по данной паре и данному индикатору
             return
 
-        if prev2 < 0 and prev > 0:
+        if signal['signal'] == 'BUY':
 
             safeVolume = trading.calculateSafeTradeWithMargin(
                 symbol, 
                 risk_percent=90, 
-                stop_loss_pips = dict.symbolStopLossPoint[symbol], 
+                stop_loss_pips = mt5.symbol_info(symbol).spread * 5, 
                 order_type=TargetType.LONG
             )
             result = trading.orderOpen(symbol, TargetType.LONG, safeVolume, f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}")
@@ -173,11 +175,11 @@ class TradingBot:
                     self.loop
                 )
                 
-        if prev2 > 0 and prev < 0:
+        if signal['signal'] == 'SELL':
             safeVolume = trading.calculateSafeTradeWithMargin(
                 symbol, 
                 risk_percent = 90, 
-                stop_loss_pips = dict.symbolStopLossPoint[symbol], 
+                stop_loss_pips = mt5.symbol_info(symbol).spread * 5, 
                 order_type=TargetType.SHORT
             )
             result = trading.orderOpen(symbol, TargetType.SHORT, safeVolume, f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}")
@@ -746,9 +748,6 @@ def trading_loop():
     symbols = X_VALUE_DICT.keys()
     global lastCheckedTime
     
-    # Словарь для хранения предыдущих статусов
-    previous_statuses = {symbol: dict.symbolTradingStatus.get(symbol, 0) for symbol in symbols}
-    
     while True:
         try:
             if not trading_bot.isTradingAlowed():
@@ -770,16 +769,21 @@ def trading_loop():
             
             for symbol in active_symbols:
                 
-                current_macd, prev_macd, prev2_macd = macd.calculate_macd_manual(symbol, TIME_FRAME)
+                # Получить сигнал пересечения быстрой и медленной MA
+                fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
+                slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
+                signal = ma.ma_cross_signal(fast_ma, slow_ma)
                 
-                if (prev2_macd < 0 and prev_macd > 0) or(prev2_macd > 0 and prev_macd < 0):
-                    trading_bot.checkOpen(symbol, prev2_macd, prev_macd )
+                if signal['signal'] != 'NO_SIGNAL':
+                    trading_bot.checkOpen(symbol, signal)
+
+                print(f"{symbol} signal: {signal['signal']}")
 
         except Exception as e:
             print(f"Ошибка: {str(e)}")
             #logger.saveErrorsToExcel("alligatorForMetalls", str(e), Settings.filenameErrors)
             #continue
-                
+        
         time.sleep(1)
 
 if __name__ == '__main__':
