@@ -212,3 +212,175 @@ class MACD:
         except Exception as e:
             print(f"Ошибка ручного расчета MACD: {e}")
             return None, None, None
+
+class MovingAverage:
+    """
+    Класс для расчета различных типов скользящих средних
+    """
+    
+    def sma(self, data, period):
+        """
+        Простая скользящая средняя (Simple Moving Average)
+        
+        Параметры:
+            data: массив цен
+            period: период скользящей средней
+            
+        Возвращает:
+            pd.Series: значения SMA
+        """
+        return data.rolling(window=period).mean()
+    
+    def ema(self, data, period, adjust=False):
+        """
+        Экспоненциальная скользящая средняя (Exponential Moving Average)
+        
+        Параметры:
+            data: массив цен
+            period: период скользящей средней
+            adjust: использовать ли корректировку (False для стандартного расчета)
+            
+        Возвращает:
+            pd.Series: значения EMA
+        """
+        return data.ewm(span=period, adjust=adjust).mean()
+    
+    def wma(self, data, period):
+        """
+        Взвешенная скользящая средняя (Weighted Moving Average)
+        
+        Параметры:
+            data: массив цен
+            period: период скользящей средней
+            
+        Возвращает:
+            pd.Series: значения WMA
+        """
+        weights = np.arange(1, period + 1)
+        return data.rolling(window=period).apply(lambda x: np.dot(x, weights) / weights.sum(), raw=True)
+    
+    def smma(self, data, period):
+        """
+        Сглаженная скользящая средняя (Smoothed Moving Average)
+        Используется в индикаторе Аллигатора
+        """
+        smma_values = []
+        for i in range(len(data)):
+            if i < period:
+                smma_values.append(np.nan)
+            elif i == period:
+                smma_values.append(data[i-period:i].mean())
+            else:
+                smma_values.append((smma_values[-1] * (period - 1) + data[i]) / period)
+        return pd.Series(smma_values)
+    
+    def calculate_ma(self, data, period, ma_type='SMA'):
+        """
+        Универсальный метод для расчета скользящих средних
+        
+        Параметры:
+            data: массив цен
+            period: период скользящей средней
+            ma_type: тип скользящей средней ('SMA', 'EMA', 'WMA', 'SMMA')
+            
+        Возвращает:
+            pd.Series: значения выбранной скользящей средней
+        """
+        ma_type = ma_type.upper()
+        
+        if ma_type == 'SMA':
+            return self.sma(data, period)
+        elif ma_type == 'EMA':
+            return self.ema(data, period)
+        elif ma_type == 'WMA':
+            return self.wma(data, period)
+        elif ma_type == 'SMMA':
+            return self.smma(data, period)
+        else:
+            raise ValueError(f"Неизвестный тип скользящей средней: {ma_type}")
+    
+    def ma_cross_signal(self, fast_ma, slow_ma):
+        """
+        Определение сигналов пересечения скользящих средних
+        
+        Параметры:
+            fast_ma: быстрая скользящая средняя
+            slow_ma: медленная скользящая средняя
+            
+        Возвращает:
+            dict: сигналы и информация о пересечении
+        """
+        if len(fast_ma) < 2 or len(slow_ma) < 2:
+            return {'signal': 'NO_SIGNAL', 'strength': 0}
+        
+        current_fast = fast_ma.iloc[-1]
+        previous_fast = fast_ma.iloc[-2]
+        current_slow = slow_ma.iloc[-1]
+        previous_slow = slow_ma.iloc[-2]
+        
+        # Проверка на наличие NaN значений
+        if pd.isna(current_fast) or pd.isna(previous_fast) or pd.isna(current_slow) or pd.isna(previous_slow):
+            return {'signal': 'NO_SIGNAL', 'strength': 0}
+        
+        # Определение сигнала
+        if previous_fast <= previous_slow and current_fast > current_slow:
+            return {
+                'signal': 'BUY',
+                'strength': abs(current_fast - current_slow),
+                'current_fast': current_fast,
+                'current_slow': current_slow
+            }
+        elif previous_fast >= previous_slow and current_fast < current_slow:
+            return {
+                'signal': 'SELL', 
+                'strength': abs(current_fast - current_slow),
+                'current_fast': current_fast,
+                'current_slow': current_slow
+            }
+        else:
+            return {'signal': 'NO_SIGNAL', 'strength': 0}
+    
+    def get_ma_for_symbol(self, symbol, timeframe, period, ma_type='SMA', price_type='close', bars=100):
+        """
+        Получение скользящей средней для символа
+        
+        Параметры:
+            symbol: торговый символ
+            timeframe: таймфрейм
+            period: период скользящей средней
+            ma_type: тип скользящей средней
+            price_type: тип цены ('open', 'high', 'low', 'close')
+            bars: количество баров
+            
+        Возвращает:
+            pd.Series: значения скользящей средней
+        """
+        try:
+            # Получаем данные
+            rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, bars + period)
+            if rates is None:
+                print(f"Не удалось получить данные для {symbol}")
+                return None
+            
+            # Создаем DataFrame
+            df = pd.DataFrame(rates)
+            df['time'] = pd.to_datetime(df['time'], unit='s')
+            
+            # Выбираем тип цены
+            if price_type == 'open':
+                price_data = df['open']
+            elif price_type == 'high':
+                price_data = df['high']
+            elif price_type == 'low':
+                price_data = df['low']
+            else:  # close по умолчанию
+                price_data = df['close']
+            
+            # Рассчитываем скользящую среднюю
+            ma_values = self.calculate_ma(price_data, period, ma_type)
+            
+            return ma_values
+            
+        except Exception as e:
+            print(f"Ошибка расчета скользящей средней для {symbol}: {e}")
+            return None

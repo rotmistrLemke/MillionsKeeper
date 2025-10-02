@@ -5,6 +5,7 @@ import asyncio
 import threading
 import MetaTrader5 as mt5
 import datetime
+from datetime import timedelta
 from account import Account
 from indicators import AdaptiveMovingAverage, Alligator, BullsBearsPower, MACD
 from trading import Trading
@@ -12,10 +13,12 @@ from settings import TargetType, IndicatorType, Dictionary
 from logs.logger import Logger
 from authenticator import MT5Auth
 from history import History
+from strategy_tester import AdvancedTestingPolygon, StrategyTester
+from data_recorder import DataRecorder
 
 # Конфигурация бота
-#TOKEN = "8062299925:AAFA14ISWThGN9D0ktg7lXxRtX2lvglzG9w"
-TOKEN = "8235563483:AAF1gESvpoES7ttfJBlOKMfbA2z7BVl55LA" #AlligatorMinerTesr
+TOKEN = "8062299925:AAFA14ISWThGN9D0ktg7lXxRtX2lvglzG9w" #AlligatorMinerTest2
+#TOKEN = "8235563483:AAF1gESvpoES7ttfJBlOKMfbA2z7BVl55LA" #AlligatorMinerTest
 CHAT_ID = None  # Будет заполнено после /start
 # Белый список разрешенных пользователей
 ALLOWED_USERS = {
@@ -23,7 +26,7 @@ ALLOWED_USERS = {
     # "987654321": "Другой пользователь",  # Можно добавить других
 }
 
-account = Account.accountDemo
+account = Account.accountDemo2
 auth = MT5Auth(account)
 auth.login()
 trading = Trading()
@@ -38,6 +41,7 @@ lastCheckedTime = None
 checkFlat = None
 TIME_FRAME = mt5.TIMEFRAME_M5
 macd = MACD()
+data_recorder = DataRecorder()
 
 
 
@@ -207,10 +211,11 @@ class TradingBot:
         CHAT_ID = str(update.effective_chat.id)
         
         keyboard = [
-        ["🤖 Старт", "📊 Статус"],  # Было: "/status", "/positions"
-        ["💼 Позиции", "⚙️ Управление торговлей"],  # Было: "/enable_trading", "/disable_trading"
-        ["🕒 График", "📈 Инфо по паре"],  # Было: "/trading_schedule", "/pair_info"
-        ["📊 История"]
+            ["🤖 Старт", "📊 Статус"],
+            ["💼 Позиции", "⚙️ Управление торговлей"],
+            ["🕒 График", "📈 Инфо по паре"],
+            ["📊 История", "🧪 Тест символа"],  # Новая кнопка
+            ["🔬 Расширенный тест", "📁 Данные"]  # Новая кнопка
         ]
         reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
         
@@ -432,7 +437,7 @@ class TradingBot:
             notification = (
                 f"📊 ИЗМЕНЕНИЕ СТАТУСА ТОРГОВЛИ\n\n"
                 f"{message}\n"
-                f"⏰ Время: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"⏰ Время: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
                 f"👤 Инициатор: {query.from_user.first_name}"
             )
             
@@ -676,6 +681,101 @@ class TradingBot:
         
         return message
 
+        # В класс TradingBot добавляем методы:
+
+    async def advanced_testing(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Расширенное тестирование стратегии"""
+        if not await self.isUserAllowed(update):
+            return
+            
+        await update.message.reply_text("🧪 Запуск расширенного тестирования...")
+        
+        try:
+            polygon = AdvancedTestingPolygon()
+            
+            # Тестируем на основных символах
+            symbols = ['XAUUSDrfd', 'XAGUSDrfd', 'EURUSD', 'GBPUSD']
+            
+            for symbol in symbols:
+                polygon.run_comprehensive_test(symbol, mt5.TIMEFRAME_M5)
+                await asyncio.sleep(1)  # Чтобы не перегружать
+            
+            # Сравниваем стратегии
+            polygon.compare_strategies(symbols, mt5.TIMEFRAME_M5)
+            
+            await update.message.reply_text("✅ Расширенное тестирование завершено! Результаты в консоли.")
+            
+        except Exception as e:
+            await update.message.reply_text(f"❌ Ошибка тестирования: {str(e)}")
+
+    async def test_single_symbol(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Тестирование одного символа"""
+        if not await self.isUserAllowed(update):
+            return
+            
+        # Создаем инлайн-клавиатуру для выбора символа
+        keyboard = []
+        symbols = list(X_VALUE_DICT.keys())
+        
+        for i in range(0, len(symbols), 2):
+            row = []
+            for symbol in symbols[i:i+2]:
+                row.append(InlineKeyboardButton(symbol, callback_data=f"test_{symbol}"))
+            keyboard.append(row)
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            "🔬 Выберите символ для тестирования стратегии:",
+            reply_markup=reply_markup
+        )
+
+    async def handle_test_selection(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Обработка выбора символа для тестирования"""
+        query = update.callback_query
+        await query.answer()
+        
+        if query.data.startswith("test_"):
+            symbol = query.data.replace("test_", "")
+            
+            await query.edit_message_text(f"🧪 Тестирование {symbol}...")
+            
+            try:
+                tester = StrategyTester(initial_balance=10000)
+                tester.backtest_strategy(
+                    symbol=symbol,
+                    timeframe=mt5.TIMEFRAME_M5,
+                    start_date=(datetime.datetime.now() - timedelta(days=90)).strftime('%Y-%m-%d'),
+                    end_date=datetime.datetime.now().strftime('%Y-%m-%d')
+                )
+                
+                await query.edit_message_text(f"✅ Тестирование {symbol} завершено! Результаты в консоли.")
+                
+            except Exception as e:
+                await query.edit_message_text(f"❌ Ошибка тестирования {symbol}: {str(e)}")
+
+    async def data_info(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Информация о записанных данных"""
+        if not await self.isUserAllowed(update):
+            return
+            
+        symbols = data_recorder.get_all_symbols()
+        message = "📊 ЗАПИСАННЫЕ ДАННЫЕ:\n\n"
+        
+        for symbol in symbols:
+            data_m5 = data_recorder.get_candle_data(symbol, mt5.TIMEFRAME_M5, limit=1)
+            data_h1 = data_recorder.get_candle_data(symbol, mt5.TIMEFRAME_H1, limit=1)
+            
+            message += f"🔹 {symbol}:\n"
+            message += f"   M5: {len(data_recorder.get_candle_data(symbol, mt5.TIMEFRAME_M5))} свечей\n"
+            message += f"   H1: {len(data_recorder.get_candle_data(symbol, mt5.TIMEFRAME_H1))} свечей\n"
+            if data_m5:
+                last_time = data_m5[-1]['time'] if data_m5 else "Нет данных"
+                message += f"   Последняя запись: {last_time}\n"
+            message += "\n"
+        
+        await update.message.reply_text(message)
+
     async def send_telegram_message(self, message):
         """Отправка сообщения в Telegram"""
         try:
@@ -710,7 +810,7 @@ class TradingBot:
         
         # Добавляем обработчики текстовых сообщений для кнопок
         self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_buttons))
-        
+        self.application.add_handler(CallbackQueryHandler(self.handle_test_selection, pattern="^test_"))
         # Добавляем обработчик callback запросов (для инлайн-кнопок)
         #self.application.add_handler(CallbackQueryHandler(self.handle_pair_selection))
         
@@ -740,14 +840,17 @@ class TradingBot:
         elif text in ["📅 За день", "📆 За неделю", "📊 За месяц", "🔄 За все время", 
                     "🥇 По XAUUSDrfd", "🥈 По XAGUSDrfd", "↩️ Назад в главное меню"]:
             await self.handle_history_buttons(update, context)
+        elif text == "🧪 Тест символа":
+            await self.test_single_symbol(update, context)
+        elif text == "🔬 Расширенный тест":
+            await self.advanced_testing(update, context)
+        elif text == "📁 Данные":
+            await self.data_info(update, context)
 
 # Основной торговый цикл
 def trading_loop():
     symbols = X_VALUE_DICT.keys()
     global lastCheckedTime
-    
-    # Словарь для хранения предыдущих статусов
-    previous_statuses = {symbol: dict.symbolTradingStatus.get(symbol, 0) for symbol in symbols}
     
     while True:
         try:
@@ -763,6 +866,14 @@ def trading_loop():
             df = alligator.Df('XAUUSDrfd', TIME_FRAME)
             isNewBar, lastCheckedTime = alligator.IsNewBar(df, lastCheckedTime, TIME_FRAME)
             
+            # ЗАПИСЬ ДАННЫХ В JSON
+            if isNewBar:
+                for symbol in symbols:
+                    try:
+                        symbol_df = alligator.Df(symbol, TIME_FRAME)
+                        data_recorder.record_candle_data(symbol, TIME_FRAME, symbol_df)
+                    except Exception as e:
+                        print(f"Ошибка записи данных для {symbol}: {e}")
             # Фильтруем пары: только те, у которых статус <= 3
             active_symbols = [symbol for symbol in symbols if dict.symbolTradingStatus.get(symbol, 0) < 3]
             
