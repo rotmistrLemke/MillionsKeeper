@@ -84,12 +84,15 @@ class TradingBot:
                 else:
                     for order in orders:
                         order_dict = order._asdict()
+                        volume = order_dict.get("volume", 0)
                         profit = order_dict.get("profit", 0)
                         ticketId = order_dict.get("ticket", 0)
                         symbol = order_dict.get("symbol", 0)
-                        current_macd, prev_macd, prev2_macd = macd.calculate_macd_manual(symbol, TIME_FRAME)
-
-                        if order_dict.get("type", 0) == 0 and (prev2_macd > prev_macd):
+                        
+                        takeProfitValue = mt5.symbol_info(symbol).spread * volume
+                        stopLossValue = mt5.symbol_info(symbol).spread * volume * -5 
+                        
+                        if profit > takeProfitValue:
                             trading.orderClose(ticketId,symbol)
                             
                             if CHAT_ID:
@@ -103,7 +106,7 @@ class TradingBot:
                                     self.loop
                                 )   
 
-                        if  order_dict.get("type", 0) == 1 and (prev2_macd < prev_macd):
+                        if  profit < stopLossValue:
                             trading.orderClose(ticketId,symbol)
 
                             if CHAT_ID:
@@ -747,6 +750,10 @@ class TradingBot:
 def trading_loop():
     symbols = X_VALUE_DICT.keys()
     global lastCheckedTime
+
+    # Словарь для хранения предыдущих статусов
+    previous_statuses = {symbol: dict.symbolTradingStatus.get(symbol, 0) for symbol in symbols}
+    
     
     while True:
         try:
@@ -769,12 +776,49 @@ def trading_loop():
             
             for symbol in active_symbols:
                 
+                # Сохраняем предыдущий статус
+                previous_status = previous_statuses.get(symbol, 0)
+                current_status = dict.symbolTradingStatus.get(symbol, 0)
+
+                if isNewBar and current_status == 1:
+                    dict.symbolTradingStatus[symbol] = 0
+                    current_status = 0
+
+                # Проверяем изменение статуса и отправляем сообщение
+                if current_status != previous_status:
+                    status_names = {
+                        0: "🟢 РАЗРЕШЕНА",
+                        1: "🟡 ПРИОСТАНОВЛЕНА", 
+                        2: "🔴 ЗАБЛОКИРОВАНА",
+                        3: "⚫️ ВЫКЛЮЧЕНА"
+                    }
+                    
+                    
+                    message = (
+                        f"📊 ИЗМЕНЕНИЕ СТАТУСА ТОРГОВЛИ\n\n"
+                        f"🔢 Пара: {symbol}\n"
+                        f"📈 Статус: {status_names.get(current_status, 'НЕИЗВЕСТНО')}\n"
+                        f"📉 Предыдущий: {status_names.get(previous_status, 'НЕИЗВЕСТНО')}\n"
+                        f"⏰ Время: {trading.serverTime(symbol)}\n"
+
+                    )
+                    
+                    # Отправляем сообщение в Telegram
+                    if CHAT_ID:
+                        asyncio.run_coroutine_threadsafe(
+                            trading_bot.send_telegram_message(message),
+                            trading_bot.loop
+                        )
+                    
+                    # Обновляем предыдущий статус
+                    previous_statuses[symbol] = current_status
+                
                 # Получить сигнал пересечения быстрой и медленной MA
                 fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
                 slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
                 signal = ma.ma_cross_signal(fast_ma, slow_ma)
                 
-                if signal['signal'] != 'NO_SIGNAL':
+                if signal['signal'] != 'NO_SIGNAL' and dict.symbolTradingStatus[symbol] == 0:
                     trading_bot.checkOpen(symbol, signal)
 
                 print(f"{symbol} signal: {signal['signal']}")

@@ -7,8 +7,6 @@ dict = Dictionary()
 class Trading:
 
     def orderOpen(self, symbol, type, maxVolume, comment):
-        point = mt5.symbol_info(symbol).point
-        stopLossPoint = mt5.symbol_info(symbol).spread * 5
         symbol_info = mt5.symbol_info(symbol) 
         if not symbol_info.visible:
             if not mt5.symbol_select(symbol,True):
@@ -23,8 +21,7 @@ class Trading:
                 "symbol": symbol,
                 "volume": volume,
                 "type": mt5.ORDER_TYPE_BUY,
-                "price": price,     
-                "sl": price - stopLossPoint * point,           
+                "price": price,               
                 "deviation": deviation,
                 "comment": str(comment),
                 "type_time": mt5.ORDER_TIME_GTC,
@@ -49,6 +46,7 @@ class Trading:
                 print("4. order_send failed, retcode={}".format(result.retcode))
                 print("   result",result) 
         else:
+            dict.symbolTradingStatus[symbol] = 1
             print(f"Пара {symbol} Ордер {result.order} цена {result.price} статус торговли: {dict.symbolTradingStatus[symbol]}")
         
         return {"order":result.order,"price":result.price,"symbol":symbol,"targetType":type}
@@ -79,14 +77,11 @@ class Trading:
         tick = mt5.symbol_info_tick(symbol)
         return pd.to_datetime(tick.time, unit='s')
   
-    def calculateStopLoss(self, symbol, profit, oldStopLossValue, volume):
-        stopLossPoint = dict.symbolStopLossPoint.get(symbol, 200)
+    def calculateStopLoss(self, symbol, profit,  volume):
+        stopLossPoint =  mt5.symbol_info(symbol).spread * 5
         newStopLossValue = profit - (stopLossPoint * volume)
-        if newStopLossValue > oldStopLossValue or oldStopLossValue == 0.0:
-            dict.symbolStopLossValue[symbol] = newStopLossValue
-            return newStopLossValue
-        else: 
-            return oldStopLossValue
+        return newStopLossValue
+
 
     def calculatePipValue(self, symbol, volume, order_type):
         """
