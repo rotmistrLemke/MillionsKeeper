@@ -233,9 +233,7 @@ class TradingBot:
 
     def checkOpen(self, symbol, signal):    
         serverTime = trading.serverTime(symbol)
-        orders = trading.getPositions()
-
-        if len(orders) > 2:
+        if trading.symbolInPostions(symbol,TargetType.LONG,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}") or trading.symbolInPostions(symbol,TargetType.SHORT,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}"):
             #Уже есть ордер по данной паре и данному индикатору
             return
 
