@@ -2,6 +2,7 @@ import time
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 import asyncio
+import pandas as pd
 import threading
 import MetaTrader5 as mt5
 import datetime
@@ -23,7 +24,7 @@ ALLOWED_USERS = {
     # "987654321": "Другой пользователь",  # Можно добавить других
 }
 
-account = Account.accountDemo
+account = Account.accountDemo2
 auth = MT5Auth(account)
 auth.login()
 trading = Trading()
@@ -77,9 +78,7 @@ class TradingBot:
         while self.bot_running:
             try:
                 orders = trading.getPositions()
-                # Фильтруем ордера с комментарием "4"
                 if len(orders) == 0:
-                    #print("Нет открытых ордеров.")
                     continue
                 else:
                     for order in orders:
@@ -88,38 +87,134 @@ class TradingBot:
                         profit = order_dict.get("profit", 0)
                         ticketId = order_dict.get("ticket", 0)
                         symbol = order_dict.get("symbol", 0)
+                        order_type = order_dict.get("type", 0)  # 0 = BUY, 1 = SELL
+                        open_price = order_dict.get("price_open", 0)
                         
-                        takeProfitValue = mt5.symbol_info(symbol).spread * volume
-                        stopLossValue = mt5.symbol_info(symbol).spread * volume * -5 
+                        # Получаем текущие рыночные данные
+                        symbol_info = mt5.symbol_info(symbol)
+                        if symbol_info is None:
+                            continue
                         
-                        if profit > takeProfitValue:
-                            trading.orderClose(ticketId,symbol)
+                        current_bid = symbol_info.bid
+                        current_ask = symbol_info.ask
+                        point = symbol_info.point
+                        
+
+                        
+                        # Рассчитываем уровни Take Profit и Stop Loss
+                        take_profit_value = mt5.symbol_info(symbol).spread * volume
+                        stop_loss_value = mt5.symbol_info(symbol).spread * volume * -5
+
+                        # Получаем текущие low и high из последних баров
+                        rates = mt5.copy_rates_from_pos(symbol, TIME_FRAME, 0, 2)  # 2 последних бара M1
+                        if rates is None or len(rates) < 2:
+                            continue
+                        
+                        # Текущий бар (последний завершенный бар)
+                        current_low = rates[-1]['low']
+                        current_high = rates[-1]['high']
+                    
+                    # Или используем предыдущий бар для более стабильных значений
+                    # current_low = rates[-2]['low']
+                    # current_high = rates[-2]['high']
+                        
+                        # Для LONG позиций (BUY)
+                        if order_type == 0:  # BUY
+                            # Текущая цена для LONG - Bid цена
+                            current_price = current_bid
                             
-                            if CHAT_ID:
-                                telegram_message = (
-                                    f"🎯 ЗАКРЫИЕ ПОЗИЦИИ\n\n"
-                                    f"💵 Пара: {symbol}\n"
-                                    f"💰 Профит: {profit}"
-                                )
-                                asyncio.run_coroutine_threadsafe(
-                                    self.send_telegram_message(telegram_message),
-                                    self.loop
-                                )   
-
-                        if  profit < stopLossValue:
-                            trading.orderClose(ticketId,symbol)
-
-                            if CHAT_ID:
-                                telegram_message = (
-                                    f"🎯 ЗАКРЫИЕ ПОЗИЦИИ\n\n"
-                                    f"💵 Пара: {symbol}\n"
-                                    f"🤡 Потери: {profit}"
-                                )
-                                asyncio.run_coroutine_threadsafe(
-                                    self.send_telegram_message(telegram_message),
-                                    self.loop
-                                ) 
-
+                            # Получаем исторические данные для определения максимального значения
+                            rates = mt5.copy_rates_from_pos(symbol, TIME_FRAME, 0, 100)
+                            if rates is not None:
+                                # Находим максимальную цену с момента открытия позиции
+                                df = pd.DataFrame(rates)
+                                df['time'] = pd.to_datetime(df['time'], unit='s')
+                                
+                                # Максимальный high с момента открытия (приблизительно)
+                                max_high_since_open = df['high'].max()
+                                maxValue = (current_high - open_price) * volume
+                                
+                                # Условия закрытия для LONG:
+                                # 1. Текущий профит > Take Profit
+                                # 2. Текущий профит < Stop Loss  
+                                # 3. Максимум > Take Profit
+                                condition_tp = profit > take_profit_value
+                                condition_sl = profit < stop_loss_value
+                                condition_maxValue = maxValue > take_profit_value
+                                
+                                if condition_tp or condition_sl or condition_maxValue:
+                                    trading.orderClose(ticketId, symbol)
+                                    
+                                    if CHAT_ID:
+                                        reason = ""
+                                        if condition_tp:
+                                            reason = "Достигнут Take Profit"
+                                        elif condition_sl:
+                                            reason = "Достигнут Stop Loss"
+                                        else:
+                                            reason = f"Достигнут максимум: {abs(maxValue):.0f} пунктов"
+                                        
+                                        telegram_message = (
+                                            f"🎯 ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
+                                            f"💵 Пара: {symbol}\n"
+                                            f"💰 Профит: {profit:.2f}\n"
+                                            f"📈 Макс. цена: {max_high_since_open:.5f}\n"
+                                            f"📉 Текущая цена: {current_price:.5f}\n"
+                                            f"🎯 Причина: {reason}"
+                                        )
+                                        asyncio.run_coroutine_threadsafe(
+                                            self.send_telegram_message(telegram_message),
+                                            self.loop
+                                        )
+                        
+                        # Для SHORT позиций (SELL)
+                        elif order_type == 1:  # SELL
+                            # Текущая цена для SHORT - Ask цена
+                            current_price = current_ask
+                            
+                            # Получаем исторические данные для определения минимального значения
+                            rates = mt5.copy_rates_from_pos(symbol, TIME_FRAME, 0, 100)
+                            if rates is not None:
+                                # Находим минимальную цену с момента открытия позиции
+                                df = pd.DataFrame(rates)
+                                df['time'] = pd.to_datetime(df['time'], unit='s')
+                                
+                                # Минимальный low с момента открытия (приблизительно)
+                                min_low_since_open = df['low'].min()
+                                minValue = (open_price - current_low) / point * volume
+                                
+                                
+                                # Условия закрытия для SHORT:
+                                # 1. Текущий профит > Take Profit
+                                # 2. Текущий профит < Stop Loss
+                                # 3. Цена откатилась от минимума более чем на max_drawdown_points
+                                condition_tp = profit > take_profit_value
+                                condition_sl = profit < stop_loss_value
+                                condition_minValue = minValue > take_profit_value
+                                
+                                if condition_tp or condition_sl or condition_minValue:
+                                    trading.orderClose(ticketId, symbol)
+                                    
+                                    if CHAT_ID:
+                                        reason = ""
+                                        if condition_tp:
+                                            reason = "Достигнут Take Profit"
+                                        elif condition_sl:
+                                            reason = "Достигнут Stop Loss"
+                                        else:
+                                            reason = f"Достигнут минимум: {abs(minValue):.0f} пунктов"
+                                        
+                                        telegram_message = (
+                                            f"🎯 ЗАКРЫТИЕ SHORT ПОЗИЦИИ\n\n"
+                                            f"💵 Пара: {symbol}\n"
+                                            f"💰 Профит: {profit:.2f}\n"
+                                            f"📈 Мин. цена: {min_low_since_open:.5f}\n"
+                                            f"🎯 Причина: {reason}"
+                                        )
+                                        asyncio.run_coroutine_threadsafe(
+                                            self.send_telegram_message(telegram_message),
+                                            self.loop
+                                        )
 
             except Exception as e:
                 print(f"Ошибка в moneySaver: {str(e)}")
