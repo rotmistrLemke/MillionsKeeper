@@ -156,18 +156,7 @@ class TradingBot:
                         
                         # Для SHORT позиций (SELL)
                         elif order_type == 1:  # SELL
-                            # Текущая цена для SHORT - Ask цена
-                            current_price = current_ask
-                            
-                            # Получаем исторические данные для определения минимального значения
-                            rates = mt5.copy_rates_from_pos(symbol, TIME_FRAME, 0, 100)
-                            if rates is not None:
-                                # Находим минимальную цену с момента открытия позиции
-                                df = pd.DataFrame(rates)
-                                df['time'] = pd.to_datetime(df['time'], unit='s')
-                                
-                                # Минимальный low с момента открытия (приблизительно)
-                                min_low_since_open = df['low'].min()
+                           
                                 minValue = (open_price - current_low) / point * volume
                                 
                                 
@@ -195,7 +184,6 @@ class TradingBot:
                                             f"🎯 ЗАКРЫТИЕ SHORT ПОЗИЦИИ\n\n"
                                             f"💵 Пара: {symbol}\n"
                                             f"💰 Профит: {profit:.2f}\n"
-                                            f"📈 Мин. цена: {min_low_since_open:.5f}\n"
                                             f"🎯 Причина: {reason}"
                                         )
                                         asyncio.run_coroutine_threadsafe(
