@@ -37,7 +37,7 @@ AMA = AdaptiveMovingAverage()
 X_VALUE_DICT = Dictionary.symbolXvalueH1
 lastCheckedTime = None
 checkFlat = None
-TIME_FRAME = mt5.TIMEFRAME_M5
+TIME_FRAME = mt5.TIMEFRAME_M1
 macd = MACD()
 ma = MovingAverage()
 
@@ -75,8 +75,14 @@ class TradingBot:
         return False      
 
     def moneySaverLoop(self):
+
         while self.bot_running:
             try:
+                if not trading_bot.isTradingAlowed():
+                    print("Сейчас торговля запрещена (23:40-02:00 ежедневно или пятница 23:40 - понедельник 03:00)")
+                    time.sleep(60)
+                    continue
+                
                 orders = trading.getPositions()
                 if len(orders) == 0:
                     continue
@@ -89,18 +95,13 @@ class TradingBot:
                         symbol = order_dict.get("symbol", 0)
                         order_type = order_dict.get("type", 0)  # 0 = BUY, 1 = SELL
                         open_price = order_dict.get("price_open", 0)
-                        
-                        # Получаем текущие рыночные данные
-                        symbol_info = mt5.symbol_info(symbol)
-                        if symbol_info is None:
+                        point = mt5.symbol_info(symbol).point
+
+                        if dict.symbolTradingStatus[symbol] > 0:
                             continue
-
-                        point = symbol_info.point
-                        
-
-                        
+                                                
                         # Рассчитываем уровни Take Profit и Stop Loss
-                        take_profit_value = mt5.symbol_info(symbol).spread * volume
+                        take_profit_value = mt5.symbol_info(symbol).spread * volume * 4
                         stop_loss_value = mt5.symbol_info(symbol).spread * volume * -3
 
                         dict.symbolTakeProfitValue[symbol] = take_profit_value
@@ -138,7 +139,7 @@ class TradingBot:
                                 condition_maxValue = maxValue > take_profit_value
                                 condition_signal = signal['signal'] == 'SHORT'
                                 
-                                if condition_tp or condition_sl or condition_maxValue or condition_signal:
+                                if condition_tp or condition_sl or condition_signal:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolTakeProfitValue[symbol] = 0.0
                                     dict.symbolStopLossValue[symbol] = 0.0
@@ -180,7 +181,7 @@ class TradingBot:
                                 condition_minValue = minValue > take_profit_value
                                 condition_signal = signal['signal'] == 'BUY'
                                 
-                                if condition_tp or condition_sl or condition_minValue or condition_signal:
+                                if condition_tp or condition_sl or condition_signal:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolTakeProfitValue[symbol] = 0.0
                                     dict.symbolStopLossValue[symbol] = 0.0
