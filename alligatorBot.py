@@ -94,9 +94,7 @@ class TradingBot:
                         symbol_info = mt5.symbol_info(symbol)
                         if symbol_info is None:
                             continue
-                        
-                        current_bid = symbol_info.bid
-                        current_ask = symbol_info.ask
+
                         point = symbol_info.point
                         
 
@@ -104,6 +102,14 @@ class TradingBot:
                         # Рассчитываем уровни Take Profit и Stop Loss
                         take_profit_value = mt5.symbol_info(symbol).spread * volume
                         stop_loss_value = mt5.symbol_info(symbol).spread * volume * -3
+
+                        dict.symbolTakeProfitValue[symbol] = take_profit_value
+                        dict.symbolStopLossValue[symbol] = stop_loss_value
+
+                        # Получить сигнал пересечения быстрой и медленной MA
+                        fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
+                        slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
+                        signal = ma.ma_cross_signal(fast_ma, slow_ma)
 
                         # Получаем текущие low и high из последних баров
                         rates = mt5.copy_rates_from_pos(symbol, TIME_FRAME, 0, 2)  # 2 последних бара M1
@@ -130,9 +136,12 @@ class TradingBot:
                                 condition_tp = profit > take_profit_value
                                 condition_sl = profit < stop_loss_value
                                 condition_maxValue = maxValue > take_profit_value
+                                condition_signal = signal['signal'] == 'SHORT'
                                 
-                                if condition_tp or condition_sl or condition_maxValue:
+                                if condition_tp or condition_sl or condition_maxValue or condition_signal:
                                     trading.orderClose(ticketId, symbol)
+                                    dict.symbolTakeProfitValue[symbol] = 0.0
+                                    dict.symbolStopLossValue[symbol] = 0.0
                                     
                                     if CHAT_ID:
                                         reason = ""
@@ -140,6 +149,8 @@ class TradingBot:
                                             reason = "Достигнут Take Profit"
                                         elif condition_sl:
                                             reason = "Достигнут Stop Loss"
+                                        elif condition_signal:
+                                            reason = "Разворот тренда"
                                         else:
                                             reason = f"Достигнут максимум: {abs(maxValue):.0f} пунктов"
                                         
@@ -167,16 +178,21 @@ class TradingBot:
                                 condition_tp = profit > take_profit_value
                                 condition_sl = profit < stop_loss_value
                                 condition_minValue = minValue > take_profit_value
+                                condition_signal = signal['signal'] == 'BUY'
                                 
-                                if condition_tp or condition_sl or condition_minValue:
+                                if condition_tp or condition_sl or condition_minValue or condition_signal:
                                     trading.orderClose(ticketId, symbol)
-                                    
+                                    dict.symbolTakeProfitValue[symbol] = 0.0
+                                    dict.symbolStopLossValue[symbol] = 0.0
+
                                     if CHAT_ID:
                                         reason = ""
                                         if condition_tp:
                                             reason = "Достигнут Take Profit"
                                         elif condition_sl:
                                             reason = "Достигнут Stop Loss"
+                                        elif condition_signal:
+                                            reason = "Разворот тренда"
                                         else:
                                             reason = f"Достигнут минимум: {abs(minValue):.0f} пунктов"
                                         
@@ -366,6 +382,7 @@ class TradingBot:
                     message += (
                         f"  {direction}: {pos.volume} лот(ов)\n"
                         f"💰  Прибыль: {pos.profit}\n"
+                        f"🛑  Тейк-профит значение: {dict.symbolTakeProfitValue[symbol]}\n"
                         f"🛑  Стоп-лосс значение: {dict.symbolStopLossValue[symbol]}\n"
 
                     )

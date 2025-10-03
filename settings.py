@@ -71,21 +71,6 @@ class Dictionary:
         "EURUSDrfd": 500
     }
 
-    symbolStopLossValue = {
-        
-            "XAUUSDrfd": 0.0,
-            "XAGUSDrfd": 0.0,
-            "EURUSDrfd": 0.0   
-        }
-
-    symbolTakeProfitValue = {
-            
-                "XAUUSDrfd": 0.0,
-                "XAGUSDrfd": 0.0,
-                "EURUSDrfd": 0.0   
-            }
-
-
     symbolTakeProfitPoint = {
        
         "XAUUSDrfd": 500,
@@ -93,6 +78,58 @@ class Dictionary:
         "EURUSDrfd": 200  
     }
  
+    symbolStopLossValue = {
+        
+                "EURUSDrfd": 0.0,
+                "NZDUSDrfd": 0.0,
+                "EURGBPrfd": 0.0,
+                "USDCHFrfd": 0.0,
+                "USDJPYrfd": 0.0,
+                "EURCHFrfd": 0.0,
+                "GBPUSDrfd": 0.0,
+                "USDCADrfd": 0.0,
+                "EURJPYrfd": 0.0,
+                "AUDCADrfd": 0.0,
+                "AUDUSDrfd": 0.0,
+                "AUDJPYrfd": 0.0,
+                "AUDCHFrfd": 0.0,
+                "CHFJPYrfd": 0.0,
+                "EURAUDrfd": 0.0,
+                "GBPCHFrfd": 0.0,
+                "EURCADrfd": 0.0,
+                "GBPCADrfd": 0.0,
+                "XAUUSDrfd": 0.0,
+                "GBPJPYrfd": 0.0,
+                "XAGUSDrfd": 0.0,
+                "USDSGDrfd": 0.0
+        }
+
+    symbolTakeProfitValue = {
+            
+                "EURUSDrfd": 0.0,
+                "NZDUSDrfd": 0.0,
+                "EURGBPrfd": 0.0,
+                "USDCHFrfd": 0.0,
+                "USDJPYrfd": 0.0,
+                "EURCHFrfd": 0.0,
+                "GBPUSDrfd": 0.0,
+                "USDCADrfd": 0.0,
+                "EURJPYrfd": 0.0,
+                "AUDCADrfd": 0.0,
+                "AUDUSDrfd": 0.0,
+                "AUDJPYrfd": 0.0,
+                "AUDCHFrfd": 0.0,
+                "CHFJPYrfd": 0.0,
+                "EURAUDrfd": 0.0,
+                "GBPCHFrfd": 0.0,
+                "EURCADrfd": 0.0,
+                "GBPCADrfd": 0.0,
+                "XAUUSDrfd": 0.0,
+                "GBPJPYrfd": 0.0,
+                "XAGUSDrfd": 0.0,
+                "USDSGDrfd": 0.0
+            }
+
     indicatorStatus = {
     "XAUUSDrfd_KAMA": 1, # 1 - stop 0 - start 
     "XAUUSDrfd_Alligator": 1,
