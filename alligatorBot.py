@@ -137,7 +137,7 @@ class TradingBot:
                                 condition_tp = profit > take_profit_value
                                 condition_sl = profit < stop_loss_value
                                 condition_maxValue = maxValue > take_profit_value
-                                condition_signal = signal['signal'] == 'SHORT'
+                                condition_signal = signal['signal'] == 'SELL'
                                 
                                 if condition_tp or condition_sl or condition_signal:
                                     trading.orderClose(ticketId, symbol)
