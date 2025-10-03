@@ -101,7 +101,7 @@ class TradingBot:
                             continue
                                                 
                         # Рассчитываем уровни Take Profit и Stop Loss
-                        take_profit_value = mt5.symbol_info(symbol).spread * volume * 4
+                        take_profit_value = mt5.symbol_info(symbol).spread * volume * 5
                         stop_loss_value = mt5.symbol_info(symbol).spread * volume * -3
 
                         dict.symbolTakeProfitValue[symbol] = take_profit_value
