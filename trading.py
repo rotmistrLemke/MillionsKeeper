@@ -154,10 +154,13 @@ class Trading:
             if account_info is None:
                 print("Не удалось получить информацию о счете")
                 return 0
+            
+            active_symbols = [symbol for symbol in dict.symbolXvalueH1.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]
+            orders = self.getPositions()
 
             balance = account_info.balance
             equity = account_info.equity
-            free_margin = account_info.margin_free
+            free_margin = account_info.margin_free / (len(active_symbols) - len(orders))
             
             if balance <= 0:
                 print("Баланс счета должен быть положительным")

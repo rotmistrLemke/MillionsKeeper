@@ -235,7 +235,7 @@ class TradingBot:
         serverTime = trading.serverTime(symbol)
         orders = trading.getPositions()
 
-        if len(orders) > 0:
+        if len(orders) > 2:
             #Уже есть ордер по данной паре и данному индикатору
             return
 
