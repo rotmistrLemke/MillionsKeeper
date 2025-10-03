@@ -340,7 +340,7 @@ class MovingAverage:
         else:
             return {'signal': 'NO_SIGNAL', 'strength': 0}
     
-    def get_ma_for_symbol(self, symbol, timeframe, period, ma_type='SMA', price_type='close', bars=100):
+    def get_ma_for_symbol(self, symbol, timeframe, period, ma_type='EMA', price_type='close', bars=100):
         """
         Получение скользящей средней для символа
         
