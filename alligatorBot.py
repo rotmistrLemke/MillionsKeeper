@@ -103,7 +103,7 @@ class TradingBot:
                         
                         # Рассчитываем уровни Take Profit и Stop Loss
                         take_profit_value = mt5.symbol_info(symbol).spread * volume
-                        stop_loss_value = mt5.symbol_info(symbol).spread * volume * -5
+                        stop_loss_value = mt5.symbol_info(symbol).spread * volume * -3
 
                         # Получаем текущие low и high из последних баров
                         rates = mt5.copy_rates_from_pos(symbol, TIME_FRAME, 0, 2)  # 2 последних бара M1
@@ -120,19 +120,8 @@ class TradingBot:
                         
                         # Для LONG позиций (BUY)
                         if order_type == 0:  # BUY
-                            # Текущая цена для LONG - Bid цена
-                            current_price = current_bid
-                            
-                            # Получаем исторические данные для определения максимального значения
-                            rates = mt5.copy_rates_from_pos(symbol, TIME_FRAME, 0, 100)
-                            if rates is not None:
-                                # Находим максимальную цену с момента открытия позиции
-                                df = pd.DataFrame(rates)
-                                df['time'] = pd.to_datetime(df['time'], unit='s')
-                                
-                                # Максимальный high с момента открытия (приблизительно)
-                                max_high_since_open = df['high'].max()
-                                maxValue = (current_high - open_price) * volume
+
+                                maxValue = (current_high - open_price) / point * volume
                                 
                                 # Условия закрытия для LONG:
                                 # 1. Текущий профит > Take Profit
@@ -158,8 +147,6 @@ class TradingBot:
                                             f"🎯 ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
                                             f"💵 Пара: {symbol}\n"
                                             f"💰 Профит: {profit:.2f}\n"
-                                            f"📈 Макс. цена: {max_high_since_open:.5f}\n"
-                                            f"📉 Текущая цена: {current_price:.5f}\n"
                                             f"🎯 Причина: {reason}"
                                         )
                                         asyncio.run_coroutine_threadsafe(
