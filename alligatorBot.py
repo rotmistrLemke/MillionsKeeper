@@ -15,7 +15,7 @@ from authenticator import MT5Auth
 from history import History
 
 # Конфигурация бота
-TOKEN = "8062299925:AAFA14ISWThGN9D0ktg7lXxRtX2lvglzG9w" #AllogatorMinerTest2f
+TOKEN = "8062299925:AAFA14ISWThGN9D0ktg7lXxRtX2lvglzG9w" #AllogatorMinerTest2
 #TOKEN = "8235563483:AAF1gESvpoES7ttfJBlOKMfbA2z7BVl55LA" #AlligatorMinerTest
 CHAT_ID = None  # Будет заполнено после /start
 # Белый список разрешенных пользователей
