@@ -78,16 +78,15 @@ class Trading:
         return pd.to_datetime(tick.time, unit='s')
 
     def calculateStopLoss(self, symbol, profit, oldStopLossValue, volume):
-        stopLossPoint = dict.symbolStopLossPoint.get(symbol, 200)
 
         if profit > dict.spreadValue[symbol] * volume * 6:
             newStopLossValue = profit - dict.spreadValue[symbol] * volume * 3
         elif profit > dict.spreadValue[symbol] * volume * 4:
-            newStopLossValue = mt5.symbol_info(symbol).spread * volume * 2
+            newStopLossValue = dict.spreadValue[symbol] * volume * 2
         elif profit > dict.spreadValue[symbol] * volume * 2:
             newStopLossValue = 0.01
         else:
-            newStopLossValue = profit - (stopLossPoint * volume)
+            newStopLossValue = profit - (dict.spreadValue[symbol] * 3)
         
         # Проверка типов
         if isinstance(oldStopLossValue, tuple):

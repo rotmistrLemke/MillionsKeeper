@@ -67,7 +67,7 @@ class Dictionary:
     symbolStopLossPoint = {
        
         "XAUUSDrfd": 200,
-        "XAGUSDrfd": 600,
+        "XAGUSDrfd": 500,
         "EURUSDrfd": 500
     }
 
