@@ -66,8 +66,8 @@ class Dictionary:
     
     symbolStopLossPoint = {
        
-        "XAUUSDrfd": 1500,
-        "XAGUSDrfd": 2000,
+        "XAUUSDrfd": 200,
+        "XAGUSDrfd": 600,
         "EURUSDrfd": 500
     }
 
@@ -139,5 +139,18 @@ class Dictionary:
     "XAGUSDrfd_Alligator": 1   
 }
 
+    symbolXvalueH1 = {
+        "XAUUSDrfd": 50,
+        "XAGUSDrfd": 150
+    }
 
+    strengthValue = {
+        "XAUUSDrfd": 1,
+        "XAGUSDrfd": 0.02
+    }
+
+    spreadValue = {
+        "XAUUSDrfd": 50,
+        "XAGUSDrfd": 150
+    }
    

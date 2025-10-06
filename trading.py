@@ -76,12 +76,37 @@ class Trading:
     def serverTime(self, symbol):
         tick = mt5.symbol_info_tick(symbol)
         return pd.to_datetime(tick.time, unit='s')
-  
-    def calculateStopLoss(self, symbol, profit,  volume):
-        stopLossPoint =  mt5.symbol_info(symbol).spread * 5
-        newStopLossValue = profit - (stopLossPoint * volume)
-        return newStopLossValue
 
+    def calculateStopLoss(self, symbol, profit, oldStopLossValue, volume):
+        stopLossPoint = dict.symbolStopLossPoint.get(symbol, 200)
+
+        if profit > dict.spreadValue[symbol] * volume * 6:
+            newStopLossValue = profit - dict.spreadValue[symbol] * volume * 3
+        elif profit > dict.spreadValue[symbol] * volume * 4:
+            newStopLossValue = mt5.symbol_info(symbol).spread * volume * 2
+        elif profit > dict.spreadValue[symbol] * volume * 2:
+            newStopLossValue = 0.01
+        else:
+            newStopLossValue = profit - (stopLossPoint * volume)
+        
+        # Проверка типов
+        if isinstance(oldStopLossValue, tuple):
+            # Если oldStopLossValue - кортеж, берем первый элемент
+            oldStopLossValue = oldStopLossValue[0] if oldStopLossValue else 0.0
+        
+        if isinstance(newStopLossValue, tuple):
+            # Если newStopLossValue - кортеж, берем первый элемент
+            newStopLossValue = newStopLossValue[0] if newStopLossValue else 0.0
+        
+        # Приведение к float
+        newStopLossValue = float(newStopLossValue)
+        oldStopLossValue = float(oldStopLossValue)
+        
+        if newStopLossValue > oldStopLossValue or oldStopLossValue == 0.0:
+            dict.symbolStopLossValue[symbol] = newStopLossValue
+            return newStopLossValue
+        else: 
+            return oldStopLossValue
 
     def calculatePipValue(self, symbol, volume, order_type):
         """
