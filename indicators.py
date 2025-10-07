@@ -335,11 +335,11 @@ class MovingAverage:
         
         condition_strength = abs(current_fast - current_slow) < dict.strengthValue[symbol]
         condition_angle = abs(angle_fast) - abs(angle_slow) > 15
-        condition_diff_buy = current_fast < current_slow and angle_fast > 0
-        condition_diff_sell = current_fast > current_slow and angle_fast < 0
+        condition_diff_buy = current_fast > current_slow and previous_fast < previous_slow
+        condition_diff_sell = current_fast < current_slow and previous_fast > previous_slow
 
         # Определение сигнала
-        if condition_strength and condition_angle and condition_diff_buy:
+        if condition_diff_buy:
             return {
                 'signal': 'BUY',
                 'strength': abs(current_fast - current_slow),
@@ -348,7 +348,7 @@ class MovingAverage:
                 'angle_fast': angle_fast,
                 'angle_slow': angle_slow
             }
-        elif condition_strength and condition_angle and condition_diff_sell:
+        elif condition_diff_sell:
             return {
                 'signal': 'SELL', 
                 'strength': abs(current_fast - current_slow),
@@ -362,8 +362,7 @@ class MovingAverage:
                 'signal': 'NO_SIGNAL',
                 'strength': abs(current_fast - current_slow),
                 'current_fast': current_fast,
-                'cur'
-                'rent_slow': current_slow,
+                'current_slow': current_slow,
                 'angle_fast': angle_fast,
                 'angle_slow': angle_slow}
     

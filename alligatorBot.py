@@ -138,23 +138,28 @@ class TradingBot:
                                 # 3. Максимум > Take Profit
                                 #condition_tp = profit > take_profit_value
                                 #condition_sl = profit < stop_loss_value
-                                #condition_maxValue = maxValue > take_profit_value
-                                #condition_signal = signal['signal'] == 'SELL'
-                                condition_angle_strength = (signal['angle_fast'] < -10 and signal['strength'] < dict.strengthValueForClose[symbol]) or signal['angle_fast'] < -50
+                                #condition_maxValue = maxValue > take_profit_value 
+                                condition_signal = signal['signal'] == 'SELL'
+                                condition_angle = signal['signal'] == 'NO_SIGNAL' and signal['angle_fast'] < -15
+                                #condition_angle_strength = (signal['angle_fast'] < -10 and signal['strength'] < dict.strengthValueForClose[symbol]) or signal['angle_fast'] < -50
                                 
-                                if condition_angle_strength:
+                                if condition_signal:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolTakeProfitValue[symbol] = 0.0
                                     dict.symbolStopLossValue[symbol] = 0.0
                                     
                                     if CHAT_ID:
-                                        reason = f"Изменился угол быстрой МА"
+                                        reason = ""
+                                        if condition_signal:
+                                            reason = "Изменился угол быстрой МА"
+                                        if condition_angle:
+                                            reason = "Ложный BUY"
                                         
                                         telegram_message = (
                                             f"🎯 ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
                                             f"💵 Пара: {symbol}\n"
                                             f"💰 Профит: {profit:.2f}\n"
-                                            f"🎯 Причина: {reason}"
+                                            f"🎯 Причина: {reason}\n"
                                             f"📐 Угол быстрой МА:{signal['angle_fast']}\n"
                                             f"📏 Расстояние между МА:{signal['strength']}\n"
                                         )
@@ -176,10 +181,11 @@ class TradingBot:
                                 #condition_tp = profit > take_profit_value
                                 #condition_sl = profit < stop_loss_value
                                 #condition_minValue = minValue > take_profit_value
-                                #condition_signal = signal['signal'] == 'BUY'
-                                condition_angle_strength = (signal['angle_fast'] > 10 and signal['strength'] < dict.strengthValueForClose[symbol]) or signal['angle_fast'] > 50
+                                condition_signal = signal['signal'] == 'BUY'
+                                condition_angle = signal['signal'] == 'NO_SIGNAL' and signal['angle_fast'] > 15
+                                #condition_angle_strength = (signal['angle_fast'] > 10 and signal['strength'] < dict.strengthValueForClose[symbol]) or signal['angle_fast'] > 50
                                 
-                                if  condition_angle_strength:
+                                if  condition_signal:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolTakeProfitValue[symbol] = 0.0
                                     dict.symbolStopLossValue[symbol] = 0.0
@@ -187,7 +193,11 @@ class TradingBot:
 
                                     if CHAT_ID:
 
-                                        reason = f"Изменился угол быстрой МА"
+                                        reason = ""
+                                        if condition_signal:
+                                            reason = "Изменился угол быстрой МА"
+                                        if condition_angle:
+                                            reason = "Ложный SELL"
                                         
                                         telegram_message = (
                                             f"🎯 ЗАКРЫТИЕ SHORT ПОЗИЦИИ\n\n"
@@ -864,6 +874,10 @@ def trading_loop():
             
             
             for symbol in active_symbols:
+                 # Получить сигнал пересечения быстрой и медленной MA
+                fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
+                slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
+                signal = ma.ma_cross_signal(fast_ma, slow_ma, symbol)
                 
                 # Сохраняем предыдущий статус
                 previous_status = previous_statuses.get(symbol, 0)
@@ -872,6 +886,10 @@ def trading_loop():
                 if isNewBar and current_status == 1:
                     dict.symbolTradingStatus[symbol] = 0
                     current_status = 0
+
+                if isNewBar:
+                    print(f"{symbol} signal: {signal['signal']} strength: {signal['strength']} current_fast: {signal['current_fast']} current_slow: {signal['current_slow']} angle_fast: {signal['angle_fast']} angle_slow: {signal['angle_slow']}")
+
 
                 # Проверяем изменение статуса и отправляем сообщение
                 if current_status != previous_status:
@@ -902,16 +920,10 @@ def trading_loop():
                     # Обновляем предыдущий статус
                     previous_statuses[symbol] = current_status
                 
-                # Получить сигнал пересечения быстрой и медленной MA
-                fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
-                slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
-                signal = ma.ma_cross_signal(fast_ma, slow_ma, symbol)
-                
                 if signal['signal'] != 'NO_SIGNAL' and dict.symbolTradingStatus[symbol] == 0:
                     trading_bot.checkOpen(symbol, signal)
 
-                print(f"{symbol} signal: {signal['signal']} strength: {signal['strength']} current_fast: {signal['current_fast']} current_slow: {signal['current_slow']} angle_fast: {signal['angle_fast']} angle_slow: {signal['angle_slow']}")
-
+                
         except Exception as e:
             print(f"Ошибка: {str(e)}")
             #logger.saveErrorsToExcel("alligatorForMetalls", str(e), Settings.filenameErrors)
