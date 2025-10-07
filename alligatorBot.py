@@ -136,30 +136,27 @@ class TradingBot:
                                 # 1. Текущий профит > Take Profit
                                 # 2. Текущий профит < Stop Loss  
                                 # 3. Максимум > Take Profit
-                                condition_tp = profit > take_profit_value
-                                condition_sl = profit < stop_loss_value
-                                condition_maxValue = maxValue > take_profit_value
-                                condition_signal = signal['signal'] == 'SELL'
+                                #condition_tp = profit > take_profit_value
+                                #condition_sl = profit < stop_loss_value
+                                #condition_maxValue = maxValue > take_profit_value
+                                #condition_signal = signal['signal'] == 'SELL'
+                                condition_angle_strength = (signal['angle_fast'] < -10 and signal['strength'] < dict.strengthValueForClose[symbol]) or signal['angle_fast'] < -50
                                 
-                                if condition_tp or condition_sl:
+                                if condition_angle_strength:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolTakeProfitValue[symbol] = 0.0
                                     dict.symbolStopLossValue[symbol] = 0.0
                                     
                                     if CHAT_ID:
-                                        reason = ""
-                                        if condition_tp:
-                                            reason = "Достигнут Take Profit"
-                                        elif condition_sl:
-                                            reason = "Достигнут Stop Loss"
-                                        else:
-                                            reason = f"Достигнут максимум: {abs(maxValue):.0f} пунктов"
+                                        reason = f"Изменился угол быстрой МА"
                                         
                                         telegram_message = (
                                             f"🎯 ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
                                             f"💵 Пара: {symbol}\n"
                                             f"💰 Профит: {profit:.2f}\n"
                                             f"🎯 Причина: {reason}"
+                                            f"📐 Угол быстрой МА:{signal['angle_fast']}\n"
+                                            f"📏 Расстояние между МА:{signal['strength']}\n"
                                         )
                                         asyncio.run_coroutine_threadsafe(
                                             self.send_telegram_message(telegram_message),
@@ -169,37 +166,36 @@ class TradingBot:
                         # Для SHORT позиций (SELL)
                         elif order_type == 1:  # SELL
                            
-                                minValue = (open_price - current_low) / point * volume
+                                #minValue = (open_price - current_low) / point * volume
                                 
                                 
                                 # Условия закрытия для SHORT:
                                 # 1. Текущий профит > Take Profit
                                 # 2. Текущий профит < Stop Loss
                                 # 3. Цена откатилась от минимума более чем на max_drawdown_points
-                                condition_tp = profit > take_profit_value
-                                condition_sl = profit < stop_loss_value
-                                condition_minValue = minValue > take_profit_value
-                                condition_signal = signal['signal'] == 'BUY'
+                                #condition_tp = profit > take_profit_value
+                                #condition_sl = profit < stop_loss_value
+                                #condition_minValue = minValue > take_profit_value
+                                #condition_signal = signal['signal'] == 'BUY'
+                                condition_angle_strength = (signal['angle_fast'] > 10 and signal['strength'] < dict.strengthValueForClose[symbol]) or signal['angle_fast'] > 50
                                 
-                                if condition_tp or condition_sl:
+                                if  condition_angle_strength:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolTakeProfitValue[symbol] = 0.0
                                     dict.symbolStopLossValue[symbol] = 0.0
 
+
                                     if CHAT_ID:
-                                        reason = ""
-                                        if condition_tp:
-                                            reason = "Достигнут Take Profit"
-                                        elif condition_sl:
-                                            reason = "Достигнут Stop Loss"
-                                        else:
-                                            reason = f"Достигнут минимум: {abs(minValue):.0f} пунктов"
+
+                                        reason = f"Изменился угол быстрой МА"
                                         
                                         telegram_message = (
                                             f"🎯 ЗАКРЫТИЕ SHORT ПОЗИЦИИ\n\n"
                                             f"💵 Пара: {symbol}\n"
                                             f"💰 Профит: {profit:.2f}\n"
                                             f"🎯 Причина: {reason}"
+                                            f"📐 Угол быстрой МА:{signal['angle_fast']}\n"
+                                            f"📏 Расстояние между МА:{signal['strength']}\n"
                                         )
                                         asyncio.run_coroutine_threadsafe(
                                             self.send_telegram_message(telegram_message),
@@ -255,6 +251,8 @@ class TradingBot:
                     f"🟦 Направление: LONG\n"
                     f"💵 Пара: {symbol}\n"
                     f"⏰ Время: {serverTime}\n"
+                    f"📐 Угол быстрой МА:{signal['angle_fast']}\n"
+                    f"📏 Расстояние между МА:{signal['strength']}\n"
                 )
                 asyncio.run_coroutine_threadsafe(
                     self.send_telegram_message(telegram_message),
@@ -279,8 +277,9 @@ class TradingBot:
                     f"🎯 ОТКРЫТИЕ ПОЗИЦИИ\n\n"
                     f"🟥 Направление: SHORT\n"
                     f"💵 Пара: {symbol}\n"
-
                     f"⏰ Время: {serverTime}\n"
+                    f"📐 Угол быстрой МА:{signal['angle_fast']}\n"
+                    f"📏 Расстояние между МА:{signal['strength']}\n"
                 )
                 asyncio.run_coroutine_threadsafe(
                     self.send_telegram_message(telegram_message),
@@ -376,11 +375,17 @@ class TradingBot:
                 message += f"🔹 {symbol}:\n"
                 for pos in positions:
                     direction = "🟦 LONG" if pos.type == mt5.ORDER_TYPE_BUY else "🟥 SHORT"
+                    # Получить сигнал пересечения быстрой и медленной MA
+                    fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
+                    slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
+                    signal = ma.ma_cross_signal(fast_ma, slow_ma, symbol)
                     message += (
                         f"  {direction}: {pos.volume} лот(ов)\n"
                         f"💰  Прибыль: {pos.profit}\n"
-                        f"🛑  Тейк-профит значение: {dict.symbolTakeProfitValue[symbol]}\n"
-                        f"🛑  Стоп-лосс значение: {dict.symbolStopLossValue[symbol]}\n"
+                        #f"🛑  Тейк-профит значение: {dict.symbolTakeProfitValue[symbol]}\n"
+                        #f"🛑  Стоп-лосс значение: {dict.symbolStopLossValue[symbol]}\n"
+                        f"📐 Угол быстрой МА:{signal['angle_fast']}\n"
+                        f"📏 Расстояние между МА:{signal['strength']}\n"
 
                     )
                 has_positions = True

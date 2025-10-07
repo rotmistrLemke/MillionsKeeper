@@ -145,8 +145,13 @@ class Dictionary:
     }
 
     strengthValue = {
-        "XAUUSDrfd": 1,
-        "XAGUSDrfd": 0.02
+        "XAUUSDrfd": 0.5,
+        "XAGUSDrfd": 0.01
+    }
+
+    strengthValueForClose = {
+        "XAUUSDrfd": 0.8,
+        "XAGUSDrfd": 0.2
     }
 
     spreadValue = {
