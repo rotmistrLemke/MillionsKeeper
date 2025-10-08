@@ -37,7 +37,7 @@ AMA = AdaptiveMovingAverage()
 X_VALUE_DICT = Dictionary.symbolXvalueH1
 lastCheckedTime = None
 checkFlat = None
-TIME_FRAME = mt5.TIMEFRAME_M1
+TIME_FRAME = mt5.TIMEFRAME_H1
 macd = MACD()
 ma = MovingAverage()
 
@@ -137,13 +137,13 @@ class TradingBot:
                                 # 2. Текущий профит < Stop Loss  
                                 # 3. Максимум > Take Profit
                                 #condition_tp = profit > take_profit_value
-                                #condition_sl = profit < stop_loss_value
+                                condition_sl = profit < stop_loss_value
                                 #condition_maxValue = maxValue > take_profit_value 
                                 condition_signal = signal['signal'] == 'SELL'
                                 condition_angle = signal['signal'] == 'NO_SIGNAL' and signal['angle_fast'] < -15
                                 #condition_angle_strength = (signal['angle_fast'] < -10 and signal['strength'] < dict.strengthValueForClose[symbol]) or signal['angle_fast'] < -50
                                 
-                                if condition_signal:
+                                if condition_signal or condition_sl:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolTakeProfitValue[symbol] = 0.0
                                     dict.symbolStopLossValue[symbol] = 0.0
@@ -151,9 +151,9 @@ class TradingBot:
                                     if CHAT_ID:
                                         reason = ""
                                         if condition_signal:
-                                            reason = "Изменился угол быстрой МА"
-                                        if condition_angle:
-                                            reason = "Ложный BUY"
+                                            reason = "Изменился сигнал"
+                                        if condition_sl:
+                                            reason = "Закрытие по Stop Loss"
                                         
                                         telegram_message = (
                                             f"🎯 ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
@@ -179,13 +179,13 @@ class TradingBot:
                                 # 2. Текущий профит < Stop Loss
                                 # 3. Цена откатилась от минимума более чем на max_drawdown_points
                                 #condition_tp = profit > take_profit_value
-                                #condition_sl = profit < stop_loss_value
+                                condition_sl = profit < stop_loss_value
                                 #condition_minValue = minValue > take_profit_value
                                 condition_signal = signal['signal'] == 'BUY'
-                                condition_angle = signal['signal'] == 'NO_SIGNAL' and signal['angle_fast'] > 15
+                                #condition_angle = signal['signal'] == 'NO_SIGNAL' and signal['angle_fast'] > 15
                                 #condition_angle_strength = (signal['angle_fast'] > 10 and signal['strength'] < dict.strengthValueForClose[symbol]) or signal['angle_fast'] > 50
                                 
-                                if  condition_signal:
+                                if  condition_signal or condition_sl:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolTakeProfitValue[symbol] = 0.0
                                     dict.symbolStopLossValue[symbol] = 0.0
@@ -195,9 +195,9 @@ class TradingBot:
 
                                         reason = ""
                                         if condition_signal:
-                                            reason = "Изменился угол быстрой МА"
-                                        if condition_angle:
-                                            reason = "Ложный SELL"
+                                            reason = "Изменился сигнал"
+                                        if condition_sl:
+                                            reason = "Закрытие по Stop Loss"
                                         
                                         telegram_message = (
                                             f"🎯 ЗАКРЫТИЕ SHORT ПОЗИЦИИ\n\n"
@@ -237,6 +237,10 @@ class TradingBot:
 
     def checkOpen(self, symbol, signal):    
         serverTime = trading.serverTime(symbol)
+
+        if len(trading.getPositions()) == 2:
+            return
+
         if trading.symbolInPostions(symbol,TargetType.LONG,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}") or trading.symbolInPostions(symbol,TargetType.SHORT,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}"):
             #Уже есть ордер по данной паре и данному индикатору
             return

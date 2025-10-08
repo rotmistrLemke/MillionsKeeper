@@ -15,6 +15,9 @@ class IndicatorType:
     
 class Dictionary:
     symbolXvalueH1 = {
+    "XAUUSDrfd": 425,
+    "XAGUSDrfd": 1230,
+    "GBPJPYrfd": 130,
     "EURUSDrfd": 100,
     "NZDUSDrfd": 65,
     "EURGBPrfd": 40,
@@ -33,9 +36,6 @@ class Dictionary:
     "GBPCHFrfd": 55,
     "EURCADrfd": 90,
     "GBPCADrfd": 95,
-    "XAUUSDrfd": 425,
-    "GBPJPYrfd": 130,
-    "XAGUSDrfd": 1230,
     "USDSGDrfd": 60    
 }
 
