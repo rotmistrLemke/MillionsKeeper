@@ -80,9 +80,9 @@ class Trading:
     def calculateStopLoss(self, symbol, profit, oldStopLossValue, volume):
 
         if profit > dict.spreadValue[symbol] * volume * 6:
-            newStopLossValue = profit - dict.spreadValue[symbol] * volume * 5
+            newStopLossValue = profit - dict.spreadValue[symbol] * volume * 3
         elif profit > dict.spreadValue[symbol] * volume * 4:
-            newStopLossValue = dict.spreadValue[symbol] * volume * 2
+            newStopLossValue = dict.spreadValue[symbol] * volume * 1
         elif profit > dict.spreadValue[symbol] * volume * 2:
             newStopLossValue = 0.01
         else:
