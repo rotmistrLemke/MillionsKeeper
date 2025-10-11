@@ -141,7 +141,7 @@ class Trading:
             
             if profit_currency != deposit_currency:
                 # Конвертируем в валюту депозита
-                conversion_symbol = profit_currency + deposit_currency
+                conversion_symbol = profit_currency + deposit_currency + 'rfd'
                 conversion_info = mt5.symbol_info(conversion_symbol)
                 
                 if conversion_info is not None:
@@ -149,7 +149,7 @@ class Trading:
                     pip_value *= conversion_rate
                 else:
                     # Пробуем обратную котировку
-                    conversion_symbol = deposit_currency + profit_currency
+                    conversion_symbol = deposit_currency + profit_currency + 'rfd'
                     conversion_info = mt5.symbol_info(conversion_symbol)
                     if conversion_info is not None:
                         conversion_rate = mt5.symbol_info_tick(conversion_symbol).bid
