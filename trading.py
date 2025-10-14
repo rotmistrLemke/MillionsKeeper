@@ -79,14 +79,16 @@ class Trading:
 
     def calculateStopLoss(self, symbol, profit, oldStopLossValue, volume):
 
-        if profit > dict.spreadValue[symbol] * volume * 6:
-            newStopLossValue = profit - dict.spreadValue[symbol] * volume * 3
+        if profit > dict.spreadValue[symbol] * volume * 15:
+            newStopLossValue = profit * 0.6
+        elif profit > dict.spreadValue[symbol] * volume * 10:
+            newStopLossValue = profit * 0.5
+        elif profit > dict.spreadValue[symbol] * volume * 6:
+            newStopLossValue = profit * 0.4
         elif profit > dict.spreadValue[symbol] * volume * 4:
-            newStopLossValue = dict.spreadValue[symbol] * volume * 1
-        elif profit > dict.spreadValue[symbol] * volume * 2:
             newStopLossValue = 0.01
         else:
-            newStopLossValue = profit - (dict.spreadValue[symbol] * volume * 3)
+            newStopLossValue = dict.spreadValue[symbol] * volume * -10
         
         # Проверка типов
         if isinstance(oldStopLossValue, tuple):
@@ -184,7 +186,7 @@ class Trading:
 
             balance = account_info.balance
             equity = account_info.equity
-            free_margin = account_info.margin_free / (len(active_symbols) - len(orders))
+            free_margin = account_info.margin_free / (6 - len(orders))
             
             if balance <= 0:
                 print("Баланс счета должен быть положительным")

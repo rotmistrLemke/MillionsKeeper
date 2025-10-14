@@ -316,25 +316,18 @@ class MovingAverage:
         if len(fast_ma) < 2 or len(slow_ma) < 2:
             return {'signal': 'NO_SIGNAL', 'strength': 0, 'current_fast': 0, 'current_slow': 0, 'angle_fast': 0, 'angle_slow': 0}
         
-        current_fast = fast_ma.iloc[-2]
-        previous_fast = fast_ma.iloc[-3]
+        current_fast = fast_ma.iloc[-1]
+        previous_fast = fast_ma.iloc[-2]
         alligator = Alligator()
         angle_fast = alligator.angle(current_fast, previous_fast, symbol, dict.symbolXvalueH1[symbol])
-        current_slow = slow_ma.iloc[-2]
-        previous_slow = slow_ma.iloc[-3]
+        current_slow = slow_ma.iloc[-1]
+        previous_slow = slow_ma.iloc[-2]
         angle_slow = alligator.angle(current_slow, previous_slow, symbol, dict.symbolXvalueH1[symbol])
         
         # Проверка на наличие NaN значений
         if pd.isna(current_fast) or pd.isna(previous_fast) or pd.isna(current_slow) or pd.isna(previous_slow):
             return {'signal': 'NO_SIGNAL', 'strength': 0, 'current_fast': 0, 'current_slow': 0, 'angle_fast': 0, 'angle_slow': 0}
         
-        strength_diff =  abs(current_fast - current_slow)
-        strength_value = dict.strengthValue[symbol]
-        angle_diff = abs(angle_fast) - abs(angle_slow)
-
-        
-        condition_strength = abs(current_fast - current_slow) < dict.strengthValue[symbol]
-        condition_angle = abs(angle_fast) - abs(angle_slow) > 15
         condition_diff_buy = current_fast > current_slow and previous_fast < previous_slow
         condition_diff_sell = current_fast < current_slow and previous_fast > previous_slow
 
@@ -366,6 +359,64 @@ class MovingAverage:
                 'angle_fast': angle_fast,
                 'angle_slow': angle_slow}
     
+    def ma_critical_angle(self, fast_ma, slow_ma, symbol):
+        """
+        Определение сигналов резких углов средних скользящих
+        
+        Параметры:
+            fast_ma: быстрая скользящая средняя
+            slow_ma: медленная скользящая средняя
+            
+        Возвращает:
+            dict: сигналы и информация о пересечении
+        """
+        if len(fast_ma) < 2 or len(slow_ma) < 2:
+            return {'signal': 'NO_SIGNAL', 'strength': 0, 'current_fast': 0, 'current_slow': 0, 'angle_fast': 0, 'angle_slow': 0}
+        
+        current_fast = fast_ma.iloc[-1]
+        previous_fast = fast_ma.iloc[-2]
+        alligator = Alligator()
+        angle_fast = alligator.angle(current_fast, previous_fast, symbol, dict.symbolXvalueH1[symbol])
+        current_slow = slow_ma.iloc[-1]
+        previous_slow = slow_ma.iloc[-2]
+        angle_slow = alligator.angle(current_slow, previous_slow, symbol, dict.symbolXvalueH1[symbol])
+        
+        # Проверка на наличие NaN значений
+        if pd.isna(current_fast) or pd.isna(previous_fast) or pd.isna(current_slow) or pd.isna(previous_slow):
+            return {'signal': 'NO_SIGNAL', 'strength': 0, 'current_fast': 0, 'current_slow': 0, 'angle_fast': 0, 'angle_slow': 0}
+        
+        condition_angle_buy = angle_fast > 65
+        condition_angle_sell = angle_fast < -65
+
+        # Определение сигнала
+        if condition_angle_buy:
+            return {
+                'signal': 'BUY',
+                'strength': abs(current_fast - current_slow),
+                'current_fast': current_fast,
+                'current_slow': current_slow,
+                'angle_fast': angle_fast,
+                'angle_slow': angle_slow
+            }
+        elif condition_angle_sell:
+            return {
+                'signal': 'SELL', 
+                'strength': abs(current_fast - current_slow),
+                'current_fast': current_fast,
+                'current_slow': current_slow,
+                'angle_fast': angle_fast,
+                'angle_slow': angle_slow
+            }
+        else:
+            return {
+                'signal': 'NO_SIGNAL',
+                'strength': abs(current_fast - current_slow),
+                'current_fast': current_fast,
+                'current_slow': current_slow,
+                'angle_fast': angle_fast,
+                'angle_slow': angle_slow}
+    
+
     def get_ma_for_symbol(self, symbol, timeframe, period, ma_type='EMA', price_type='close', bars=100):
         """
         Получение скользящей средней для символа

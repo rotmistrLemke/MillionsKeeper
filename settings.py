@@ -40,28 +40,28 @@ class Dictionary:
 }
 
     symbolTradingStatus = {
-        "EURUSDrfd": 3,
-        "NZDUSDrfd": 3,
-        "EURGBPrfd": 3,
-        "USDCHFrfd": 3,
-        "USDJPYrfd": 3,
-        "EURCHFrfd": 3,
-        "GBPUSDrfd": 3,
-        "USDCADrfd": 3,
-        "EURJPYrfd": 3,
-        "AUDCADrfd": 3,
-        "AUDUSDrfd": 3,
-        "AUDJPYrfd": 3,
-        "AUDCHFrfd": 3,
-        "CHFJPYrfd": 3,
-        "EURAUDrfd": 3,
-        "GBPCHFrfd": 3,
-        "EURCADrfd": 3,
-        "GBPCADrfd": 3,
+        "EURUSDrfd": 0,
+        "NZDUSDrfd": 0,
+        "EURGBPrfd": 0,
+        "USDCHFrfd": 0,
+        "USDJPYrfd": 0,
+        "EURCHFrfd": 0,
+        "GBPUSDrfd": 0,
+        "USDCADrfd": 0,
+        "EURJPYrfd": 0,
+        "AUDCADrfd": 0,
+        "AUDUSDrfd": 0,
+        "AUDJPYrfd": 0,
+        "AUDCHFrfd": 0,
+        "CHFJPYrfd": 0,
+        "EURAUDrfd": 0,
+        "GBPCHFrfd": 0,
+        "EURCADrfd": 0,
+        "GBPCADrfd": 0,
         "XAUUSDrfd": 0,
-        "GBPJPYrfd": 3,
+        "GBPJPYrfd": 0,
         "XAGUSDrfd": 0,
-        "USDSGDrfd": 3    
+        "USDSGDrfd": 0    
     }
     
     symbolStopLossPoint = {
@@ -139,11 +139,6 @@ class Dictionary:
     "XAGUSDrfd_Alligator": 1   
 }
 
-    symbolXvalueH1 = {
-        "XAUUSDrfd": 50,
-        "XAGUSDrfd": 150
-    }
-
     strengthValue = {
         "XAUUSDrfd": 0.5,
         "XAGUSDrfd": 0.01
@@ -156,6 +151,26 @@ class Dictionary:
 
     spreadValue = {
         "XAUUSDrfd": 50,
-        "XAGUSDrfd": 150
+        "XAGUSDrfd": 150,
+        "GBPJPYrfd": 46,
+        "EURUSDrfd": 15,
+        "NZDUSDrfd": 25,
+        "EURGBPrfd": 21,
+        "USDCHFrfd": 20,
+        "USDJPYrfd": 20,
+        "EURCHFrfd": 22,
+        "GBPUSDrfd": 22,
+        "USDCADrfd": 21,
+        "EURJPYrfd": 22,
+        "AUDCADrfd": 23,
+        "AUDUSDrfd": 24,
+        "AUDJPYrfd": 24,
+        "AUDCHFrfd": 27,
+        "CHFJPYrfd": 27,
+        "EURAUDrfd": 40,
+        "GBPCHFrfd": 41,
+        "EURCADrfd": 45,
+        "GBPCADrfd": 45,
+        "USDSGDrfd": 50
     }
    

@@ -120,8 +120,8 @@ class TradingBot:
                             continue
                         
                         # Текущий бар (последний завершенный бар)
-                        current_low = rates[-1]['low']
-                        current_high = rates[-1]['high']
+                        #current_low = rates[-1]['low']
+                        #current_high = rates[-1]['high']
                     
                     # Или используем предыдущий бар для более стабильных значений
                     # current_low = rates[-2]['low']
@@ -130,7 +130,7 @@ class TradingBot:
                         # Для LONG позиций (BUY)
                         if order_type == 0:  # BUY
 
-                                maxValue = (current_high - open_price) / point * volume
+                                #maxValue = (current_high - open_price) / point * volume
                                 
                                 # Условия закрытия для LONG:
                                 # 1. Текущий профит > Take Profit
@@ -140,7 +140,7 @@ class TradingBot:
                                 condition_sl = profit < stop_loss_value
                                 #condition_maxValue = maxValue > take_profit_value 
                                 condition_signal = signal['signal'] == 'SELL'
-                                condition_angle = signal['signal'] == 'NO_SIGNAL' and signal['angle_fast'] < -15
+                                #condition_angle = signal['signal'] == 'NO_SIGNAL' and signal['angle_fast'] < -15
                                 #condition_angle_strength = (signal['angle_fast'] < -10 and signal['strength'] < dict.strengthValueForClose[symbol]) or signal['angle_fast'] < -50
                                 
                                 if condition_signal or condition_sl:
@@ -235,13 +235,13 @@ class TradingBot:
         
         return not (daily_off_period or friday_off_period)
 
-    def checkOpen(self, symbol, signal):    
+    def checkOpen(self, symbol, signal, comment):    
         serverTime = trading.serverTime(symbol)
 
-        if len(trading.getPositions()) == 2:
+        if len(trading.getPositions()) == 5:
             return
 
-        if trading.symbolInPostions(symbol,TargetType.LONG,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}") or trading.symbolInPostions(symbol,TargetType.SHORT,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}"):
+        if trading.symbolInPostions(symbol,TargetType.LONG,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}") or trading.symbolInPostions(symbol,TargetType.SHORT,f"{comment}"):
             #Уже есть ордер по данной паре и данному индикатору
             return
 
@@ -253,7 +253,7 @@ class TradingBot:
                 stop_loss_pips = mt5.symbol_info(symbol).spread * 5, 
                 order_type=TargetType.LONG
             )
-            result = trading.orderOpen(symbol, TargetType.LONG, safeVolume, f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}")
+            result = trading.orderOpen(symbol, TargetType.LONG, safeVolume, f"{comment}")
             
             print_message = f"\n{"-" * 50}, \ntime:{serverTime} \npair: {symbol} \ncomment: Ордер LONG выставлен по условию, \n{"-" * 50}"
             print(print_message)
@@ -267,6 +267,7 @@ class TradingBot:
                     f"⏰ Время: {serverTime}\n"
                     f"📐 Угол быстрой МА:{signal['angle_fast']}\n"
                     f"📏 Расстояние между МА:{signal['strength']}\n"
+                    f"   Комментарий:{comment}\n"
                 )
                 asyncio.run_coroutine_threadsafe(
                     self.send_telegram_message(telegram_message),
@@ -280,7 +281,7 @@ class TradingBot:
                 stop_loss_pips = mt5.symbol_info(symbol).spread * 5, 
                 order_type=TargetType.SHORT
             )
-            result = trading.orderOpen(symbol, TargetType.SHORT, safeVolume, f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}")
+            result = trading.orderOpen(symbol, TargetType.SHORT, safeVolume, f"{comment}")
 
             print_message = f"\n{"-" * 50} \ntime:{serverTime} \npair: {symbol} \ncomment: Ордер SHORT выставлен по условию, \n{"-" * 50}"
             print(print_message)
@@ -294,6 +295,7 @@ class TradingBot:
                     f"⏰ Время: {serverTime}\n"
                     f"📐 Угол быстрой МА:{signal['angle_fast']}\n"
                     f"📏 Расстояние между МА:{signal['strength']}\n"
+                    f"   Комментарий:{comment}\n"
                 )
                 asyncio.run_coroutine_threadsafe(
                     self.send_telegram_message(telegram_message),
@@ -397,7 +399,7 @@ class TradingBot:
                         f"  {direction}: {pos.volume} лот(ов)\n"
                         f"💰  Прибыль: {pos.profit}\n"
                         #f"🛑  Тейк-профит значение: {dict.symbolTakeProfitValue[symbol]}\n"
-                        #f"🛑  Стоп-лосс значение: {dict.symbolStopLossValue[symbol]}\n"
+                        f"🛑  Стоп-лосс значение: {dict.symbolStopLossValue[symbol]}\n"
                         f"📐 Угол быстрой МА:{signal['angle_fast']}\n"
                         f"📏 Расстояние между МА:{signal['strength']}\n"
 
@@ -881,7 +883,8 @@ def trading_loop():
                  # Получить сигнал пересечения быстрой и медленной MA
                 fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
                 slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
-                signal = ma.ma_cross_signal(fast_ma, slow_ma, symbol)
+                signal_cross = ma.ma_cross_signal(fast_ma, slow_ma, symbol)
+                signal_angle = ma.ma_critical_angle(fast_ma, slow_ma, symbol)
                 
                 # Сохраняем предыдущий статус
                 previous_status = previous_statuses.get(symbol, 0)
@@ -892,7 +895,8 @@ def trading_loop():
                     current_status = 0
 
                 if isNewBar:
-                    print(f"{symbol} signal: {signal['signal']} strength: {signal['strength']} current_fast: {signal['current_fast']} current_slow: {signal['current_slow']} angle_fast: {signal['angle_fast']} angle_slow: {signal['angle_slow']}")
+                    print(f"{symbol} signal_cross: {signal_cross['signal']} strength: {signal_cross['strength']} current_fast: {signal_cross['current_fast']} current_slow: {signal_cross['current_slow']} angle_fast: {signal_cross['angle_fast']} angle_slow: {signal_cross['angle_slow']}")
+                    print(f"{symbol} signal_angle: {signal_angle['signal']} strength: {signal_angle['strength']} current_fast: {signal_angle['current_fast']} current_slow: {signal_angle['current_slow']} angle_fast: {signal_angle['angle_fast']} angle_slow: {signal_angle['angle_slow']}")
 
 
                 # Проверяем изменение статуса и отправляем сообщение
@@ -924,8 +928,10 @@ def trading_loop():
                     # Обновляем предыдущий статус
                     previous_statuses[symbol] = current_status
                 
-                if signal['signal'] != 'NO_SIGNAL' and dict.symbolTradingStatus[symbol] == 0:
-                    trading_bot.checkOpen(symbol, signal)
+                if signal_cross['signal'] != 'NO_SIGNAL' and dict.symbolTradingStatus[symbol] == 0:
+                    trading_bot.checkOpen(symbol, signal_cross, 'cross')
+                if signal_angle['signal'] != 'NO_SIGNAL' and dict.symbolTradingStatus[symbol] == 0:
+                    trading_bot.checkOpen(symbol, signal_angle, 'angle')
 
                 
         except Exception as e:
