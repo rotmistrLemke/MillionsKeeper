@@ -65,9 +65,10 @@ class Trading:
        
         return orders
 
-    def symbolInPostions(self,symbol,typeOrder,indicatorType):
+    def symbolInPostions(self,symbol,typeOrder):
         positions = self.getPositions()          
-        currentPositions = list(filter(lambda position: position.symbol == symbol and position.type == typeOrder and position.comment == str(indicatorType), positions))  
+        #currentPositions = list(filter(lambda position: position.symbol == symbol and position.type == typeOrder and position.comment == str(indicatorType), positions))  
+        currentPositions = list(filter(lambda position: position.symbol == symbol and position.type == typeOrder, positions))  
         if (currentPositions):
             return True
         else:
@@ -186,7 +187,7 @@ class Trading:
 
             balance = account_info.balance
             equity = account_info.equity
-            free_margin = account_info.margin_free / (6 - len(orders))
+            free_margin = account_info.margin_free / (8 - len(orders))
             
             if balance <= 0:
                 print("Баланс счета должен быть положительным")

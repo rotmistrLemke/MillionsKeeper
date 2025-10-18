@@ -80,7 +80,7 @@ class TradingBot:
             try:
                 if not trading_bot.isTradingAlowed():
                     print("Сейчас торговля запрещена (23:40-02:00 ежедневно или пятница 23:40 - понедельник 03:00)")
-                    time.sleep(60)
+                    time.sleep(10)
                     continue
                 
                 orders = trading.getPositions()
@@ -154,14 +154,14 @@ class TradingBot:
                                             reason = "Изменился сигнал"
                                         if condition_sl:
                                             reason = "Закрытие по Stop Loss"
+                                        result = "😊" if profit > 0 else "😡"
                                         
                                         telegram_message = (
-                                            f"🎯 ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
+                                            f"{result} ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
                                             f"💵 Пара: {symbol}\n"
                                             f"💰 Профит: {profit:.2f}\n"
                                             f"🎯 Причина: {reason}\n"
                                             f"📐 Угол быстрой МА:{signal['angle_fast']}\n"
-                                            f"📏 Расстояние между МА:{signal['strength']}\n"
                                         )
                                         asyncio.run_coroutine_threadsafe(
                                             self.send_telegram_message(telegram_message),
@@ -198,14 +198,14 @@ class TradingBot:
                                             reason = "Изменился сигнал"
                                         if condition_sl:
                                             reason = "Закрытие по Stop Loss"
+                                        result = "😊" if profit > 0 else "😡"
                                         
                                         telegram_message = (
-                                            f"🎯 ЗАКРЫТИЕ SHORT ПОЗИЦИИ\n\n"
+                                            f"{result} ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
                                             f"💵 Пара: {symbol}\n"
                                             f"💰 Профит: {profit:.2f}\n"
                                             f"🎯 Причина: {reason}"
                                             f"📐 Угол быстрой МА:{signal['angle_fast']}\n"
-                                            f"📏 Расстояние между МА:{signal['strength']}\n"
                                         )
                                         asyncio.run_coroutine_threadsafe(
                                             self.send_telegram_message(telegram_message),
@@ -238,10 +238,10 @@ class TradingBot:
     def checkOpen(self, symbol, signal, comment):    
         serverTime = trading.serverTime(symbol)
 
-        if len(trading.getPositions()) == 5:
+        if len(trading.getPositions()) == 7:
             return
 
-        if trading.symbolInPostions(symbol,TargetType.LONG,f"{IndicatorType.ALLIGATOR_MAIN}_{TIME_FRAME}") or trading.symbolInPostions(symbol,TargetType.SHORT,f"{comment}"):
+        if trading.symbolInPostions(symbol, TargetType.LONG) or trading.symbolInPostions(symbol, TargetType.SHORT):
             #Уже есть ордер по данной паре и данному индикатору
             return
 
@@ -250,7 +250,7 @@ class TradingBot:
             safeVolume = trading.calculateSafeTradeWithMargin(
                 symbol, 
                 risk_percent=90, 
-                stop_loss_pips = mt5.symbol_info(symbol).spread * 5, 
+                stop_loss_pips = mt5.symbol_info(symbol).spread * 10, 
                 order_type=TargetType.LONG
             )
             result = trading.orderOpen(symbol, TargetType.LONG, safeVolume, f"{comment}")
@@ -265,9 +265,8 @@ class TradingBot:
                     f"🟦 Направление: LONG\n"
                     f"💵 Пара: {symbol}\n"
                     f"⏰ Время: {serverTime}\n"
-                    f"📐 Угол быстрой МА:{signal['angle_fast']}\n"
-                    f"📏 Расстояние между МА:{signal['strength']}\n"
-                    f"   Комментарий:{comment}\n"
+                    f"📐 Угол: {signal['angle_fast']}\n"
+                    f"💬 Комментарий: {comment}\n"
                 )
                 asyncio.run_coroutine_threadsafe(
                     self.send_telegram_message(telegram_message),
@@ -293,9 +292,8 @@ class TradingBot:
                     f"🟥 Направление: SHORT\n"
                     f"💵 Пара: {symbol}\n"
                     f"⏰ Время: {serverTime}\n"
-                    f"📐 Угол быстрой МА:{signal['angle_fast']}\n"
-                    f"📏 Расстояние между МА:{signal['strength']}\n"
-                    f"   Комментарий:{comment}\n"
+                    f"📐 Угол: {signal['angle_fast']}\n"
+                    f"💬 Комментарий: {comment}\n"
                 )
                 asyncio.run_coroutine_threadsafe(
                     self.send_telegram_message(telegram_message),
@@ -392,16 +390,16 @@ class TradingBot:
                 for pos in positions:
                     direction = "🟦 LONG" if pos.type == mt5.ORDER_TYPE_BUY else "🟥 SHORT"
                     # Получить сигнал пересечения быстрой и медленной MA
+                    result = "😊 Прибыль" if pos.profit > 0 else "😡 Потери"
                     fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
                     slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
                     signal = ma.ma_cross_signal(fast_ma, slow_ma, symbol)
                     message += (
-                        f"  {direction}: {pos.volume} лот(ов)\n"
-                        f"💰  Прибыль: {pos.profit}\n"
-                        #f"🛑  Тейк-профит значение: {dict.symbolTakeProfitValue[symbol]}\n"
+                        f"{direction}: {pos.volume} лот(ов)\n"
+                        f"{result}: {pos.profit}\n"
                         f"🛑  Стоп-лосс значение: {dict.symbolStopLossValue[symbol]}\n"
                         f"📐 Угол быстрой МА:{signal['angle_fast']}\n"
-                        f"📏 Расстояние между МА:{signal['strength']}\n"
+                        "\n"
 
                     )
                 has_positions = True
@@ -864,7 +862,7 @@ def trading_loop():
         try:
             if not trading_bot.isTradingAlowed():
                 print("Сейчас торговля запрещена (23:40-02:00 ежедневно или пятница 23:40 - понедельник 03:00)")
-                time.sleep(60)
+                time.sleep(10)
                 continue
 
             if not trading_bot.bot_running:
