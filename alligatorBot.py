@@ -84,6 +84,7 @@ class TradingBot:
                     continue
                 
                 orders = trading.getPositions()
+                
                 if len(orders) == 0:
                     continue
                 else:
@@ -95,18 +96,21 @@ class TradingBot:
                         symbol = order_dict.get("symbol", 0)
                         oldStopLossValue = dict.symbolStopLossValue[symbol],
                         order_type = order_dict.get("type", 0)  # 0 = BUY, 1 = SELL
+                        # Получить сигнал пересечения быстрой и медленной MA
+                        fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
+                        slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
+                        signal_cross = ma.ma_cross_signal(fast_ma, slow_ma, symbol)
+                        signal_angle = ma.ma_critical_angle(fast_ma, slow_ma, symbol)
 
                         if dict.symbolTradingStatus[symbol] > 0:
+                            continue
+
+                        if signal_angle['signal'] != 'NO_SIGNAL':
                             continue
                                                 
                         # Рассчитываем уровни Stop Loss
                         stop_loss_value = trading.calculateStopLoss(symbol, profit, oldStopLossValue, volume)
                         dict.symbolStopLossValue[symbol] = stop_loss_value
-
-                        # Получить сигнал пересечения быстрой и медленной MA
-                        fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
-                        slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
-                        signal_cross = ma.ma_cross_signal(fast_ma, slow_ma, symbol)
                         
                         # Для LONG позиций (BUY)
                         if order_type == 0:  # BUY
