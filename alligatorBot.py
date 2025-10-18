@@ -102,11 +102,10 @@ class TradingBot:
                         if dict.symbolTradingStatus[symbol] > 0:
                             continue
                                                 
-                        # Рассчитываем уровни Take Profit и Stop Loss
-                        take_profit_value = dict.spreadValue[symbol] * volume
+                        # Рассчитываем уровни Stop Loss
+
                         stop_loss_value = trading.calculateStopLoss(symbol, profit, oldStopLossValue, volume)
 
-                        dict.symbolTakeProfitValue[symbol] = take_profit_value
                         dict.symbolStopLossValue[symbol] = stop_loss_value
 
                         # Получить сигнал пересечения быстрой и медленной MA
