@@ -95,56 +95,32 @@ class TradingBot:
                         symbol = order_dict.get("symbol", 0)
                         oldStopLossValue = dict.symbolStopLossValue[symbol],
                         order_type = order_dict.get("type", 0)  # 0 = BUY, 1 = SELL
-                        open_price = order_dict.get("price_open", 0)
-                        point = mt5.symbol_info(symbol).point,
-                        priceCurrent = order_dict.get("price_current", 0)
 
                         if dict.symbolTradingStatus[symbol] > 0:
                             continue
                                                 
                         # Рассчитываем уровни Stop Loss
-
                         stop_loss_value = trading.calculateStopLoss(symbol, profit, oldStopLossValue, volume)
-
                         dict.symbolStopLossValue[symbol] = stop_loss_value
 
                         # Получить сигнал пересечения быстрой и медленной MA
                         fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
                         slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
-                        signal = ma.ma_cross_signal(fast_ma, slow_ma, symbol)
-
-                        # Получаем текущие low и high из последних баров
-                        rates = mt5.copy_rates_from_pos(symbol, TIME_FRAME, 0, 2)  # 2 последних бара M1
-                        if rates is None or len(rates) < 2:
-                            continue
-                        
-                        # Текущий бар (последний завершенный бар)
-                        #current_low = rates[-1]['low']
-                        #current_high = rates[-1]['high']
-                    
-                    # Или используем предыдущий бар для более стабильных значений
-                    # current_low = rates[-2]['low']
-                    # current_high = rates[-2]['high']
+                        signal_cross = ma.ma_cross_signal(fast_ma, slow_ma, symbol)
                         
                         # Для LONG позиций (BUY)
                         if order_type == 0:  # BUY
-
-                                #maxValue = (current_high - open_price) / point * volume
                                 
                                 # Условия закрытия для LONG:
-                                # 1. Текущий профит > Take Profit
-                                # 2. Текущий профит < Stop Loss  
-                                # 3. Максимум > Take Profit
-                                #condition_tp = profit > take_profit_value
+                                # 1. Текущий профит < Stop Loss  
+                                # 2. Появился противоположный сигнал
+
                                 condition_sl = profit < stop_loss_value
-                                #condition_maxValue = maxValue > take_profit_value 
-                                condition_signal = signal['signal'] == 'SELL'
+                                condition_signal = signal_cross['signal'] == 'SELL'
                                 #condition_angle = signal['signal'] == 'NO_SIGNAL' and signal['angle_fast'] < -15
-                                #condition_angle_strength = (signal['angle_fast'] < -10 and signal['strength'] < dict.strengthValueForClose[symbol]) or signal['angle_fast'] < -50
                                 
                                 if condition_signal or condition_sl:
                                     trading.orderClose(ticketId, symbol)
-                                    dict.symbolTakeProfitValue[symbol] = 0.0
                                     dict.symbolStopLossValue[symbol] = 0.0
                                     
                                     if CHAT_ID:
@@ -160,7 +136,7 @@ class TradingBot:
                                             f"💵 Пара: {symbol}\n"
                                             f"💰 Профит: {profit:.2f}\n"
                                             f"🎯 Причина: {reason}\n"
-                                            f"📐 Угол быстрой МА:{signal['angle_fast']}\n"
+                                            f"📐 Угол быстрой МА:{signal_cross['angle_fast']}\n"
                                         )
                                         asyncio.run_coroutine_threadsafe(
                                             self.send_telegram_message(telegram_message),
@@ -170,25 +146,16 @@ class TradingBot:
                         # Для SHORT позиций (SELL)
                         elif order_type == 1:  # SELL
                            
-                                #minValue = (open_price - current_low) / point * volume
-                                
-                                
                                 # Условия закрытия для SHORT:
-                                # 1. Текущий профит > Take Profit
-                                # 2. Текущий профит < Stop Loss
-                                # 3. Цена откатилась от минимума более чем на max_drawdown_points
-                                #condition_tp = profit > take_profit_value
+                                # 1. Текущий профит < Stop Loss  
+                                # 2. Появился противоположный сигнал
+                                
                                 condition_sl = profit < stop_loss_value
-                                #condition_minValue = minValue > take_profit_value
-                                condition_signal = signal['signal'] == 'BUY'
-                                #condition_angle = signal['signal'] == 'NO_SIGNAL' and signal['angle_fast'] > 15
-                                #condition_angle_strength = (signal['angle_fast'] > 10 and signal['strength'] < dict.strengthValueForClose[symbol]) or signal['angle_fast'] > 50
+                                condition_signal = signal_cross['signal'] == 'BUY'
                                 
                                 if  condition_signal or condition_sl:
                                     trading.orderClose(ticketId, symbol)
-                                    dict.symbolTakeProfitValue[symbol] = 0.0
                                     dict.symbolStopLossValue[symbol] = 0.0
-
 
                                     if CHAT_ID:
 
@@ -204,7 +171,7 @@ class TradingBot:
                                             f"💵 Пара: {symbol}\n"
                                             f"💰 Профит: {profit:.2f}\n"
                                             f"🎯 Причина: {reason}"
-                                            f"📐 Угол быстрой МА:{signal['angle_fast']}\n"
+                                            f"📐 Угол быстрой МА:{signal_cross['angle_fast']}\n"
                                         )
                                         asyncio.run_coroutine_threadsafe(
                                             self.send_telegram_message(telegram_message),
