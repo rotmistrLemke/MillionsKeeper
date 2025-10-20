@@ -84,7 +84,7 @@ class TradingBot:
                     continue
                 
                 orders = trading.getPositions()
-                
+
                 if len(orders) == 0:
                     continue
                 else:
@@ -105,8 +105,6 @@ class TradingBot:
                         if dict.symbolTradingStatus[symbol] > 0:
                             continue
 
-                        if signal_angle['signal'] != 'NO_SIGNAL':
-                            continue
                                                 
                         # Рассчитываем уровни Stop Loss
                         stop_loss_value = trading.calculateStopLoss(symbol, profit, oldStopLossValue, volume)
@@ -121,31 +119,33 @@ class TradingBot:
 
                                 condition_sl = profit < stop_loss_value
                                 condition_signal = signal_cross['signal'] == 'SELL'
+                                condition_angle = signal_cross['angle_fast'] < -15
                                 #condition_angle = signal['signal'] == 'NO_SIGNAL' and signal['angle_fast'] < -15
                                 
-                                if condition_signal or condition_sl:
-                                    trading.orderClose(ticketId, symbol)
-                                    dict.symbolStopLossValue[symbol] = 0.0
-                                    
-                                    if CHAT_ID:
-                                        reason = ""
-                                        if condition_signal:
-                                            reason = "Изменился сигнал"
-                                        if condition_sl:
-                                            reason = "Закрытие по Stop Loss"
-                                        result = "😊" if profit > 0 else "😡"
+                                if condition_angle:
+                                    if condition_signal or condition_sl:
+                                        trading.orderClose(ticketId, symbol)
+                                        dict.symbolStopLossValue[symbol] = 0.0
                                         
-                                        telegram_message = (
-                                            f"{result} ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
-                                            f"💵 Пара: {symbol}\n"
-                                            f"💰 Профит: {profit:.2f}\n"
-                                            f"🎯 Причина: {reason}\n"
-                                            f"📐 Угол быстрой МА:{signal_cross['angle_fast']}\n"
-                                        )
-                                        asyncio.run_coroutine_threadsafe(
-                                            self.send_telegram_message(telegram_message),
-                                            self.loop
-                                        )
+                                        if CHAT_ID:
+                                            reason = ""
+                                            if condition_signal:
+                                                reason = "Изменился сигнал"
+                                            if condition_sl:
+                                                reason = "Закрытие по Stop Loss"
+                                            result = "😊" if profit > 0 else "😡"
+                                            
+                                            telegram_message = (
+                                                f"{result} ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
+                                                f"💵 Пара: {symbol}\n"
+                                                f"💰 Профит: {profit:.2f}\n"
+                                                f"🎯 Причина: {reason}\n"
+                                                f"📐 Угол быстрой МА:{signal_cross['angle_fast']}\n"
+                                            )
+                                            asyncio.run_coroutine_threadsafe(
+                                                self.send_telegram_message(telegram_message),
+                                                self.loop
+                                            )
                         
                         # Для SHORT позиций (SELL)
                         elif order_type == 1:  # SELL
@@ -156,31 +156,33 @@ class TradingBot:
                                 
                                 condition_sl = profit < stop_loss_value
                                 condition_signal = signal_cross['signal'] == 'BUY'
+                                condition_angle = signal_cross['angle_fast'] > 15
                                 
-                                if  condition_signal or condition_sl:
-                                    trading.orderClose(ticketId, symbol)
-                                    dict.symbolStopLossValue[symbol] = 0.0
+                                if condition_angle:
+                                    if  condition_signal or condition_sl:
+                                        trading.orderClose(ticketId, symbol)
+                                        dict.symbolStopLossValue[symbol] = 0.0
 
-                                    if CHAT_ID:
+                                        if CHAT_ID:
 
-                                        reason = ""
-                                        if condition_signal:
-                                            reason = "Изменился сигнал"
-                                        if condition_sl:
-                                            reason = "Закрытие по Stop Loss"
-                                        result = "😊" if profit > 0 else "😡"
-                                        
-                                        telegram_message = (
-                                            f"{result} ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
-                                            f"💵 Пара: {symbol}\n"
-                                            f"💰 Профит: {profit:.2f}\n"
-                                            f"🎯 Причина: {reason}"
-                                            f"📐 Угол быстрой МА:{signal_cross['angle_fast']}\n"
-                                        )
-                                        asyncio.run_coroutine_threadsafe(
-                                            self.send_telegram_message(telegram_message),
-                                            self.loop
-                                        )
+                                            reason = ""
+                                            if condition_signal:
+                                                reason = "Изменился сигнал"
+                                            if condition_sl:
+                                                reason = "Закрытие по Stop Loss"
+                                            result = "😊" if profit > 0 else "😡"
+                                            
+                                            telegram_message = (
+                                                f"{result} ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
+                                                f"💵 Пара: {symbol}\n"
+                                                f"💰 Профит: {profit:.2f}\n"
+                                                f"🎯 Причина: {reason}"
+                                                f"📐 Угол быстрой МА:{signal_cross['angle_fast']}\n"
+                                            )
+                                            asyncio.run_coroutine_threadsafe(
+                                                self.send_telegram_message(telegram_message),
+                                                self.loop
+                                            )
 
             except Exception as e:
                 print(f"Ошибка в moneySaver: {str(e)}")
