@@ -415,8 +415,7 @@ class MovingAverage:
                 'current_slow': current_slow,
                 'angle_fast': angle_fast,
                 'angle_slow': angle_slow}
-    
-
+   
     def get_ma_for_symbol(self, symbol, timeframe, period, ma_type='EMA', price_type='close', bars=100):
         """
         Получение скользящей средней для символа
@@ -461,3 +460,91 @@ class MovingAverage:
         except Exception as e:
             print(f"Ошибка расчета скользящей средней для {symbol}: {e}")
             return None
+        
+class ATR:
+  
+    def calculate_atr(self, symbol, timeframe):
+        rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, 500)
+        df = pd.DataFrame(rates)
+        high = df['high']
+        low = df['low']
+        close = df['close']
+        prev_close = close.shift(1)
+        tr = pd.concat([
+        (high - low).abs(),
+        (high - prev_close).abs(),
+        (low - prev_close).abs()
+        ],axis=1).max(axis=1)
+
+        return tr.rolling(14).mean()
+    
+class ADX:
+
+    def ExponentialMA(self, i, period, prev_value, values):
+        if i == 0:
+            return prev_value
+        else:
+            ema = (values[i] - prev_value) * 2 / (period + 1) + prev_value
+            return ema
+    
+    def ADX(self, high, low, close, adx_period):
+        """Расчет ADX с возвратом +DI и -DI"""
+        # Инициализация массивов
+        pdi = [0] * len(high)
+        ndi = [0] * len(high)
+        adx = [0] * len(high)
+        tmp_buffer = [0] * len(high)
+        
+        # Временные массивы для несглаженных значений DI
+        raw_plus_di = [0] * len(high)
+        raw_minus_di = [0] * len(high)
+        
+        # Итерация по данным
+        for i in range(1, len(high)):
+            # Получаем цены
+            high_price = high[i]
+            prev_high = high[i-1]
+            low_price = low[i]
+            prev_low = low[i-1]
+            prev_close = close[i-1]
+            
+            # Расчет направленного движения
+            tmp_pos = high_price - prev_high
+            tmp_neg = prev_low - low_price
+            
+            # Логика направленного движения
+            if tmp_pos < 0:
+                tmp_pos = 0
+            if tmp_neg < 0:
+                tmp_neg = 0
+                
+            if tmp_pos > tmp_neg:
+                tmp_neg = 0
+            else:
+                if tmp_pos < tmp_neg:
+                    tmp_pos = 0
+                else:
+                    tmp_pos = 0
+                    tmp_neg = 0
+            
+            # Расчет True Range
+            tr = max(high_price - low_price, abs(high_price - prev_close), abs(low_price - prev_close))
+            
+            # Расчет несглаженных DI значений
+            raw_plus_di[i] = 100 * tmp_pos / tr if tr != 0 else 0
+            raw_minus_di[i] = 100 * tmp_neg / tr if tr != 0 else 0
+            
+            # Сглаживание DI с помощью EMA
+            pdi[i] = self.ExponentialMA(i, adx_period, pdi[i-1], raw_plus_di)
+            ndi[i] = self.ExponentialMA(i, adx_period, ndi[i-1], raw_minus_di)
+            
+            # Расчет DX
+            tmp = pdi[i] + ndi[i]
+            tmp_buffer[i] = 100 * abs((pdi[i] - ndi[i]) / tmp) if tmp != 0 else 0
+        
+        # Расчет ADX (сглаженный DX)
+        for i in range(1, len(high)):
+            adx[i] = self.ExponentialMA(i, adx_period, adx[i-1], tmp_buffer)
+        
+        # Возвращаем ADX, +DI, -DI
+        return adx, pdi, ndi

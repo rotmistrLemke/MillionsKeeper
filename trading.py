@@ -1,6 +1,8 @@
 import MetaTrader5 as mt5
 import pandas as pd
 from settings import TargetType, Dictionary
+from indicators import ATR
+import talib
 
 dict = Dictionary()
 
@@ -109,6 +111,57 @@ class Trading:
             return newStopLossValue
         else: 
             return oldStopLossValue
+        
+    def calculateStopLossNew(symbol, priceCurrent, orderType):
+
+        atr = ATR()
+        atr_value = atr.calculate_atr(symbol, mt5.TIMEFRAME_H1)
+
+        if orderType == TargetType.LONG:
+            stopLoss = priceCurrent - (1.5 * atr_value) 
+        
+        if orderType == TargetType.SHORT:
+            stopLoss = priceCurrent + (1.5 * atr_value)
+
+        return stopLoss
+
+    def setStopLoss(ticket, new_sl , oldSl, orderType):
+
+        if (orderType == TargetType.LONG and new_sl > oldSl) or  oldSl == 0.0:
+            # Подготавливаем структуру для изменения
+            request = {
+                "action": mt5.TRADE_ACTION_SLTP,
+                "position": ticket,
+                "sl": new_sl
+            }
+
+            # Отправляем запрос на изменение
+            result = mt5.order_send(request) # type: ignore
+            
+            if result.retcode == mt5.TRADE_RETCODE_DONE:
+                print(f"Ордер {ticket} успешно изменён.")
+                return True
+            else:
+                print(f"Ошибка изменения ордера {ticket}. Код ошибки:", result.retcode)
+                return False
+        elif (orderType == TargetType.SHORT and new_sl < oldSl) or  oldSl == 0.0:
+            # Подготавливаем структуру для изменения
+            request = {
+                "action": mt5.TRADE_ACTION_SLTP,
+                "position": ticket,
+                "sl": new_sl
+            }
+
+            # Отправляем запрос на изменение
+            result = mt5.order_send(request) # type: ignore
+            
+            if result.retcode == mt5.TRADE_RETCODE_DONE:
+                print(f"Ордер {ticket} успешно изменён.")
+                return True
+            else:
+                print(f"Ошибка изменения ордера {ticket}. Код ошибки:", result.retcode)
+                return False
+
 
     def calculatePipValue(self, symbol, volume, order_type):
         """
