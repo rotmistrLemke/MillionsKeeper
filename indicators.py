@@ -548,3 +548,29 @@ class ADX:
         
         # Возвращаем ADX, +DI, -DI
         return adx, pdi, ndi
+    
+class RSI:
+    def get_rsi_talib(self, symbol, timeframe, period=14, bars=1000):
+        """
+        RSI через TA-Lib
+        """
+        if not mt5.initialize():
+            print("Ошибка инициализации MT5")
+            return None
+        
+        try:
+            rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, bars)
+            df = pd.DataFrame(rates)
+            df['time'] = pd.to_datetime(df['time'], unit='s')
+            
+            # Конвертируем в numpy array
+            close_prices = np.array(df['close'], dtype=float)
+            
+            # Расчет RSI через TA-Lib
+            df['RSI'] = talib.RSI(close_prices, timeperiod=period)
+            
+            return df
+            
+        except Exception as e:
+            print(f"Ошибка: {e}")
+            return None
