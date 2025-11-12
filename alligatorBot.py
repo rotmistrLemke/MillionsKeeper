@@ -7,7 +7,7 @@ import threading
 import MetaTrader5 as mt5
 import datetime
 from account import Account
-from indicators import AdaptiveMovingAverage, Alligator, BullsBearsPower, MACD, MovingAverage
+from indicators import AdaptiveMovingAverage, Alligator, BullsBearsPower, MACD, MovingAverage, ADX, RSI, ATR
 from trading import Trading
 from settings import TargetType, IndicatorType, Dictionary
 from logs.logger import Logger
@@ -39,6 +39,9 @@ lastCheckedTime = None
 checkFlat = None
 TIME_FRAME = mt5.TIMEFRAME_H1
 macd = MACD()
+atr = ATR()
+adx = ADX()
+rsi = RSI()
 ma = MovingAverage()
 
 
@@ -94,20 +97,44 @@ class TradingBot:
                         profit = order_dict.get("profit", 0)
                         ticketId = order_dict.get("ticket", 0)
                         symbol = order_dict.get("symbol", 0)
-                        oldStopLossValue = dict.symbolStopLossValue[symbol],
+                        oldStopLossValue = dict.symbolStopLossValue[symbol]
                         order_type = order_dict.get("type", 0)  # 0 = BUY, 1 = SELL
-                        # Получить сигнал пересечения быстрой и медленной MA
+                        # Получаем сигнал от быстрой и медленной MA
                         fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
                         slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
-                        signal_cross = ma.ma_cross_signal(fast_ma, slow_ma, symbol)
-                        signal_angle = ma.ma_critical_angle(fast_ma, slow_ma, symbol)
+                        signal_ma = ma.ma_simple_signal(fast_ma, slow_ma)
+                        # Получаем сигнал от MACD
+                        hist_line, prev_hist_line, signal_line = macd.calculate_macd_manual(symbol, TIME_FRAME)
+                        MACD_signal = macd.MACD_signal(hist_line, prev_hist_line, signal_line)
+                        # Получаем сигнал от ADX
+                        df = alligator.Df(symbol, TIME_FRAME)
+                        adx_values, plus_di_values, minus_di_values = adx.ADX(
+                            df['high'].values,
+                            df['low'].values, 
+                            df['close'].values,
+                            14
+                        )
+                        ADX_signal = adx.ADX_signal(adx_values[499], plus_di_values[499], minus_di_values[499])
+                        # Получаем сигнал от RSI
+                        rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
+                        rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2])
 
-                        if dict.symbolTradingStatus[symbol] > 0:
+                        atr_calc = atr.calculate_atr(symbol, TIME_FRAME)
+                        atr_value = atr_calc.iloc[-1]
+                        
+                        if signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY' and ADX_signal['signal'] == 'BUY' and rsi_signal['signal'] == 'BUY':
+                            sum_signal = 'BUY'
+                        elif signal_ma['signal'] == 'SELL' and MACD_signal['signal'] == 'SELL' and ADX_signal['signal'] == 'SELL' and rsi_signal['signal'] == 'SELL':
+                            sum_signal = 'SELL'
+                        else:
+                            sum_signal = 'NO_SIGNAL'
+                            
+                        if dict.symbolTradingStatus[symbol] > 0 or sum_signal !='NO_SIGNAL':
                             continue
 
                                                 
                         # Рассчитываем уровни Stop Loss
-                        stop_loss_value = trading.calculateStopLoss(symbol, profit, oldStopLossValue, volume)
+                        stop_loss_value = trading.calculateStopLoss(symbol, profit, atr_value, oldStopLossValue, volume)
                         dict.symbolStopLossValue[symbol] = stop_loss_value
                         
                         # Для LONG позиций (BUY)
@@ -118,34 +145,32 @@ class TradingBot:
                                 # 2. Появился противоположный сигнал
 
                                 condition_sl = profit < stop_loss_value
-                                condition_signal = signal_cross['signal'] == 'SELL'
-                                condition_angle = signal_cross['angle_fast'] < -15
+                                condition_signal = sum_signal == 'SELL'
                                 #condition_angle = signal['signal'] == 'NO_SIGNAL' and signal['angle_fast'] < -15
                                 
-                                if condition_angle:
-                                    if condition_signal or condition_sl:
-                                        trading.orderClose(ticketId, symbol)
-                                        dict.symbolStopLossValue[symbol] = 0.0
+
+                                if condition_signal or condition_sl:
+                                    trading.orderClose(ticketId, symbol)
+                                    dict.symbolStopLossValue[symbol] = 0.0
                                         
-                                        if CHAT_ID:
-                                            reason = ""
-                                            if condition_signal:
-                                                reason = "Изменился сигнал"
-                                            if condition_sl:
-                                                reason = "Закрытие по Stop Loss"
-                                            result = "😊" if profit > 0 else "😡"
+                                    if CHAT_ID:
+                                        reason = ""
+                                        if condition_signal:
+                                            reason = "Изменился сигнал"
+                                        if condition_sl:
+                                            reason = "Закрытие по Stop Loss"
+                                        result = "😊" if profit > 0 else "😡"
                                             
-                                            telegram_message = (
-                                                f"{result} ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
-                                                f"💵 Пара: {symbol}\n"
-                                                f"💰 Профит: {profit:.2f}\n"
-                                                f"🎯 Причина: {reason}\n"
-                                                f"📐 Угол быстрой МА:{signal_cross['angle_fast']}\n"
-                                            )
-                                            asyncio.run_coroutine_threadsafe(
-                                                self.send_telegram_message(telegram_message),
-                                                self.loop
-                                            )
+                                        telegram_message = (
+                                            f"{result} ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
+                                            f"💵 Пара: {symbol}\n"
+                                            f"💰 Профит: {profit:.2f}\n"
+                                            f"🎯 Причина: {reason}\n"
+                                        )
+                                        asyncio.run_coroutine_threadsafe(
+                                            self.send_telegram_message(telegram_message),
+                                            self.loop
+                                        )
                         
                         # Для SHORT позиций (SELL)
                         elif order_type == 1:  # SELL
@@ -155,34 +180,33 @@ class TradingBot:
                                 # 2. Появился противоположный сигнал
                                 
                                 condition_sl = profit < stop_loss_value
-                                condition_signal = signal_cross['signal'] == 'BUY'
-                                condition_angle = signal_cross['angle_fast'] > 15
+                                condition_signal = sum_signal == 'BUY'
                                 
-                                if condition_angle:
-                                    if  condition_signal or condition_sl:
-                                        trading.orderClose(ticketId, symbol)
-                                        dict.symbolStopLossValue[symbol] = 0.0
 
-                                        if CHAT_ID:
+                                if  condition_signal or condition_sl:
+                                    trading.orderClose(ticketId, symbol)
+                                    dict.symbolStopLossValue[symbol] = 0.0
 
-                                            reason = ""
-                                            if condition_signal:
-                                                reason = "Изменился сигнал"
-                                            if condition_sl:
-                                                reason = "Закрытие по Stop Loss"
-                                            result = "😊" if profit > 0 else "😡"
+                                    if CHAT_ID:
+
+                                        reason = ""
+                                        if condition_signal:
+                                            reason = "Изменился сигнал"
+                                        if condition_sl:
+                                            reason = "Закрытие по Stop Loss"
+                                        result = "😊" if profit > 0 else "😡"
                                             
-                                            telegram_message = (
-                                                f"{result} ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
-                                                f"💵 Пара: {symbol}\n"
-                                                f"💰 Профит: {profit:.2f}\n"
-                                                f"🎯 Причина: {reason}"
-                                                f"📐 Угол быстрой МА:{signal_cross['angle_fast']}\n"
-                                            )
-                                            asyncio.run_coroutine_threadsafe(
-                                                self.send_telegram_message(telegram_message),
-                                                self.loop
-                                            )
+                                        telegram_message = (
+                                            f"{result} ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
+                                            f"💵 Пара: {symbol}\n"
+                                            f"💰 Профит: {profit:.2f}\n"
+                                            f"🎯 Причина: {reason}"
+
+                                        )
+                                        asyncio.run_coroutine_threadsafe(
+                                            self.send_telegram_message(telegram_message),
+                                            self.loop
+                                        )
 
             except Exception as e:
                 print(f"Ошибка в moneySaver: {str(e)}")
@@ -207,17 +231,18 @@ class TradingBot:
         
         return not (daily_off_period or friday_off_period)
 
-    def checkOpen(self, symbol, signal, comment):    
+    def checkOpen(self, symbol, signal, comment):  
+        active_symbols = [symbol for symbol in dict.symbolXvalueH1.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]  
         serverTime = trading.serverTime(symbol)
 
-        if len(trading.getPositions()) == 7:
+        if len(trading.getPositions()) == len(active_symbols):
             return
 
         if trading.symbolInPostions(symbol, TargetType.LONG) or trading.symbolInPostions(symbol, TargetType.SHORT):
             #Уже есть ордер по данной паре и данному индикатору
             return
 
-        if signal['signal'] == 'BUY':
+        if signal == 'BUY':
 
             safeVolume = trading.calculateSafeTradeWithMargin(
                 symbol, 
@@ -227,7 +252,7 @@ class TradingBot:
             )
             result = trading.orderOpen(symbol, TargetType.LONG, safeVolume, f"{comment}")
             
-            print_message = f"\n{"-" * 50}, \ntime:{serverTime} \npair: {symbol} \ncomment: Ордер LONG выставлен по условию, \n{"-" * 50}"
+            print_message = f"\n{'-' * 50}, \ntime:{serverTime} \npair: {symbol} \ncomment: Ордер LONG выставлен по условию, \n{'-' * 50}"
             print(print_message)
             
             # Отправляем сообщение в Telegram
@@ -245,7 +270,7 @@ class TradingBot:
                     self.loop
                 )
                 
-        if signal['signal'] == 'SELL':
+        if signal == 'SELL':
             safeVolume = trading.calculateSafeTradeWithMargin(
                 symbol, 
                 risk_percent = 90, 
@@ -254,7 +279,7 @@ class TradingBot:
             )
             result = trading.orderOpen(symbol, TargetType.SHORT, safeVolume, f"{comment}")
 
-            print_message = f"\n{"-" * 50} \ntime:{serverTime} \npair: {symbol} \ncomment: Ордер SHORT выставлен по условию, \n{"-" * 50}"
+            print_message = f"\n{'-' * 50} \ntime:{serverTime} \npair: {symbol} \ncomment: Ордер SHORT выставлен по условию, \n{'-' * 50}"
             print(print_message)
             
             # Отправляем сообщение в Telegram
@@ -577,19 +602,33 @@ class TradingBot:
             symbol = query.data.replace("pair_", "")
             
             try:
-                df = self.alligator.Df(symbol, mt5.TIMEFRAME_H1)
-                check_flat = self.ama.checkFlat(df, symbol, self.dict.symbolXvalueH1)
-                median_price, jaw, teeth, lips, open_price = self.alligator.MainData(df)
-                jaw_shifted, teeth_shifted, lips_shifted = self.alligator.ShiftedData(jaw, teeth, lips, median_price)
-                last_jaw, last_teeth, last_lips, prelast_lips = self.alligator.LastData(symbol, jaw_shifted, teeth_shifted, lips_shifted)
-                angle = self.alligator.SupportData(last_lips, prelast_lips, symbol, X_VALUE_DICT)
+                # Получаем сигнал от быстрой и медленной MA
+                fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
+                slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
+                signal_ma = ma.ma_simple_signal(fast_ma, slow_ma)
+                # Получаем сигнал от MACD
+                hist_line, prev_hist_line, signal_line = macd.calculate_macd_manual(symbol, TIME_FRAME)
+                MACD_signal = macd.MACD_signal(hist_line, prev_hist_line, signal_line)
+                # Получаем сигнал от ADX
+                df = alligator.Df(symbol, TIME_FRAME)
+                adx_values, plus_di_values, minus_di_values = adx.ADX(
+                    df['high'].values,
+                    df['low'].values, 
+                    df['close'].values,
+                    14
+                )
+                ADX_signal = adx.ADX_signal(adx_values[499], plus_di_values[499], minus_di_values[499])
+                # Получаем сигнал от RSI
+                rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
+                rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2])
                 
                 message = (
                     f"📈 Информация по паре {symbol}:\n\n"
                     f"📊 Статус торговли: {self.dict.symbolTradingStatus.get(symbol, 0)}\n"
-                    f"🔄 Флэт: {'Да' if check_flat['value'] else 'Нет'}\n"
-                    f"📐 Угол губ: {angle:.2f}°\n"
-                    f"📏 Угол флэта: {check_flat['angle']:.2f}°\n"
+                    f"🔄 Сигнал от MA: {'Да' if signal_ma['signal'] != 'NO_SIGNAL' else 'Нет'}\n"
+                    f"🔄 Сигнал от MACD: {'Да' if MACD_signal['signal'] != 'NO_SIGNAL' else 'Нет'}\n"
+                    f"🔄 Сигнал от ADX: {'Да' if ADX_signal['signal'] != 'NO_SIGNAL' else 'Нет'}\n"
+                    f"🔄 Сигнал от RSI: {'Да' if rsi_signal['signal'] != 'NO_SIGNAL' else 'Нет'}\n"
 
                 )
                 
@@ -605,7 +644,8 @@ class TradingBot:
             
         # Создаем инлайн-клавиатуру с парами
         keyboard = []
-        symbols = list(X_VALUE_DICT.keys())
+        #symbols = list(X_VALUE_DICT.keys())
+        symbols = [symbol for symbol in dict.symbolXvalueH1.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]
         
         # Разбиваем пары на строки по 2 кнопки
         for i in range(0, len(symbols), 2):
@@ -841,8 +881,8 @@ def trading_loop():
                 time.sleep(5)
                 continue
                 
-            df = alligator.Df('XAUUSDrfd', TIME_FRAME)
-            isNewBar, lastCheckedTime = alligator.IsNewBar(df, lastCheckedTime, TIME_FRAME)
+            df_for_new_bar = alligator.Df('XAUUSDrfd', TIME_FRAME)
+            isNewBar, lastCheckedTime = alligator.IsNewBar(df_for_new_bar, lastCheckedTime, TIME_FRAME)
             
             # Фильтруем пары: только те, у которых статус <= 3
             active_symbols = [symbol for symbol in symbols if dict.symbolTradingStatus.get(symbol, 0) < 3]
@@ -850,11 +890,27 @@ def trading_loop():
             
             
             for symbol in active_symbols:
-                 # Получить сигнал пересечения быстрой и медленной MA
+                # Получаем сигнал от быстрой и медленной MA
                 fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
                 slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
-                signal_cross = ma.ma_cross_signal(fast_ma, slow_ma, symbol)
-                signal_angle = ma.ma_critical_angle(fast_ma, slow_ma, symbol)
+                signal_ma = ma.ma_simple_signal(fast_ma, slow_ma)
+                # Получаем сигнал от MACD
+                hist_line, prev_hist_line, signal_line = macd.calculate_macd_manual(symbol, TIME_FRAME)
+                MACD_signal = macd.MACD_signal(hist_line, prev_hist_line, signal_line)
+                # Получаем сигнал от ADX
+                df = alligator.Df(symbol, TIME_FRAME)
+                adx_values, plus_di_values, minus_di_values = adx.ADX(
+                    df['high'].values,
+                    df['low'].values, 
+                    df['close'].values,
+                    14
+                )
+                ADX_signal = adx.ADX_signal(adx_values[499], plus_di_values[499], minus_di_values[499])
+                # Получаем сигнал от RSI
+                rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
+                rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2])
+                
+                
                 
                 # Сохраняем предыдущий статус
                 previous_status = previous_statuses.get(symbol, 0)
@@ -865,10 +921,14 @@ def trading_loop():
                     current_status = 0
 
                 if isNewBar:
-                    print(f"{symbol} signal_cross: {signal_cross['signal']} strength: {signal_cross['strength']} current_fast: {signal_cross['current_fast']} current_slow: {signal_cross['current_slow']} angle_fast: {signal_cross['angle_fast']} angle_slow: {signal_cross['angle_slow']}")
-                    print(f"{symbol} signal_angle: {signal_angle['signal']} strength: {signal_angle['strength']} current_fast: {signal_angle['current_fast']} current_slow: {signal_angle['current_slow']} angle_fast: {signal_angle['angle_fast']} angle_slow: {signal_angle['angle_slow']}")
-
-
+                    print(f"{symbol} signal_ma: {signal_ma['signal']} MACD_signal: {MACD_signal['signal']} ADX_signal: {ADX_signal['signal']} rsi_signal: {rsi_signal['signal']}")
+                    
+                if signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY' and ADX_signal['signal'] == 'BUY' and rsi_signal['signal'] == 'BUY':
+                    sum_signal = 'BUY'
+                elif signal_ma['signal'] == 'SELL' and MACD_signal['signal'] == 'SELL' and ADX_signal['signal'] == 'SELL' and rsi_signal['signal'] == 'SELL':
+                    sum_signal = 'SELL'
+                else:
+                    sum_signal = 'NO_SIGNAL'
                 # Проверяем изменение статуса и отправляем сообщение
                 if current_status != previous_status:
                     status_names = {
@@ -898,10 +958,8 @@ def trading_loop():
                     # Обновляем предыдущий статус
                     previous_statuses[symbol] = current_status
                 
-                if signal_cross['signal'] != 'NO_SIGNAL' and dict.symbolTradingStatus[symbol] == 0:
-                    trading_bot.checkOpen(symbol, signal_cross, 'cross')
-                if signal_angle['signal'] != 'NO_SIGNAL' and dict.symbolTradingStatus[symbol] == 0:
-                    trading_bot.checkOpen(symbol, signal_angle, 'angle')
+                if sum_signal != 'NO_SIGNAL' and dict.symbolTradingStatus[symbol] == 0:
+                    trading_bot.checkOpen(symbol, sum_signal, 'sum_signal')
 
                 
         except Exception as e:

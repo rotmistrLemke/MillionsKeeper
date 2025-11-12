@@ -156,7 +156,7 @@ class BullsBearsPower:
             return None, None
 
 class MACD:
-    def calculate_macd_manual(self, symbol, timeframe, fast_ema=15, slow_ema=21, signal_period=1):
+    def calculate_macd_manual(self, symbol, timeframe, fast_ema=12, slow_ema=26, signal_period=9):
         """
         Ручной расчет MACD по формулам
         MACD = EMA(fast) - EMA(slow)
@@ -205,16 +205,24 @@ class MACD:
                 histogram.append(hist_value)
             
             # Текущие значения
-            current_macd = macd_line[99]
-            prev_macd = signal_line[98]
-            prev2_macd = signal_line[97]
+            signal_line = signal_line[99]
+            hist_line = macd_line[99]
+            prev_hist_line = macd_line[98]
             
-            print(f"Ручной MACD {symbol}: Current={current_macd:.5f}, Preview={prev_macd:.5f}")
-            return current_macd, prev_macd, prev2_macd
+            #print(f"Ручной MACD {symbol}: hist_line={hist_line:.5f}, prev_hist_line={prev_hist_line:.5f}, signal_line={signal_line:.5f}")
+            return hist_line, prev_hist_line, signal_line
             
         except Exception as e:
             print(f"Ошибка ручного расчета MACD: {e}")
             return None, None, None
+        
+    def MACD_signal(self, hist_line, prev_hist_line, signal_line):
+        if hist_line > 0 and hist_line > signal_line and hist_line > prev_hist_line:
+            return {'signal': 'BUY'}
+        elif hist_line < 0 and hist_line < signal_line and hist_line < prev_hist_line:
+             return {'signal': 'SELL'}
+        else:
+             return {'signal': 'NO_SIGNAL'}
         
 class MovingAverage:
     """
@@ -415,7 +423,44 @@ class MovingAverage:
                 'current_slow': current_slow,
                 'angle_fast': angle_fast,
                 'angle_slow': angle_slow}
-   
+            
+    def ma_simple_signal(self, fast_ma, slow_ma):
+        if len(fast_ma) < 2 or len(slow_ma) < 2:
+            return {'signal': 'NO_SIGNAL', 'strength': 0, 'current_fast': 0, 'current_slow': 0, 'angle_fast': 0, 'angle_slow': 0}
+        
+        current_fast = fast_ma.iloc[-1]
+        current_slow = slow_ma.iloc[-1]
+       
+        # Проверка на наличие NaN значений
+        if pd.isna(current_fast) or pd.isna(current_slow):
+            return {'signal': 'NO_SIGNAL', 'strength': 0, 'current_fast': 0, 'current_slow': 0, 'angle_fast': 0, 'angle_slow': 0}
+        
+        condition_diff_buy = current_fast > current_slow 
+        condition_diff_sell = current_fast < current_slow
+
+        # Определение сигнала
+        if condition_diff_buy:
+            return {
+                'signal': 'BUY',
+                'strength': abs(current_fast - current_slow),
+                'current_fast': current_fast,
+                'current_slow': current_slow
+            }
+        elif condition_diff_sell:
+            return {
+                'signal': 'SELL', 
+                'strength': abs(current_fast - current_slow),
+                'current_fast': current_fast,
+                'current_slow': current_slow
+            }
+        else:
+            return {
+                'signal': 'NO_SIGNAL',
+                'strength': abs(current_fast - current_slow),
+                'current_fast': current_fast,
+                'current_slow': current_slow
+            }
+              
     def get_ma_for_symbol(self, symbol, timeframe, period, ma_type='EMA', price_type='close', bars=100):
         """
         Получение скользящей средней для символа
@@ -549,6 +594,14 @@ class ADX:
         # Возвращаем ADX, +DI, -DI
         return adx, pdi, ndi
     
+    def ADX_signal(self, adx, pdi, ndi):
+        if adx > 25 and pdi > ndi:
+            return {'signal': 'BUY'}
+        elif adx > 25 and ndi > pdi:
+            return {'signal': 'SELL'}
+        else:
+            return {'signal': 'NO_SIGNAL'}
+    
 class RSI:
     def get_rsi_talib(self, symbol, timeframe, period=14, bars=1000):
         """
@@ -574,3 +627,10 @@ class RSI:
         except Exception as e:
             print(f"Ошибка: {e}")
             return None
+    def RSI_signal(self, rsi, prev_rsi):
+        if 70 > rsi > 50 and rsi > prev_rsi:
+            return {'signal': 'BUY'}
+        elif 50 > rsi > 30 and rsi < prev_rsi:
+            return {'signal': 'SELL'}
+        else:
+            return {'signal': 'NO_SIGNAL'}

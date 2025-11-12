@@ -5,7 +5,7 @@ from indicators import ATR
 import talib
 
 dict = Dictionary()
-
+atr = ATR()
 class Trading:
 
     def orderOpen(self, symbol, type, maxVolume, comment):
@@ -80,18 +80,15 @@ class Trading:
         tick = mt5.symbol_info_tick(symbol)
         return pd.to_datetime(tick.time, unit='s')
 
-    def calculateStopLoss(self, symbol, profit, oldStopLossValue, volume):
+    def calculateStopLoss(self, symbol, profit, atr, oldStopLossValue, volume):
 
-        if profit > dict.spreadValue[symbol] * volume * 15:
-            newStopLossValue = profit * 0.6
-        elif profit > dict.spreadValue[symbol] * volume * 10:
-            newStopLossValue = profit * 0.5
-        elif profit > dict.spreadValue[symbol] * volume * 6:
-            newStopLossValue = profit * 0.4
-        elif profit > dict.spreadValue[symbol] * volume * 4:
-            newStopLossValue = 0.01
-        else:
-            newStopLossValue = dict.spreadValue[symbol] * volume * -10
+        symbol_info = mt5.symbol_info(symbol)
+        
+        if symbol_info is None:
+            print(f"Не удалось получить информацию о символе {symbol}")
+            return 0
+        
+        newStopLossValue = profit - ((atr / symbol_info.point) * volume)
         
         # Проверка типов
         if isinstance(oldStopLossValue, tuple):
@@ -112,16 +109,16 @@ class Trading:
         else: 
             return oldStopLossValue
         
-    def calculateStopLossNew(symbol, priceCurrent, orderType):
+    def calculateStopLossOld(symbol, priceCurrent, orderType):
 
-        atr = ATR()
+        
         atr_value = atr.calculate_atr(symbol, mt5.TIMEFRAME_H1)
 
         if orderType == TargetType.LONG:
-            stopLoss = priceCurrent - (1.5 * atr_value) 
+            stopLoss = priceCurrent - (2 * atr_value.iloc[-1]) 
         
         if orderType == TargetType.SHORT:
-            stopLoss = priceCurrent + (1.5 * atr_value)
+            stopLoss = priceCurrent + (2 * atr_value.iloc[-1])
 
         return stopLoss
 
@@ -240,7 +237,7 @@ class Trading:
 
             balance = account_info.balance
             equity = account_info.equity
-            free_margin = account_info.margin_free / (8 - len(orders))
+            free_margin = account_info.margin_free / (len(active_symbols) - len(orders))
             
             if balance <= 0:
                 print("Баланс счета должен быть положительным")
