@@ -166,7 +166,7 @@ class TradingBot:
                         else:
                             sum_signal = 'NO_SIGNAL'
                             
-                        if dict.symbolTradingStatus[symbol] > 0 or sum_signal !='NO_SIGNAL':
+                        if dict.symbolTradingStatus[symbol] > 0:
                             continue
 
                                                 
@@ -181,6 +181,9 @@ class TradingBot:
                                 # 1. Текущий профит < Stop Loss  
                                 # 2. Появился противоположный сигнал
 
+                                if sum_signal == 'BUY':
+                                    continue
+                                
                                 condition_sl = profit < stop_loss_value
                                 condition_signal = sum_signal == 'SELL'
                                 
@@ -214,6 +217,9 @@ class TradingBot:
                                 # Условия закрытия для SHORT:
                                 # 1. Текущий профит < Stop Loss  
                                 # 2. Появился противоположный сигнал
+                                
+                                if sum_signal == 'SELL':
+                                    continue
                                 
                                 condition_sl = profit < stop_loss_value
                                 condition_signal = sum_signal == 'BUY'
