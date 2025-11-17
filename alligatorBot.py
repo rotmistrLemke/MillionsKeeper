@@ -60,6 +60,36 @@ class TradingBot:
         self.loop = asyncio.new_event_loop() 
         self.allowed_users = ALLOWED_USERS  
 
+    def ensure_mt5_connection(self):
+        """Проверяет и восстанавливает соединение с MT5"""
+        try:
+            if not mt5.initialize():
+                print("MT5 не инициализирован, пытаемся переподключиться...")
+                if self.connection_retries < self.max_retries:
+                    self.connection_retries += 1
+                    auth.login()
+                    time.sleep(2)
+                    return mt5.initialize()
+                else:
+                    print("Достигнуто максимальное количество попыток подключения")
+                    return False
+            
+            # Проверяем активность соединения
+            if not mt5.terminal_info():
+                print("Соединение с MT5 разорвано, переподключаемся...")
+                mt5.shutdown()
+                time.sleep(1)
+                auth.login()
+                time.sleep(2)
+                return mt5.initialize()
+            
+            self.connection_retries = 0
+            return True
+            
+        except Exception as e:
+            print(f"Ошибка при проверке соединения MT5: {e}")
+            return False
+        
     async def isUserAllowed(self, update: Update) -> bool:
         """Проверяет, есть ли пользователь в белом списке"""
         user_id = str(update.effective_user.id)
@@ -81,6 +111,12 @@ class TradingBot:
 
         while self.bot_running:
             try:
+                # Проверяем соединение перед началом цикла
+                if not trading_bot.ensure_mt5_connection():
+                    print("Нет соединения с MT5, ждем...")
+                    time.sleep(10)
+                    continue
+                
                 if not trading_bot.isTradingAlowed():
                     print("Сейчас торговля запрещена (23:40-02:00 ежедневно или пятница 23:40 - понедельник 03:00)")
                     time.sleep(10)
@@ -118,7 +154,8 @@ class TradingBot:
                         # Получаем сигнал от RSI
                         rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
                         rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2])
-
+                        rsi_leave_extremum = rsi.rsi_leave_extremum(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2])
+                        
                         atr_calc = atr.calculate_atr(symbol, TIME_FRAME)
                         atr_value = atr_calc.iloc[-1]
                         
@@ -146,10 +183,9 @@ class TradingBot:
 
                                 condition_sl = profit < stop_loss_value
                                 condition_signal = sum_signal == 'SELL'
-                                #condition_angle = signal['signal'] == 'NO_SIGNAL' and signal['angle_fast'] < -15
                                 
 
-                                if condition_signal or condition_sl:
+                                if condition_signal or condition_sl or rsi_leave_extremum:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolStopLossValue[symbol] = 0.0
                                         
@@ -183,7 +219,7 @@ class TradingBot:
                                 condition_signal = sum_signal == 'BUY'
                                 
 
-                                if  condition_signal or condition_sl:
+                                if  condition_signal or condition_sl or rsi_leave_extremum:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolStopLossValue[symbol] = 0.0
 
@@ -231,7 +267,7 @@ class TradingBot:
         
         return not (daily_off_period or friday_off_period)
 
-    def checkOpen(self, symbol, signal, comment):  
+    def checkOpen(self, symbol, signal, comment, atr):  
         active_symbols = [symbol for symbol in dict.symbolXvalueH1.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]  
         serverTime = trading.serverTime(symbol)
 
@@ -247,7 +283,7 @@ class TradingBot:
             safeVolume = trading.calculateSafeTradeWithMargin(
                 symbol, 
                 risk_percent=90, 
-                stop_loss_pips = mt5.symbol_info(symbol).spread * 10, 
+                stop_loss_pips = 2 * atr / mt5.symbol_info(symbol).point, 
                 order_type=TargetType.LONG
             )
             result = trading.orderOpen(symbol, TargetType.LONG, safeVolume, f"{comment}")
@@ -872,6 +908,12 @@ def trading_loop():
     
     while True:
         try:
+            # Проверяем соединение перед началом цикла
+            if not trading_bot.ensure_mt5_connection():
+                print("Нет соединения с MT5, ждем...")
+                time.sleep(10)
+                continue
+            
             if not trading_bot.isTradingAlowed():
                 print("Сейчас торговля запрещена (23:40-02:00 ежедневно или пятница 23:40 - понедельник 03:00)")
                 time.sleep(10)
@@ -909,7 +951,9 @@ def trading_loop():
                 # Получаем сигнал от RSI
                 rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
                 rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2])
-                
+                # Получаем atr
+                atr_calc = atr.calculate_atr(symbol, TIME_FRAME)
+                atr_value = atr_calc.iloc[-1]
                 
                 
                 # Сохраняем предыдущий статус
@@ -959,7 +1003,7 @@ def trading_loop():
                     previous_statuses[symbol] = current_status
                 
                 if sum_signal != 'NO_SIGNAL' and dict.symbolTradingStatus[symbol] == 0:
-                    trading_bot.checkOpen(symbol, sum_signal, 'sum_signal')
+                    trading_bot.checkOpen(symbol, sum_signal, 'sum_signal', atr_value)
 
                 
         except Exception as e:

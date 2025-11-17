@@ -634,3 +634,9 @@ class RSI:
             return {'signal': 'SELL'}
         else:
             return {'signal': 'NO_SIGNAL'}
+        
+    def rsi_leave_extremum(self, rsi, prev_rsi):
+        if (prev_rsi > 70 and rsi < 70) or (prev_rsi < 30 and rsi > 30):
+            return True
+        else:
+            return False

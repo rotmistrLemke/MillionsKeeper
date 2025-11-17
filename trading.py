@@ -88,7 +88,7 @@ class Trading:
             print(f"Не удалось получить информацию о символе {symbol}")
             return 0
         
-        newStopLossValue = profit - ((atr / symbol_info.point) * volume)
+        newStopLossValue = profit - ((2 * atr / symbol_info.point) * volume)
         
         # Проверка типов
         if isinstance(oldStopLossValue, tuple):
@@ -158,7 +158,6 @@ class Trading:
             else:
                 print(f"Ошибка изменения ордера {ticket}. Код ошибки:", result.retcode)
                 return False
-
 
     def calculatePipValue(self, symbol, volume, order_type):
         """
