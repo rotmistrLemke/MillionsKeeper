@@ -1016,7 +1016,7 @@ def trading_loop():
             #logger.saveErrorsToExcel("alligatorForMetalls", str(e), Settings.filenameErrors)
             #continue
         
-        time.sleep(1)
+        time.sleep(10)
 
 if __name__ == '__main__':
     # Инициализация торгового бота
