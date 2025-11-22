@@ -153,7 +153,7 @@ class TradingBot:
                         # Получаем сигнал от RSI
                         rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
                         rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2])
-                        rsi_leave_extremum = rsi.rsi_leave_extremum(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2])
+                        rsi_leave_extremum = (rsi_value['RSI'].iloc[-1] < 67 and dict.symbolExtremumStatus[symbol] == 1) or (rsi_value['RSI'].iloc[-1] > 33 and dict.symbolExtremumStatus[symbol] == 1)
                         
                         atr_calc = atr.calculate_atr(symbol, TIME_FRAME)
                         atr_value = atr_calc.iloc[-1]
@@ -955,6 +955,8 @@ def trading_loop():
                 ADX_signal = adx.ADX_signal(adx_values[499], plus_di_values[499], minus_di_values[499])
                 # Получаем сигнал от RSI
                 rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
+                if rsi_value['RSI'].iloc[-1] > 70 or  rsi_value['RSI'].iloc[-1] < 30:
+                    dict.symbolExtremumStatus[symbol] = 1
                 rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2])
                 # Получаем atr
                 atr_calc = atr.calculate_atr(symbol, TIME_FRAME)

@@ -64,6 +64,31 @@ class Dictionary:
         "USDSGDrfd": 3    
     }
     
+    symbolExtremumStatus = {
+        "EURUSDrfd": 0,
+        "NZDUSDrfd": 0,
+        "EURGBPrfd": 0,
+        "USDCHFrfd": 0,
+        "USDJPYrfd": 0,
+        "EURCHFrfd": 0,
+        "GBPUSDrfd": 0,
+        "USDCADrfd": 0,
+        "EURJPYrfd": 0,
+        "AUDCADrfd": 0,
+        "AUDUSDrfd": 0,
+        "AUDJPYrfd": 0,
+        "AUDCHFrfd": 0,
+        "CHFJPYrfd": 0,
+        "EURAUDrfd": 0,
+        "GBPCHFrfd": 0,
+        "EURCADrfd": 0,
+        "GBPCADrfd": 0,
+        "XAUUSDrfd": 0,
+        "GBPJPYrfd": 0,
+        "XAGUSDrfd": 0,
+        "USDSGDrfd": 0    
+    }
+    
     symbolStopLossPoint = {
        
         "XAUUSDrfd": 200,
