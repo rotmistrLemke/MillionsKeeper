@@ -153,7 +153,6 @@ class TradingBot:
                         # Получаем сигнал от RSI
                         rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
                         rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2])
-                        rsi_leave_extremum = (rsi_value['RSI'].iloc[-1] < 67 and dict.symbolExtremumStatus[symbol] == 1) or (rsi_value['RSI'].iloc[-1] > 33 and dict.symbolExtremumStatus[symbol] == 1)
                         
                         atr_calc = atr.calculate_atr(symbol, TIME_FRAME)
                         atr_value = atr_calc.iloc[-1]
@@ -185,9 +184,10 @@ class TradingBot:
                                 
                                 condition_sl = profit < stop_loss_value
                                 condition_signal = sum_signal == 'SELL'
+                                condition_leave_extremum = rsi_value['RSI'].iloc[-1] < 67 and dict.symbolExtremumStatus[symbol] == 1
                                 
 
-                                if condition_signal or condition_sl or rsi_leave_extremum:
+                                if condition_signal or condition_sl or condition_leave_extremum:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolStopLossValue[symbol] = 0.0
                                         
@@ -197,6 +197,8 @@ class TradingBot:
                                             reason = "Изменился сигнал"
                                         if condition_sl:
                                             reason = "Закрытие по Stop Loss"
+                                        if condition_leave_extremum:
+                                            reason = "Закрытие по выходу из зоны перекупленности"
                                         result = "😊" if profit > 0 else "😡"
                                             
                                         telegram_message = (
@@ -222,9 +224,10 @@ class TradingBot:
                                 
                                 condition_sl = profit < stop_loss_value
                                 condition_signal = sum_signal == 'BUY'
+                                condition_leave_extremum = rsi_value['RSI'].iloc[-1] > 33 and dict.symbolExtremumStatus[symbol] == 1
                                 
 
-                                if  condition_signal or condition_sl or rsi_leave_extremum:
+                                if  condition_signal or condition_sl or condition_leave_extremum:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolStopLossValue[symbol] = 0.0
 
@@ -235,6 +238,8 @@ class TradingBot:
                                             reason = "Изменился сигнал"
                                         if condition_sl:
                                             reason = "Закрытие по Stop Loss"
+                                        if condition_leave_extremum:
+                                            reason = "Закрытие по выходу из зоны перепроданности"
                                         result = "😊" if profit > 0 else "😡"
                                             
                                         telegram_message = (
