@@ -157,9 +157,9 @@ class TradingBot:
                         atr_calc = atr.calculate_atr(symbol, TIME_FRAME)
                         atr_value = atr_calc.iloc[-1]
                         
-                        if signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY' and ADX_signal['signal'] == 'BUY' and rsi_signal['signal'] == 'BUY':
+                        if signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY' and rsi_signal['signal'] == 'BUY':
                             sum_signal = 'BUY'
-                        elif signal_ma['signal'] == 'SELL' and MACD_signal['signal'] == 'SELL' and ADX_signal['signal'] == 'SELL' and rsi_signal['signal'] == 'SELL':
+                        elif signal_ma['signal'] == 'SELL' and MACD_signal['signal'] == 'SELL' and rsi_signal['signal'] == 'SELL':
                             sum_signal = 'SELL'
                         else:
                             sum_signal = 'NO_SIGNAL'
@@ -979,9 +979,9 @@ def trading_loop():
                 if isNewBar:
                     print(f"{symbol} signal_ma: {signal_ma['signal']} MACD_signal: {MACD_signal['signal']} ADX_signal: {ADX_signal['signal']} rsi_signal: {rsi_signal['signal']}")
                     
-                if signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY' and ADX_signal['signal'] == 'BUY' and rsi_signal['signal'] == 'BUY':
+                if signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY' and rsi_signal['signal'] == 'BUY':
                     sum_signal = 'BUY'
-                elif signal_ma['signal'] == 'SELL' and MACD_signal['signal'] == 'SELL' and ADX_signal['signal'] == 'SELL' and rsi_signal['signal'] == 'SELL':
+                elif signal_ma['signal'] == 'SELL' and MACD_signal['signal'] == 'SELL' and rsi_signal['signal'] == 'SELL':
                     sum_signal = 'SELL'
                 else:
                     sum_signal = 'NO_SIGNAL'
@@ -1024,6 +1024,7 @@ def trading_loop():
             #continue
         
         time.sleep(10)
+        print(f"{trading.serverTime(symbol)} все ОК!")
 
 if __name__ == '__main__':
     # Инициализация торгового бота
