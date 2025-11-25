@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 import asyncio
@@ -909,6 +910,7 @@ class TradingBot:
 
 # Основной торговый цикл
 def trading_loop():
+    time.sleep(10)
     symbols = X_VALUE_DICT.keys()
     global lastCheckedTime
 
@@ -924,6 +926,7 @@ def trading_loop():
                 time.sleep(10)
                 continue
             
+            print(f"{datetime.datetime.now().time()} все ОК!")
             
             if not trading_bot.isTradingAlowed():
                 print("Сейчас торговля запрещена (23:40-02:00 ежедневно или пятница 23:40 - понедельник 03:00)")
@@ -943,7 +946,6 @@ def trading_loop():
             
             
             for symbol in active_symbols:
-                print(f"{trading.serverTime(symbol)} все ОК!")
                 # Получаем сигнал от быстрой и медленной MA
                 fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
                 slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
