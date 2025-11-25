@@ -924,6 +924,8 @@ def trading_loop():
                 time.sleep(10)
                 continue
             
+            print(f"{trading.serverTime(symbol)} все ОК!")
+            
             if not trading_bot.isTradingAlowed():
                 print("Сейчас торговля запрещена (23:40-02:00 ежедневно или пятница 23:40 - понедельник 03:00)")
                 time.sleep(10)
@@ -1023,8 +1025,7 @@ def trading_loop():
             #logger.saveErrorsToExcel("alligatorForMetalls", str(e), Settings.filenameErrors)
             #continue
         
-        time.sleep(10)
-        print(f"{trading.serverTime(symbol)} все ОК!")
+        time.sleep(10)    
 
 if __name__ == '__main__':
     # Инициализация торгового бота
