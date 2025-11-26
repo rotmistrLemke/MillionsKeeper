@@ -3,7 +3,6 @@ from datetime import datetime
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 import asyncio
-import pandas as pd
 import threading
 import MetaTrader5 as mt5
 import datetime
