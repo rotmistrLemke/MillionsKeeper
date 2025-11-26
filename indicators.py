@@ -32,8 +32,8 @@ class Alligator:
         Возвращает:
             float: Угол в градусах или радианах.
         """
-        x = (currentLipsValue - previousLipsValue) / mt5.symbol_info(symbol).point
-        angle_rad = math.atan2(x, pairXvalue/2)
+        y = (currentLipsValue - previousLipsValue) / mt5.symbol_info(symbol).point
+        angle_rad = math.atan2(y, pairXvalue/2)
         return int(f"{math.degrees(angle_rad):.0f}") if degrees else int(f"{angle_rad:.0f}")
     
     def CountDecimalPlace(self,symbol):    
@@ -105,10 +105,12 @@ class AdaptiveMovingAverage:
         
         lastAma = last_two['AMA'].iloc[-1]
         prevAma = last_two['AMA'].iloc[-2]
-        pairXvalue = dictPairXvalue.get(symbol, 100)
+        atr = ATR()
+        atr_value = atr.calculate_atr(symbol, mt5.TIMEFRAME_H1)
+        x = atr_value.iloc[-1]
         
-        x = (lastAma - prevAma) / mt5.symbol_info(symbol).point
-        angle_rad = math.atan2(x, pairXvalue/2)
+        y = (lastAma - prevAma) / mt5.symbol_info(symbol).point
+        angle_rad = math.atan2(y, x/2)
         angle = int(f"{math.degrees(angle_rad):.0f}") if math.degrees else int(f"{angle_rad:.0f}")
         
         if angle > 4 or angle < -4:
@@ -384,10 +386,13 @@ class MovingAverage:
         current_fast = fast_ma.iloc[-1]
         previous_fast = fast_ma.iloc[-2]
         alligator = Alligator()
-        angle_fast = alligator.angle(current_fast, previous_fast, symbol, dict.symbolXvalueH1[symbol])
+        atr = ATR()
+        atr_value = atr.calculate_atr(symbol, mt5.TIMEFRAME_H1)
+        x = atr_value.iloc[-1]
+        angle_fast = alligator.angle(current_fast, previous_fast, symbol, x)
         current_slow = slow_ma.iloc[-1]
         previous_slow = slow_ma.iloc[-2]
-        angle_slow = alligator.angle(current_slow, previous_slow, symbol, dict.symbolXvalueH1[symbol])
+        angle_slow = alligator.angle(current_slow, previous_slow, symbol, x)
         
         # Проверка на наличие NaN значений
         if pd.isna(current_fast) or pd.isna(previous_fast) or pd.isna(current_slow) or pd.isna(previous_slow):

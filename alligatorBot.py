@@ -191,6 +191,7 @@ class TradingBot:
                                 if condition_signal or condition_sl or condition_leave_extremum:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolStopLossValue[symbol] = 0.0
+                                    dict.symbolExtremumStatus[symbol] = 0
                                         
                                     if CHAT_ID:
                                         reason = ""
@@ -231,6 +232,7 @@ class TradingBot:
                                 if  condition_signal or condition_sl or condition_leave_extremum:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolStopLossValue[symbol] = 0.0
+                                    dict.symbolExtremumStatus[symbol] = 0
 
                                     if CHAT_ID:
 
@@ -950,6 +952,7 @@ def trading_loop():
                 fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
                 slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
                 signal_ma = ma.ma_simple_signal(fast_ma, slow_ma)
+                signal_critical_angle_ma = ma.ma_critical_angle(fast_ma, slow_ma, symbol)
                 # Получаем сигнал от MACD
                 hist_line, prev_hist_line, signal_line = macd.calculate_macd_manual(symbol, TIME_FRAME)
                 MACD_signal = macd.MACD_signal(hist_line, prev_hist_line, signal_line)
@@ -981,7 +984,7 @@ def trading_loop():
                     current_status = 0
 
                 if isNewBar:
-                    print(f"{symbol} signal_ma: {signal_ma['signal']} MACD_signal: {MACD_signal['signal']} ADX_signal: {ADX_signal['signal']} rsi_signal: {rsi_signal['signal']}")
+                    print(f"{symbol} signal_ma: {signal_ma['signal']} MACD_signal: {MACD_signal['signal']} ADX_signal: {ADX_signal['signal']} rsi_signal: {rsi_signal['signal']} angle: {signal_critical_angle_ma['angle_fast']}" )
                     
                 if signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY' and rsi_signal['signal'] == 'BUY':
                     sum_signal = 'BUY'
