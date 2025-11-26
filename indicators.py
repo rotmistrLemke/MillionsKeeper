@@ -220,11 +220,11 @@ class MACD:
         
     def MACD_signal(self, hist_line, prev_hist_line, signal_line):
         if hist_line > 0 and hist_line > signal_line and hist_line > prev_hist_line:
-            return {'signal': 'BUY'}
+            return {'signal': 'BUY', 'hist_line': hist_line, 'prev_hist_line': prev_hist_line, 'signal_line': signal_line}
         elif hist_line < 0 and hist_line < signal_line and hist_line < prev_hist_line:
-             return {'signal': 'SELL'}
+             return {'signal': 'SELL', 'hist_line': hist_line, 'prev_hist_line': prev_hist_line, 'signal_line': signal_line}
         else:
-             return {'signal': 'NO_SIGNAL'}
+             return {'signal': 'NO_SIGNAL', 'hist_line': hist_line, 'prev_hist_line': prev_hist_line, 'signal_line': signal_line}
         
 class MovingAverage:
     """
@@ -329,10 +329,13 @@ class MovingAverage:
         current_fast = fast_ma.iloc[-1]
         previous_fast = fast_ma.iloc[-2]
         alligator = Alligator()
-        angle_fast = alligator.angle(current_fast, previous_fast, symbol, dict.symbolXvalueH1[symbol])
+        atr = ATR()
+        atr_value = atr.calculate_atr(symbol, mt5.TIMEFRAME_H1)
+        x = atr_value.iloc[-1] / mt5.symbol_info(symbol).point
+        angle_fast = alligator.angle(current_fast, previous_fast, symbol, x)
         current_slow = slow_ma.iloc[-1]
         previous_slow = slow_ma.iloc[-2]
-        angle_slow = alligator.angle(current_slow, previous_slow, symbol, dict.symbolXvalueH1[symbol])
+        angle_slow = alligator.angle(current_slow, previous_slow, symbol, x)
         
         # Проверка на наличие NaN значений
         if pd.isna(current_fast) or pd.isna(previous_fast) or pd.isna(current_slow) or pd.isna(previous_slow):
@@ -388,7 +391,7 @@ class MovingAverage:
         alligator = Alligator()
         atr = ATR()
         atr_value = atr.calculate_atr(symbol, mt5.TIMEFRAME_H1)
-        x = atr_value.iloc[-1]
+        x = atr_value.iloc[-1] / mt5.symbol_info(symbol).point
         angle_fast = alligator.angle(current_fast, previous_fast, symbol, x)
         current_slow = slow_ma.iloc[-1]
         previous_slow = slow_ma.iloc[-2]
@@ -634,11 +637,11 @@ class RSI:
             return None
     def RSI_signal(self, rsi, prev_rsi):
         if 70 > rsi > 50 and rsi > prev_rsi:
-            return {'signal': 'BUY'}
+            return {'signal': 'BUY', 'prev_rsi': prev_rsi, 'rsi': rsi}
         elif 50 > rsi > 30 and rsi < prev_rsi:
-            return {'signal': 'SELL'}
+            return {'signal': 'SELL', 'prev_rsi': prev_rsi, 'rsi': rsi}
         else:
-            return {'signal': 'NO_SIGNAL'}
+            return {'signal': 'NO_SIGNAL', 'prev_rsi': prev_rsi, 'rsi': rsi}
         
     def rsi_leave_extremum(self, rsi, prev_rsi):
         if (prev_rsi > 70 and rsi < 68) or (prev_rsi < 30 and rsi > 32):

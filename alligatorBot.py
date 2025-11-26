@@ -34,7 +34,7 @@ bbp = BullsBearsPower()
 logger = Logger()
 dict = Dictionary()
 AMA = AdaptiveMovingAverage()
-X_VALUE_DICT = Dictionary.symbolXvalueH1
+X_VALUE_DICT = Dictionary.symbolTradingStatus
 lastCheckedTime = None
 checkFlat = None
 TIME_FRAME = mt5.TIMEFRAME_H1
@@ -280,8 +280,8 @@ class TradingBot:
         
         return not (daily_off_period or friday_off_period)
 
-    def checkOpen(self, symbol, signal, comment, atr):  
-        active_symbols = [symbol for symbol in dict.symbolXvalueH1.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]  
+    def checkOpen(self, symbol, signal, comment, atr, signal_ma, signal_critical_angle_ma, MACD_signal, rsi_signal):  
+        active_symbols = [symbol for symbol in dict.symbolTradingStatus.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]  
         serverTime = trading.serverTime(symbol)
 
         if len(trading.getPositions()) == len(active_symbols):
@@ -311,8 +311,16 @@ class TradingBot:
                     f"🟦 Направление: LONG\n"
                     f"💵 Пара: {symbol}\n"
                     f"⏰ Время: {serverTime}\n"
-                    f"📐 Угол: {signal['angle_fast']}\n"
-                    f"💬 Комментарий: {comment}\n"
+                    f"🔄 Сигнал МА: {signal_ma['signal']}\n"
+                    f"🔄 Угол fast_ma: {signal_critical_angle_ma['angle_fast']}\n\n"
+                    f"🔄 Сигнал MACD: {MACD_signal['signal']}\n"
+                    f"🔄 предыдущее значение: {MACD_signal['prev_hist_line']:.5f}\n"
+                    f"🔄 текущее значение: {MACD_signal['hist_line']:.5f}\n"
+                    f"🔄 сигнальнная линия: {MACD_signal['signal_line']:.5f}\n\n"
+                    f"🔄 Сигнал RSI: {rsi_signal['signal']}\n"
+                    f"🔄 Экстремум статус: {dict.symbolExtremumStatus.get(symbol, 0)}\n"
+                    f"🔄 предыдущее значение: {rsi_signal['prev_rsi']:.5f}\n"
+                    f"🔄 текущее значение: {rsi_signal['rsi']:.5f}"
                 )
                 asyncio.run_coroutine_threadsafe(
                     self.send_telegram_message(telegram_message),
@@ -323,7 +331,7 @@ class TradingBot:
             safeVolume = trading.calculateSafeTradeWithMargin(
                 symbol, 
                 risk_percent = 90, 
-                stop_loss_pips = mt5.symbol_info(symbol).spread * 5, 
+                stop_loss_pips = 2 * atr / mt5.symbol_info(symbol).point, 
                 order_type=TargetType.SHORT
             )
             result = trading.orderOpen(symbol, TargetType.SHORT, safeVolume, f"{comment}")
@@ -338,8 +346,16 @@ class TradingBot:
                     f"🟥 Направление: SHORT\n"
                     f"💵 Пара: {symbol}\n"
                     f"⏰ Время: {serverTime}\n"
-                    f"📐 Угол: {signal['angle_fast']}\n"
-                    f"💬 Комментарий: {comment}\n"
+                    f"🔄 Сигнал МА: {signal_ma['signal']}\n"
+                    f"🔄 Угол fast_ma: {signal_critical_angle_ma['angle_fast']}\n\n"
+                    f"🔄 Сигнал MACD: {MACD_signal['signal']}\n"
+                    f"🔄 предыдущее значение: {MACD_signal['prev_hist_line']:.5f}\n"
+                    f"🔄 текущее значение: {MACD_signal['hist_line']:.5f}\n"
+                    f"🔄 сигнальнная линия: {MACD_signal['signal_line']:.5f}\n\n"
+                    f"🔄 Сигнал RSI: {rsi_signal['signal']}\n"
+                    f"🔄 Экстремум статус: {dict.symbolExtremumStatus.get(symbol, 0)}\n"
+                    f"🔄 предыдущее значение: {rsi_signal['prev_rsi']:.5f}\n"
+                    f"🔄 текущее значение: {rsi_signal['rsi']:.5f}"
                 )
                 asyncio.run_coroutine_threadsafe(
                     self.send_telegram_message(telegram_message),
@@ -655,6 +671,7 @@ class TradingBot:
                 fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
                 slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
                 signal_ma = ma.ma_simple_signal(fast_ma, slow_ma)
+                signal_critical_angle_ma = ma.ma_critical_angle(fast_ma, slow_ma, symbol)
                 # Получаем сигнал от MACD
                 hist_line, prev_hist_line, signal_line = macd.calculate_macd_manual(symbol, TIME_FRAME)
                 MACD_signal = macd.MACD_signal(hist_line, prev_hist_line, signal_line)
@@ -673,11 +690,16 @@ class TradingBot:
                 
                 message = (
                     f"📈 Информация по паре {symbol}:\n\n"
-                    f"📊 Статус торговли: {self.dict.symbolTradingStatus.get(symbol, 0)}\n"
-                    f"🔄 Сигнал от MA: {'Да' if signal_ma['signal'] != 'NO_SIGNAL' else 'Нет'}\n"
-                    f"🔄 Сигнал от MACD: {'Да' if MACD_signal['signal'] != 'NO_SIGNAL' else 'Нет'}\n"
-                    f"🔄 Сигнал от ADX: {'Да' if ADX_signal['signal'] != 'NO_SIGNAL' else 'Нет'}\n"
-                    f"🔄 Сигнал от RSI: {'Да' if rsi_signal['signal'] != 'NO_SIGNAL' else 'Нет'}\n"
+                    f"🔄 Сигнал МА: {signal_ma['signal']}\n"
+                    f"🔄 Угол fast_ma: {signal_critical_angle_ma['angle_fast']}\n\n"
+                    f"🔄 Сигнал MACD: {MACD_signal['signal']}\n"
+                    f"🔄 предыдущее значение: {MACD_signal['prev_hist_line']:.5f}\n"
+                    f"🔄 текущее значение: {MACD_signal['hist_line']:.5f}\n"
+                    f"🔄 сигнальнная линия: {MACD_signal['signal_line']:.5f}\n\n"
+                    f"🔄 Сигнал RSI: {rsi_signal['signal']}\n"
+                    f"🔄 Экстремум статус: {dict.symbolExtremumStatus.get(symbol, 0)}\n"
+                    f"🔄 предыдущее значение: {rsi_signal['prev_rsi']:.5f}\n"
+                    f"🔄 текущее значение: {rsi_signal['rsi']:.5f}"
 
                 )
                 
@@ -694,7 +716,7 @@ class TradingBot:
         # Создаем инлайн-клавиатуру с парами
         keyboard = []
         #symbols = list(X_VALUE_DICT.keys())
-        symbols = [symbol for symbol in dict.symbolXvalueH1.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]
+        symbols = [symbol for symbol in dict.symbolTradingStatus.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]
         
         # Разбиваем пары на строки по 2 кнопки
         for i in range(0, len(symbols), 2):
@@ -985,6 +1007,31 @@ def trading_loop():
 
                 if isNewBar:
                     print(f"{symbol} signal_ma: {signal_ma['signal']} MACD_signal: {MACD_signal['signal']} ADX_signal: {ADX_signal['signal']} rsi_signal: {rsi_signal['signal']} angle: {signal_critical_angle_ma['angle_fast']}" )
+                    message = (
+                        f"📊 значение индикаторов\n\n"
+                        f"🔢 Пара: {symbol}\n"
+                        f"🔄 Сигнал МА: {signal_ma['signal']}\n"
+                        f"🔄 Угол fast_ma: {signal_critical_angle_ma['angle_fast']}\n\n"
+                        f"🔄 Сигнал MACD: {MACD_signal['signal']}\n"
+                        f"🔄 предыдущее значение: {MACD_signal['prev_hist_line']:.5f}\n"
+                        f"🔄 текущее значение: {MACD_signal['hist_line']:.5f}\n"
+                        f"🔄 сигнальнная линия: {MACD_signal['signal_line']:.5f}\n\n"
+                        f"🔄 Сигнал RSI: {rsi_signal['signal']}\n"
+                        f"🔄 Экстремум статус: {dict.symbolExtremumStatus.get(symbol, 0)}\n"
+                        f"🔄 предыдущее значение: {rsi_signal['prev_rsi']:.5f}\n"
+                        f"🔄 текущее значение: {rsi_signal['rsi']:.5f}\n\n"
+                        f"⏰ Время: {trading.serverTime(symbol)}\n"
+
+                    )
+                    
+                    # Отправляем сообщение в Telegram
+                    if CHAT_ID:
+                        asyncio.run_coroutine_threadsafe(
+                            trading_bot.send_telegram_message(message),
+                            trading_bot.loop
+                        )
+                    
+                    
                     
                 if signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY' and rsi_signal['signal'] == 'BUY':
                     sum_signal = 'BUY'
@@ -1022,7 +1069,7 @@ def trading_loop():
                     previous_statuses[symbol] = current_status
                 
                 if sum_signal != 'NO_SIGNAL' and dict.symbolTradingStatus[symbol] == 0:
-                    trading_bot.checkOpen(symbol, sum_signal, 'sum_signal', atr_value)
+                    trading_bot.checkOpen(symbol, sum_signal, 'sum_signal', atr_value, signal_ma, signal_critical_angle_ma, MACD_signal, rsi_signal)
 
                 
         except Exception as e:

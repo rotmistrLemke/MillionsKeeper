@@ -231,7 +231,7 @@ class Trading:
                 print("Не удалось получить информацию о счете")
                 return 0
             
-            active_symbols = [symbol for symbol in dict.symbolXvalueH1.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]
+            active_symbols = [symbol for symbol in dict.symbolTradingStatus.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]
             orders = self.getPositions()
 
             balance = account_info.balance
