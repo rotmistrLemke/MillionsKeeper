@@ -988,8 +988,6 @@ def trading_loop():
                 ADX_signal = adx.ADX_signal(adx_values[499], plus_di_values[499], minus_di_values[499])
                 # Получаем сигнал от RSI
                 rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
-                if rsi_value['RSI'].iloc[-1] > 70 or  rsi_value['RSI'].iloc[-1] < 30:
-                    dict.symbolExtremumStatus[symbol] = 1
                 rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2])
                 # Получаем atr
                 atr_calc = atr.calculate_atr(symbol, TIME_FRAME)
@@ -1005,6 +1003,10 @@ def trading_loop():
                     current_status = 0
 
                 if isNewBar:
+                    if rsi_value['RSI'].iloc[-1] > 70 or  rsi_value['RSI'].iloc[-1] < 30:
+                        dict.symbolExtremumStatus[symbol] = 1
+                    if 65 > rsi_value['RSI'].iloc[-1] > 50 or  50 > rsi_value['RSI'].iloc[-1] > 35:
+                        dict.symbolExtremumStatus[symbol] = 0
                     print(f"{symbol} signal_ma: {signal_ma['signal']} MACD_signal: {MACD_signal['signal']} ADX_signal: {ADX_signal['signal']} rsi_signal: {rsi_signal['signal']} angle: {signal_critical_angle_ma['angle_fast']}" )
                     message = (
                         f"📊 значение индикаторов\n\n"
