@@ -219,9 +219,9 @@ class MACD:
             return None, None, None
         
     def MACD_signal(self, hist_line, prev_hist_line, signal_line):
-        if hist_line > 0 and hist_line > signal_line and hist_line > prev_hist_line:
+        if hist_line > 0 and hist_line > prev_hist_line:
             return {'signal': 'BUY', 'hist_line': hist_line, 'prev_hist_line': prev_hist_line, 'signal_line': signal_line}
-        elif hist_line < 0 and hist_line < signal_line and hist_line < prev_hist_line:
+        elif hist_line < 0 and hist_line < prev_hist_line:
              return {'signal': 'SELL', 'hist_line': hist_line, 'prev_hist_line': prev_hist_line, 'signal_line': signal_line}
         else:
              return {'signal': 'NO_SIGNAL', 'hist_line': hist_line, 'prev_hist_line': prev_hist_line, 'signal_line': signal_line}
@@ -635,10 +635,10 @@ class RSI:
         except Exception as e:
             print(f"Ошибка: {e}")
             return None
-    def RSI_signal(self, rsi, prev_rsi):
-        if 70 > rsi > 50 and rsi > prev_rsi:
+    def RSI_signal(self, rsi, prev_rsi, prev2_rsi):
+        if 70 > rsi > 50 and rsi > prev_rsi and prev_rsi > prev2_rsi:
             return {'signal': 'BUY', 'prev_rsi': prev_rsi, 'rsi': rsi}
-        elif 50 > rsi > 30 and rsi < prev_rsi:
+        elif 50 > rsi > 30 and rsi < prev_rsi and prev_rsi < prev2_rsi:
             return {'signal': 'SELL', 'prev_rsi': prev_rsi, 'rsi': rsi}
         else:
             return {'signal': 'NO_SIGNAL', 'prev_rsi': prev_rsi, 'rsi': rsi}

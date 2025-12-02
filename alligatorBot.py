@@ -152,7 +152,7 @@ class TradingBot:
                         ADX_signal = adx.ADX_signal(adx_values[499], plus_di_values[499], minus_di_values[499])
                         # Получаем сигнал от RSI
                         rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
-                        rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2])
+                        rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2], rsi_value['RSI'].iloc[-3])
                         
                         atr_calc = atr.calculate_atr(symbol, TIME_FRAME)
                         atr_value = atr_calc.iloc[-1]
@@ -185,9 +185,10 @@ class TradingBot:
                                 condition_sl = profit < stop_loss_value
                                 condition_signal = sum_signal == 'SELL'
                                 condition_leave_extremum = rsi_value['RSI'].iloc[-1] < 67 and dict.symbolExtremumStatus[symbol] == 1
+                                condition_rsi = rsi_signal['signal'] == 'SELL'
                                 
 
-                                if condition_signal or condition_sl or condition_leave_extremum:
+                                if condition_signal or condition_sl or condition_leave_extremum or condition_rsi:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolStopLossValue[symbol] = 0.0
                                     dict.symbolExtremumStatus[symbol] = 0
@@ -226,9 +227,10 @@ class TradingBot:
                                 condition_sl = profit < stop_loss_value
                                 condition_signal = sum_signal == 'BUY'
                                 condition_leave_extremum = rsi_value['RSI'].iloc[-1] > 33 and dict.symbolExtremumStatus[symbol] == 1
+                                condition_rsi = rsi_signal['signal'] == 'BUY'
                                 
 
-                                if  condition_signal or condition_sl or condition_leave_extremum:
+                                if  condition_signal or condition_sl or condition_leave_extremum or condition_rsi:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolStopLossValue[symbol] = 0.0
                                     dict.symbolExtremumStatus[symbol] = 0
@@ -685,7 +687,7 @@ class TradingBot:
                 ADX_signal = adx.ADX_signal(adx_values[499], plus_di_values[499], minus_di_values[499])
                 # Получаем сигнал от RSI
                 rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
-                rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2])
+                rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2], rsi_value['RSI'].iloc[-3])
                 
                 message = (
                     f"📈 Информация по паре {symbol}:\n\n"
@@ -988,7 +990,7 @@ def trading_loop():
                 ADX_signal = adx.ADX_signal(adx_values[499], plus_di_values[499], minus_di_values[499])
                 # Получаем сигнал от RSI
                 rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
-                rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2])
+                rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2], rsi_value['RSI'].iloc[-3])
                 # Получаем atr
                 atr_calc = atr.calculate_atr(symbol, TIME_FRAME)
                 atr_value = atr_calc.iloc[-1]
