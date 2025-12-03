@@ -107,6 +107,7 @@ class TradingBot:
         return False      
 
     def moneySaverLoop(self):
+        global lastCheckedTime
 
         while self.bot_running:
             try:
@@ -153,9 +154,12 @@ class TradingBot:
                         # Получаем сигнал от RSI
                         rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
                         rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2], rsi_value['RSI'].iloc[-3])
-                        
+                        # Получаем ATR
                         atr_calc = atr.calculate_atr(symbol, TIME_FRAME)
                         atr_value = atr_calc.iloc[-1]
+                        
+                        df_for_new_bar = alligator.Df('XAUUSDrfd', TIME_FRAME)
+                        isNewBar, lastCheckedTime = alligator.IsNewBar(df_for_new_bar, lastCheckedTime, TIME_FRAME)
                         
                         if signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY' and rsi_signal['signal'] == 'BUY':
                             sum_signal = 'BUY'
@@ -182,7 +186,7 @@ class TradingBot:
                                 if sum_signal == 'BUY':
                                     continue
                                 
-                                condition_sl = profit < stop_loss_value
+                                condition_sl = profit < stop_loss_value and isNewBar
                                 condition_signal = sum_signal == 'SELL'
                                 condition_leave_extremum = rsi_value['RSI'].iloc[-1] < 67 and dict.symbolExtremumStatus[symbol] == 1
                                 condition_rsi = rsi_signal['signal'] == 'SELL'
@@ -224,7 +228,7 @@ class TradingBot:
                                 if sum_signal == 'SELL':
                                     continue
                                 
-                                condition_sl = profit < stop_loss_value
+                                condition_sl = profit < stop_loss_value and isNewBar
                                 condition_signal = sum_signal == 'BUY'
                                 condition_leave_extremum = rsi_value['RSI'].iloc[-1] > 33 and dict.symbolExtremumStatus[symbol] == 1
                                 condition_rsi = rsi_signal['signal'] == 'BUY'
