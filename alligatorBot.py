@@ -107,7 +107,6 @@ class TradingBot:
         return False      
 
     def moneySaverLoop(self):
-        global lastCheckedTime
 
         while self.bot_running:
             try:
@@ -154,12 +153,9 @@ class TradingBot:
                         # Получаем сигнал от RSI
                         rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
                         rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2], rsi_value['RSI'].iloc[-3])
-                        # Получаем ATR
+                        
                         atr_calc = atr.calculate_atr(symbol, TIME_FRAME)
                         atr_value = atr_calc.iloc[-1]
-                        
-                        df_for_new_bar = alligator.Df('XAUUSDrfd', TIME_FRAME)
-                        isNewBar, lastCheckedTime = alligator.IsNewBar(df_for_new_bar, lastCheckedTime, TIME_FRAME)
                         
                         if signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY' and rsi_signal['signal'] == 'BUY':
                             sum_signal = 'BUY'
@@ -186,7 +182,7 @@ class TradingBot:
                                 if sum_signal == 'BUY':
                                     continue
                                 
-                                condition_sl = profit < stop_loss_value and isNewBar
+                                condition_sl = profit < stop_loss_value
                                 condition_signal = sum_signal == 'SELL'
                                 condition_leave_extremum = rsi_value['RSI'].iloc[-1] < 67 and dict.symbolExtremumStatus[symbol] == 1
                                 condition_rsi = rsi_signal['signal'] == 'SELL'
@@ -228,7 +224,7 @@ class TradingBot:
                                 if sum_signal == 'SELL':
                                     continue
                                 
-                                condition_sl = profit < stop_loss_value and isNewBar
+                                condition_sl = profit < stop_loss_value
                                 condition_signal = sum_signal == 'BUY'
                                 condition_leave_extremum = rsi_value['RSI'].iloc[-1] > 33 and dict.symbolExtremumStatus[symbol] == 1
                                 condition_rsi = rsi_signal['signal'] == 'BUY'
@@ -1009,6 +1005,45 @@ def trading_loop():
                     current_status = 0
 
                 if isNewBar:
+                    orders = trading.getPositions()
+                    if len(orders) == 0:
+                        continue
+                    else:
+                        for order in orders:
+                            order_dict = order._asdict()
+                            profit = order_dict.get("profit", 0)
+                            ticketId = order_dict.get("ticket", 0)
+                            order_symbol = order_dict.get("symbol", 0)
+
+                            
+                            if symbol == order_symbol:
+                                print("проверка на стопЛосс")
+                                condition_sl = profit < dict.symbolStopLossValue[symbol]
+                                if  condition_sl:
+                                    trading.orderClose(ticketId, symbol)
+                                    dict.symbolStopLossValue[symbol] = 0.0
+                                    dict.symbolExtremumStatus[symbol] = 0
+                                    
+                                    if CHAT_ID:
+
+                                        reason = ""
+                                        if condition_sl:
+                                            reason = "Закрытие по Stop Loss"
+                                        result = "😊" if profit > 0 else "😡"
+                                            
+                                        telegram_message = (
+                                            f"{result} ЗАКРЫТИЕ ПОЗИЦИИ\n\n"
+                                            f"💵 Пара: {symbol}\n"
+                                            f"💰 Профит: {profit:.2f}\n"
+                                            f"🎯 Причина: {reason}"
+
+                                        )
+                                        asyncio.run_coroutine_threadsafe(
+                                            trading_bot.send_telegram_message(telegram_message),
+                                            trading_bot.loop
+                                        )
+                    
+                    
                     if rsi_value['RSI'].iloc[-1] > 70 or  rsi_value['RSI'].iloc[-1] < 30:
                         dict.symbolExtremumStatus[symbol] = 1
                     if 65 > rsi_value['RSI'].iloc[-1] > 50 or  50 > rsi_value['RSI'].iloc[-1] > 35:
