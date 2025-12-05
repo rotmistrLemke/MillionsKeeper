@@ -91,7 +91,7 @@ class Trading:
         
         if profit > (2 * atr / symbol_info.point) * volume:
             newStopLossValue = profit - ((atr / symbol_info.point) * volume)
-        elif profit > atr / symbol_info.point * volume:
+        elif profit > (atr / symbol_info.point) * volume:
             newStopLossValue = 0
         else:
             newStopLossValue = profit - ((2 * atr / symbol_info.point) * volume)

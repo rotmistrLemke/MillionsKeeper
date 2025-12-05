@@ -132,7 +132,6 @@ class TradingBot:
                         profit = order_dict.get("profit", 0)
                         ticketId = order_dict.get("ticket", 0)
                         symbol = order_dict.get("symbol", 0)
-                        oldStopLossValue = dict.symbolStopLossValue[symbol]
                         order_type = order_dict.get("type", 0)  # 0 = BUY, 1 = SELL
                         # Получаем сигнал от быстрой и медленной MA
                         fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
@@ -164,13 +163,15 @@ class TradingBot:
                         else:
                             sum_signal = 'NO_SIGNAL'
                             
+                        # Рассчитываем уровни Stop Loss
+                        stop_loss_value = trading.calculateStopLoss(symbol, profit, atr_value, dict.symbolStopLossValue[symbol], volume)
+                        dict.symbolStopLossValue[symbol] = stop_loss_value
+                            
                         if dict.symbolTradingStatus[symbol] > 0:
                             continue
 
                                                 
-                        # Рассчитываем уровни Stop Loss
-                        stop_loss_value = trading.calculateStopLoss(symbol, profit, atr_value, oldStopLossValue, volume)
-                        dict.symbolStopLossValue[symbol] = stop_loss_value
+                        
                         
                         # Для LONG позиций (BUY)
                         if order_type == 0:  # BUY
@@ -182,13 +183,12 @@ class TradingBot:
                                 if sum_signal == 'BUY':
                                     continue
                                 
-                                condition_sl = profit < stop_loss_value
                                 condition_signal = sum_signal == 'SELL'
                                 condition_leave_extremum = rsi_value['RSI'].iloc[-1] < 67 and dict.symbolExtremumStatus[symbol] == 1
                                 condition_rsi = rsi_signal['signal'] == 'SELL'
                                 
 
-                                if condition_signal or condition_sl or condition_leave_extremum or condition_rsi:
+                                if condition_signal or condition_leave_extremum or condition_rsi:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolStopLossValue[symbol] = 0.0
                                     dict.symbolExtremumStatus[symbol] = 0
@@ -197,10 +197,10 @@ class TradingBot:
                                         reason = ""
                                         if condition_signal:
                                             reason = "Изменился сигнал"
-                                        if condition_sl:
-                                            reason = "Закрытие по Stop Loss"
                                         if condition_leave_extremum:
                                             reason = "Закрытие по выходу из зоны перекупленности"
+                                        if condition_rsi:
+                                            reason = "Закрытие по RSI"
                                         result = "😊" if profit > 0 else "😡"
                                             
                                         telegram_message = (
@@ -240,10 +240,10 @@ class TradingBot:
                                         reason = ""
                                         if condition_signal:
                                             reason = "Изменился сигнал"
-                                        if condition_sl:
-                                            reason = "Закрытие по Stop Loss"
                                         if condition_leave_extremum:
                                             reason = "Закрытие по выходу из зоны перепроданности"
+                                        if condition_rsi:
+                                            reason = "Закрытие по RSI"
                                         result = "😊" if profit > 0 else "😡"
                                             
                                         telegram_message = (
