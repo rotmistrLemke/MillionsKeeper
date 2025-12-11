@@ -206,7 +206,7 @@ class TradingBot:
                                             f"💵 Пара: {symbol}\n"
                                             f"💰 Профит: {profit:.2f}\n"
                                             f"🎯 Причина: {reason}\n"
-                                            f"🎯 RSI: {reason}\n"
+                                            f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}\n"
                                             
                                         )
                                         asyncio.run_coroutine_threadsafe(
@@ -247,6 +247,7 @@ class TradingBot:
                                             f"💵 Пара: {symbol}\n"
                                             f"💰 Профит: {profit:.2f}\n"
                                             f"🎯 Причина: {reason}"
+                                            f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}\n"
 
                                         )
                                         asyncio.run_coroutine_threadsafe(
