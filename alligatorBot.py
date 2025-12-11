@@ -184,7 +184,7 @@ class TradingBot:
                                     continue
                                 
                                 condition_signal = sum_signal == 'SELL'
-                                condition_leave_extremum = rsi_value['RSI'].iloc[-1] < 67 and dict.symbolExtremumStatus[symbol] == 1
+                                condition_leave_extremum = rsi_value['RSI'].iloc[-1] < 65 and dict.symbolExtremumStatus[symbol] == 1
 
                                 
 
@@ -206,6 +206,8 @@ class TradingBot:
                                             f"💵 Пара: {symbol}\n"
                                             f"💰 Профит: {profit:.2f}\n"
                                             f"🎯 Причина: {reason}\n"
+                                            f"🎯 RSI: {reason}\n"
+                                            
                                         )
                                         asyncio.run_coroutine_threadsafe(
                                             self.send_telegram_message(telegram_message),
@@ -222,7 +224,7 @@ class TradingBot:
                                 if sum_signal == 'SELL':
                                     continue
                                 condition_signal = sum_signal == 'BUY'
-                                condition_leave_extremum = rsi_value['RSI'].iloc[-1] > 33 and dict.symbolExtremumStatus[symbol] == 1
+                                condition_leave_extremum = rsi_value['RSI'].iloc[-1] > 35 and dict.symbolExtremumStatus[symbol] == 1
 
                                 
 
