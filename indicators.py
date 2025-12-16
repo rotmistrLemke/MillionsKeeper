@@ -219,9 +219,9 @@ class MACD:
             return None, None, None
         
     def MACD_signal(self, hist_line, prev_hist_line, signal_line):
-        if hist_line > 0 and hist_line > prev_hist_line:
+        if hist_line > 0 and hist_line > prev_hist_line and hist_line > signal_line:
             return {'signal': 'BUY', 'hist_line': hist_line, 'prev_hist_line': prev_hist_line, 'signal_line': signal_line}
-        elif hist_line < 0 and hist_line < prev_hist_line:
+        elif hist_line < 0 and hist_line < prev_hist_line and hist_line < signal_line:
              return {'signal': 'SELL', 'hist_line': hist_line, 'prev_hist_line': prev_hist_line, 'signal_line': signal_line}
         else:
              return {'signal': 'NO_SIGNAL', 'hist_line': hist_line, 'prev_hist_line': prev_hist_line, 'signal_line': signal_line}

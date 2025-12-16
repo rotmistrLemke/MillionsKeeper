@@ -184,11 +184,11 @@ class TradingBot:
                                     continue
                                 
                                 condition_signal = sum_signal == 'SELL'
-                                condition_leave_extremum = rsi_value['RSI'].iloc[-1] < 65 and dict.symbolExtremumStatus[symbol] == 1
+                                #condition_leave_extremum = rsi_value['RSI'].iloc[-1] < 65 and dict.symbolExtremumStatus[symbol] == 1
 
                                 
 
-                                if condition_signal or condition_leave_extremum:
+                                if condition_signal:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolStopLossValue[symbol] = 0.0
                                     dict.symbolExtremumStatus[symbol] = 0
@@ -197,8 +197,6 @@ class TradingBot:
                                         reason = ""
                                         if condition_signal:
                                             reason = "Изменился сигнал"
-                                        if condition_leave_extremum:
-                                            reason = "Закрытие по выходу из зоны перекупленности"
                                         result = "😊" if profit > 0 else "😡"
                                             
                                         telegram_message = (
@@ -224,11 +222,11 @@ class TradingBot:
                                 if sum_signal == 'SELL':
                                     continue
                                 condition_signal = sum_signal == 'BUY'
-                                condition_leave_extremum = rsi_value['RSI'].iloc[-1] > 35 and dict.symbolExtremumStatus[symbol] == 1
+                                #condition_leave_extremum = rsi_value['RSI'].iloc[-1] > 50 and dict.symbolExtremumStatus[symbol] == 1
 
                                 
 
-                                if  condition_signal or condition_leave_extremum:
+                                if  condition_signal:
                                     trading.orderClose(ticketId, symbol)
                                     dict.symbolStopLossValue[symbol] = 0.0
                                     dict.symbolExtremumStatus[symbol] = 0
@@ -238,16 +236,14 @@ class TradingBot:
                                         reason = ""
                                         if condition_signal:
                                             reason = "Изменился сигнал"
-                                        if condition_leave_extremum:
-                                            reason = "Закрытие по выходу из зоны перепроданности"
                                         result = "😊" if profit > 0 else "😡"
                                             
                                         telegram_message = (
                                             f"{result} ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
                                             f"💵 Пара: {symbol}\n"
                                             f"💰 Профит: {profit:.2f}\n"
-                                            f"🎯 Причина: {reason}"
-                                            f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}\n"
+                                            f"🎯 Причина: {reason}\n"
+                                            f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}"
 
                                         )
                                         asyncio.run_coroutine_threadsafe(
@@ -1000,6 +996,13 @@ def trading_loop():
                 if isNewBar and current_status == 1:
                     dict.symbolTradingStatus[symbol] = 0
                     current_status = 0
+                
+                if signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY' and rsi_signal['signal'] == 'BUY':
+                    sum_signal = 'BUY'
+                elif signal_ma['signal'] == 'SELL' and MACD_signal['signal'] == 'SELL' and rsi_signal['signal'] == 'SELL':
+                    sum_signal = 'SELL'
+                else:
+                    sum_signal = 'NO_SIGNAL'
 
                 if isNewBar:
                     orders = trading.getPositions()
@@ -1021,6 +1024,7 @@ def trading_loop():
                                 if order_type == 0:  # BUY
                                     
                                     condition_rsi = rsi_signal['signal'] == 'SELL'
+
                                     
 
                                     if condition_sl or condition_rsi:
@@ -1040,6 +1044,7 @@ def trading_loop():
                                                 f"💵 Пара: {symbol}\n"
                                                 f"💰 Профит: {profit:.2f}\n"
                                                 f"🎯 Причина: {reason}\n"
+                                                f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}"
                                             )
                                             asyncio.run_coroutine_threadsafe(
                                                 trading_bot.send_telegram_message(telegram_message),
@@ -1069,7 +1074,8 @@ def trading_loop():
                                                     f"{result} ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
                                                     f"💵 Пара: {symbol}\n"
                                                     f"💰 Профит: {profit:.2f}\n"
-                                                    f"🎯 Причина: {reason}"
+                                                    f"🎯 Причина: {reason}\n"
+                                                    f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}"
 
                                                 )
                                                 asyncio.run_coroutine_threadsafe(
@@ -1106,15 +1112,14 @@ def trading_loop():
                             trading_bot.send_telegram_message(message),
                             trading_bot.loop
                         )
+                    #Проверяем на открытие
+                   
+                    if sum_signal != 'NO_SIGNAL' and dict.symbolTradingStatus[symbol] == 0:
+                        trading_bot.checkOpen(symbol, sum_signal, 'sum_signal', atr_value, signal_ma, signal_critical_angle_ma, MACD_signal, rsi_signal)
                     
                     
                     
-                if signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY' and rsi_signal['signal'] == 'BUY':
-                    sum_signal = 'BUY'
-                elif signal_ma['signal'] == 'SELL' and MACD_signal['signal'] == 'SELL' and rsi_signal['signal'] == 'SELL':
-                    sum_signal = 'SELL'
-                else:
-                    sum_signal = 'NO_SIGNAL'
+               
                 # Проверяем изменение статуса и отправляем сообщение
                 if current_status != previous_status:
                     status_names = {
@@ -1144,8 +1149,7 @@ def trading_loop():
                     # Обновляем предыдущий статус
                     previous_statuses[symbol] = current_status
                 
-                if sum_signal != 'NO_SIGNAL' and dict.symbolTradingStatus[symbol] == 0:
-                    trading_bot.checkOpen(symbol, sum_signal, 'sum_signal', atr_value, signal_ma, signal_critical_angle_ma, MACD_signal, rsi_signal)
+                
 
                 
         except Exception as e:
