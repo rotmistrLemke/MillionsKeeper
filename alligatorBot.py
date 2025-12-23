@@ -1116,19 +1116,20 @@ def trading_loop():
                         dict.symbolExtremumStatus[symbol] = 0
                     print(f"{symbol} signal_ma: {signal_ma['signal']} MACD_signal: {MACD_signal['signal']} ADX_signal: {ADX_signal['signal']} rsi_signal: {rsi_signal['signal']} angle: {signal_critical_angle_ma['angle_fast']}" )
                     message = (
-                        f"📊 значение индикаторов\n\n"
+                        f"📊 Значение индикаторов\n\n"
                         f"🔢 Пара: {symbol}\n"
                         f"🔄 Сигнал МА: {signal_ma['signal']}\n"
                         f"🔄 Угол fast_ma: {signal_critical_angle_ma['angle_fast']}\n\n"
                         f"🔄 Сигнал MACD: {MACD_signal['signal']}\n"
-                        f"🔄 предыдущее значение: {MACD_signal['prev_hist_line']:.5f}\n"
-                        f"🔄 текущее значение: {MACD_signal['hist_line']:.5f}\n"
-                        f"🔄 сигнальнная линия: {MACD_signal['signal_line']:.5f}\n\n"
+                        f"🔄 Предыдущее значение: {MACD_signal['prev_hist_line']:.5f}\n"
+                        f"🔄 Текущее значение: {MACD_signal['hist_line']:.5f}\n"
+                        f"🔄 Сигнальнная линия: {MACD_signal['signal_line']:.5f}\n\n"
                         f"🔄 Сигнал RSI: {rsi_signal['signal']}\n"
                         f"🔄 Экстремум статус: {dict.symbolExtremumStatus.get(symbol, 0)}\n"
-                        f"🔄 предпредыдущее значение: {rsi_signal['prev2_rsi']:.5f}\n"
-                        f"🔄 предыдущее значение: {rsi_signal['prev_rsi']:.5f}\n"
-                        f"🔄 текущее значение: {rsi_signal['rsi']:.5f}\n\n"
+                        f"🔄 Предпредыдущее значение: {rsi_signal['prev2_rsi']:.5f}\n"
+                        f"🔄 Предыдущее значение: {rsi_signal['prev_rsi']:.5f}\n"
+                        f"🔄 Текущее значение: {rsi_signal['rsi']:.5f}\n\n"
+                        f"🔄 Стоп-лосс: {dict.symbolStopLossValue[symbol]}\n\n"
                         f"⏰ Время: {trading.serverTime(symbol)}\n"
 
                     )
