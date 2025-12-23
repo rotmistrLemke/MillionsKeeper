@@ -1,7 +1,7 @@
 
 *.xlsx
 test*
-account.py
-settings.py
+account*
+settings*
 # Игнорировать кэш Python
 __pycache__/
