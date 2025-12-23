@@ -293,6 +293,17 @@ class TradingBot:
                 stop_loss_pips = 2 * atr / mt5.symbol_info(symbol).point, 
                 order_type=TargetType.LONG
             )
+            
+            if (safeVolume == 0):
+                telegram_message_error = (
+                    f"🎯 Ошибка открытия позиции: неправильный расчет безопасного объема\n"
+ 
+                )
+                asyncio.run_coroutine_threadsafe(
+                    self.send_telegram_message(telegram_message_error),
+                    self.loop
+                )
+            
             result = trading.orderOpen(symbol, TargetType.LONG, safeVolume, f"{comment}")
             
             print_message = f"\n{'-' * 50}, \ntime:{serverTime} \npair: {symbol} \ncomment: Ордер LONG выставлен по условию, \n{'-' * 50}"
@@ -328,6 +339,17 @@ class TradingBot:
                 stop_loss_pips = 2 * atr / mt5.symbol_info(symbol).point, 
                 order_type=TargetType.SHORT
             )
+            
+            if (safeVolume == 0):
+                telegram_message_error = (
+                    f"🎯 Ошибка открытия позиции: неправильный расчет безопасного объема\n"
+ 
+                )
+                asyncio.run_coroutine_threadsafe(
+                    self.send_telegram_message(telegram_message_error),
+                    self.loop
+                )
+            
             result = trading.orderOpen(symbol, TargetType.SHORT, safeVolume, f"{comment}")
 
             print_message = f"\n{'-' * 50} \ntime:{serverTime} \npair: {symbol} \ncomment: Ордер SHORT выставлен по условию, \n{'-' * 50}"

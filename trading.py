@@ -3,6 +3,7 @@ import pandas as pd
 from settings import TargetType, Dictionary
 from indicators import ATR
 import talib
+import time
 
 dict = Dictionary()
 atr = ATR()
@@ -219,123 +220,151 @@ class Trading:
             print(f"Ошибка расчета стоимости пункта: {e}")
             return 0
         
-    def calculateMaxVolumeWithMarginCheck(self, symbol, risk_percent, stop_loss_pips, order_type=None, margin_safety=1.1):
+    def calculateMaxVolumeWithMarginCheck(self, symbol, risk_percent, stop_loss_pips, order_type=None, margin_safety=1.1, max_retries=3):
         """
-        Расчет максимального объема ордера с проверкой маржинальных требований (120%+)
-        
-        :param symbol: Название символа
-        :param risk_percent: Процент риска от депозита
-        :param stop_loss_pips: Размер стоп-лосса в пунктах
-        :param order_type: Тип ордера
-        :param margin_safety: Коэффициент безопасности маржи (1.2 = 120%)
-        :return: Максимальный объем в лотах
+        Расчет максимального объема с автоматическими повторными попытками
         """
-        try:
-            # Получаем информацию о счете
-            account_info = mt5.account_info()
-            if account_info is None:
-                print("Не удалось получить информацию о счете")
-                return 0
-            
-            active_symbols = [symbol for symbol in dict.symbolTradingStatus.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]
-            orders = self.getPositions()
+        for attempt in range(max_retries):
+            try:
+                # Получаем информацию о счете
+                account_info = mt5.account_info()
+                if account_info is None:
+                    print(f"Попытка {attempt + 1}/{max_retries}: Не удалось получить информацию о счете")
+                    if attempt < max_retries - 1:
+                        time.sleep(1)
+                        continue
+                    return 0
+                
+                active_symbols = [symbol for symbol in dict.symbolTradingStatus.keys() 
+                                if dict.symbolTradingStatus.get(symbol, 0) < 3]
+                orders = self.getPositions()
 
-            balance = account_info.balance
-            equity = account_info.equity
-            free_margin = account_info.margin_free / (len(active_symbols) - len(orders))
-            
-            if balance <= 0:
-                print("Баланс счета должен быть положительным")
-                return 0
-            
-            print(f"Баланс: {balance:.2f} $")
-            print(f"Свободная маржа: {free_margin:.2f} $")
-            
-            # Рассчитываем допустимый риск в деньгах
-            risk_money = balance * (risk_percent / 100)
-            print(f"Допустимый риск ({risk_percent}%): {risk_money:.2f} $")
-            
-            # Если тип ордера не указан, определяем его
-            if order_type is None:
-                order_type = mt5.ORDER_TYPE_BUY
-            
-            # Рассчитываем стоимость одного пункта
-            pip_value_per_lot = self.calculatePipValue(symbol, 1, order_type)
-            if pip_value_per_lot <= 0:
-                print("Не удалось рассчитать стоимость пункта")
-                return 0
-            
-            print(f"Стоимость 1 пункта для 1 лота: {pip_value_per_lot:.2f} $")
-            
-            # Рассчитываем стоимость стоп-лосса для 1 лота
-            stop_loss_cost = pip_value_per_lot * stop_loss_pips
-            print(f"Стоимость SL {stop_loss_pips} пунктов для 1 лота: {stop_loss_cost:.2f} $")
-            
-            if stop_loss_cost <= 0:
-                print("Стоимость стоп-лосса должна быть положительной")
-                return 0
-            
-            # Рассчитываем объем на основе риска
-            volume_by_risk = risk_money / stop_loss_cost
-            
-            # Получаем текущую цену для расчета маржи
-            if order_type == mt5.ORDER_TYPE_BUY:
-                price = mt5.symbol_info_tick(symbol).ask
-            else:
-                price = mt5.symbol_info_tick(symbol).bid
-            
-            # Рассчитываем максимальный объем на основе маржи с учетом безопасности 120%
-            margin_per_lot = mt5.order_calc_margin(order_type, symbol, 1.0, price)
-            if margin_per_lot is None:
-                print("Не удалось рассчитать маржу на 1 лот")
-                return 0
-            
-            # Доступная маржа с учетом требования 120%
-            available_margin = free_margin / margin_safety
-            volume_by_margin = available_margin / margin_per_lot
-            
-            print(f"Маржа на 1 лот: {margin_per_lot:.2f} $")
-            print(f"Доступный объем по марже (с учетом {margin_safety*100}%): {volume_by_margin:.2f} лотов")
-            
-            # Берем минимальный объем из двух ограничений (риск и маржа)
-            max_volume = min(volume_by_risk, volume_by_margin)
-            
-            # Ограничиваем объем минимальным и максимальным допустимым значением
-            symbol_info = mt5.symbol_info(symbol)
-            if symbol_info:
-                max_volume = min(max_volume, symbol_info.volume_max)
-                max_volume = max(max_volume, symbol_info.volume_min)
+                balance = account_info.balance
+                equity = account_info.equity
                 
-                # Округляем до шага объема
-                if symbol_info.volume_step > 0:
-                    max_volume = round(max_volume / symbol_info.volume_step) * symbol_info.volume_step
-            
-            # Проверяем финальные маржинальные требования
-            final_margin_required = mt5.order_calc_margin(order_type, symbol, max_volume, price)
-            margin_ratio = (free_margin / final_margin_required) if final_margin_required > 0 else 0
-            
-            print(f"Максимальный объем: {max_volume:.2f} лотов")
-            print(f"Требуемая маржа: {final_margin_required:.2f} $")
-            print(f"Коэффициент маржи: {margin_ratio:.2%}")
-            
-            if margin_ratio < margin_safety:
-                print(f"⚠️  Внимание: коэффициент маржи ({margin_ratio:.2%}) ниже требуемого ({margin_safety:.2%})")
-                # Уменьшаем объем до соблюдения требования
-                max_volume_safe = free_margin / (margin_per_lot * margin_safety)
+                # Ключевое исправление - проверка деления на ноль
+                divisor = len(active_symbols) - len(orders)
+                if divisor <= 0:
+                    divisor = 1
+                
+                free_margin = account_info.margin_free / divisor
+                
+                if balance <= 0:
+                    print(f"Попытка {attempt + 1}/{max_retries}: Баланс счета должен быть положительным")
+                    if attempt < max_retries - 1:
+                        time.sleep(1)
+                        continue
+                    return 0
+                
+                print(f"Баланс: {balance:.2f} $")
+                print(f"Свободная маржа: {free_margin:.2f} $")
+                
+                # Рассчитываем допустимый риск в деньгах
+                risk_money = balance * (risk_percent / 100)
+                print(f"Допустимый риск ({risk_percent}%): {risk_money:.2f} $")
+                
+                # Если тип ордера не указан, определяем его
+                if order_type is None:
+                    order_type = mt5.ORDER_TYPE_BUY
+                
+                # Рассчитываем стоимость одного пункта
+                pip_value_per_lot = self.calculatePipValue(symbol, 1, order_type)
+                if pip_value_per_lot <= 0:
+                    print(f"Попытка {attempt + 1}/{max_retries}: Не удалось рассчитать стоимость пункта")
+                    if attempt < max_retries - 1:
+                        time.sleep(1)
+                        continue
+                    return 0
+                
+                print(f"Стоимость 1 пункта для 1 лота: {pip_value_per_lot:.2f} $")
+                
+                # Рассчитываем стоимость стоп-лосса для 1 лота
+                stop_loss_cost = pip_value_per_lot * stop_loss_pips
+                print(f"Стоимость SL {stop_loss_pips} пунктов для 1 лота: {stop_loss_cost:.2f} $")
+                
+                if stop_loss_cost <= 0:
+                    print(f"Попытка {attempt + 1}/{max_retries}: Стоимость стоп-лосса должна быть положительной")
+                    if attempt < max_retries - 1:
+                        time.sleep(1)
+                        continue
+                    return 0
+                
+                # Рассчитываем объем на основе риска
+                volume_by_risk = risk_money / stop_loss_cost
+                
+                # Получаем текущую цену для расчета маржи
+                if order_type == mt5.ORDER_TYPE_BUY:
+                    price = mt5.symbol_info_tick(symbol).ask
+                else:
+                    price = mt5.symbol_info_tick(symbol).bid
+                
+                # Рассчитываем максимальный объем на основе маржи с учетом безопасности 120%
+                margin_per_lot = mt5.order_calc_margin(order_type, symbol, 1.0, price)
+                if margin_per_lot is None:
+                    print(f"Попытка {attempt + 1}/{max_retries}: Не удалось рассчитать маржу на 1 лот")
+                    if attempt < max_retries - 1:
+                        time.sleep(1)
+                        continue
+                    return 0
+                
+                # Доступная маржа с учетом требования 120%
+                available_margin = free_margin / margin_safety
+                volume_by_margin = available_margin / margin_per_lot
+                
+                print(f"Маржа на 1 лот: {margin_per_lot:.2f} $")
+                print(f"Доступный объем по марже (с учетом {margin_safety*100}%): {volume_by_margin:.2f} лотов")
+                
+                # Берем минимальный объем из двух ограничений (риск и маржа)
+                max_volume = min(volume_by_risk, volume_by_margin)
+                
+                # Ограничиваем объем минимальным и максимальным допустимым значением
+                symbol_info = mt5.symbol_info(symbol)
                 if symbol_info:
-                    max_volume_safe = min(max_volume_safe, symbol_info.volume_max)
-                    max_volume_safe = max(max_volume_safe, symbol_info.volume_min)
+                    max_volume = min(max_volume, symbol_info.volume_max)
+                    max_volume = max(max_volume, symbol_info.volume_min)
+                    
+                    # Округляем до шага объема
                     if symbol_info.volume_step > 0:
-                        max_volume_safe = round(max_volume_safe / symbol_info.volume_step) * symbol_info.volume_step
+                        max_volume = round(max_volume / symbol_info.volume_step) * symbol_info.volume_step
                 
-                print(f"Безопасный объем: {max_volume_safe:.2f} лотов")
-                return max_volume_safe
-            
-            return max_volume
-            
-        except Exception as e:
-            print(f"Ошибка расчета максимального объема: {e}")
-            return 0
+                # Проверяем финальные маржинальные требования
+                final_margin_required = mt5.order_calc_margin(order_type, symbol, max_volume, price)
+                margin_ratio = (free_margin / final_margin_required) if final_margin_required > 0 else 0
+                
+                print(f"Максимальный объем: {max_volume:.2f} лотов")
+                print(f"Требуемая маржа: {final_margin_required:.2f} $")
+                print(f"Коэффициент маржи: {margin_ratio:.2%}")
+                
+                if margin_ratio < margin_safety:
+                    print(f"⚠️  Внимание: коэффициент маржи ({margin_ratio:.2%}) ниже требуемого ({margin_safety:.2%})")
+                    # Уменьшаем объем до соблюдения требования
+                    max_volume_safe = free_margin / (margin_per_lot * margin_safety)
+                    if symbol_info:
+                        max_volume_safe = min(max_volume_safe, symbol_info.volume_max)
+                        max_volume_safe = max(max_volume_safe, symbol_info.volume_min)
+                        if symbol_info.volume_step > 0:
+                            max_volume_safe = round(max_volume_safe / symbol_info.volume_step) * symbol_info.volume_step
+                    
+                    print(f"Безопасный объем: {max_volume_safe:.2f} лотов")
+                    return max_volume_safe
+                
+                return max_volume
+                
+            except ZeroDivisionError as e:
+                print(f"Попытка {attempt + 1}/{max_retries}: Ошибка деления на ноль: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(2)  # Ждем перед повторной попыткой
+                    continue
+                return 0
+                
+            except Exception as e:
+                print(f"Попытка {attempt + 1}/{max_retries}: Ошибка расчета максимального объема: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(2)
+                    continue
+                return 0
+        
+        return 0
 
     def checkMarginWithStopLoss(self, symbol, volume, order_type, stop_loss_pips, margin_safety=1.1):
         """
