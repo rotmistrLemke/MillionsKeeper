@@ -637,11 +637,11 @@ class RSI:
             return None
     def RSI_signal(self, rsi, prev_rsi, prev2_rsi):
         if 70 > rsi > 50 and rsi > prev_rsi and prev_rsi > prev2_rsi:
-            return {'signal': 'BUY', 'prev_rsi': prev_rsi, 'rsi': rsi}
+            return {'signal': 'BUY', 'prev_rsi': prev_rsi, 'rsi': rsi, 'prev2_rsi': prev2_rsi}
         elif 50 > rsi > 30 and rsi < prev_rsi and prev_rsi < prev2_rsi:
-            return {'signal': 'SELL', 'prev_rsi': prev_rsi, 'rsi': rsi}
+            return {'signal': 'SELL', 'prev_rsi': prev_rsi, 'rsi': rsi, 'prev2_rsi': prev2_rsi}
         else:
-            return {'signal': 'NO_SIGNAL', 'prev_rsi': prev_rsi, 'rsi': rsi}
+            return {'signal': 'NO_SIGNAL', 'prev_rsi': prev_rsi, 'rsi': rsi, 'prev2_rsi': prev2_rsi}
         
     def rsi_leave_extremum(self, rsi, prev_rsi):
         if (prev_rsi > 70 and rsi < 68) or (prev_rsi < 30 and rsi > 32):

@@ -1039,7 +1039,8 @@ def trading_loop():
                             
                             if symbol == order_symbol:
                                 print("проверка на стопЛосс")
-                                condition_sl = profit < dict.symbolStopLossValue[symbol]
+                                #condition_sl = profit < dict.symbolStopLossValue[symbol]
+                                condition_sl = False
                                 
                                 
                                  # Для LONG позиций (BUY)
@@ -1066,7 +1067,9 @@ def trading_loop():
                                                 f"💵 Пара: {symbol}\n"
                                                 f"💰 Профит: {profit:.2f}\n"
                                                 f"🎯 Причина: {reason}\n"
-                                                f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}"
+                                                f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}\n"
+                                                f"🎯 StopLoss: {dict.symbolStopLossValue[symbol]}"
+                                                
                                             )
                                             asyncio.run_coroutine_threadsafe(
                                                 trading_bot.send_telegram_message(telegram_message),
@@ -1097,7 +1100,8 @@ def trading_loop():
                                                     f"💵 Пара: {symbol}\n"
                                                     f"💰 Профит: {profit:.2f}\n"
                                                     f"🎯 Причина: {reason}\n"
-                                                    f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}"
+                                                    f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}\n"
+                                                    f"🎯 StopLoss: {dict.symbolStopLossValue[symbol]}"
 
                                                 )
                                                 asyncio.run_coroutine_threadsafe(
@@ -1122,6 +1126,7 @@ def trading_loop():
                         f"🔄 сигнальнная линия: {MACD_signal['signal_line']:.5f}\n\n"
                         f"🔄 Сигнал RSI: {rsi_signal['signal']}\n"
                         f"🔄 Экстремум статус: {dict.symbolExtremumStatus.get(symbol, 0)}\n"
+                        f"🔄 предпредыдущее значение: {rsi_signal['prev2_rsi']:.5f}\n"
                         f"🔄 предыдущее значение: {rsi_signal['prev_rsi']:.5f}\n"
                         f"🔄 текущее значение: {rsi_signal['rsi']:.5f}\n\n"
                         f"⏰ Время: {trading.serverTime(symbol)}\n"
