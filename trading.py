@@ -1,10 +1,11 @@
 import MetaTrader5 as mt5
 import pandas as pd
-from settings import TargetType, Dictionary
+from settings import TargetType, Dictionary, GlobalValues
 from indicators import ATR
 import talib
 import time
 
+TIME_FRAME = GlobalValues.time_frame
 dict = Dictionary()
 atr = ATR()
 class Trading:
@@ -119,7 +120,7 @@ class Trading:
     def calculateStopLossOld(symbol, priceCurrent, orderType):
 
         
-        atr_value = atr.calculate_atr(symbol, mt5.TIMEFRAME_H1)
+        atr_value = atr.calculate_atr(symbol, TIME_FRAME)
 
         if orderType == TargetType.LONG:
             stopLoss = priceCurrent - (2 * atr_value.iloc[-1]) 

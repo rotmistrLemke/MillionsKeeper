@@ -4,9 +4,10 @@ from decimal import Decimal
 import pandas as pd
 import MetaTrader5 as mt5
 import talib
-from settings import Dictionary
+from settings import Dictionary, GlobalValues
 
 dict = Dictionary()
+TIME_FRAME = GlobalValues.time_frame
 
 class Alligator:
 
@@ -106,7 +107,7 @@ class AdaptiveMovingAverage:
         lastAma = last_two['AMA'].iloc[-1]
         prevAma = last_two['AMA'].iloc[-2]
         atr = ATR()
-        atr_value = atr.calculate_atr(symbol, mt5.TIMEFRAME_H1)
+        atr_value = atr.calculate_atr(symbol, TIME_FRAME)
         x = atr_value.iloc[-1]
         
         y = (lastAma - prevAma) / mt5.symbol_info(symbol).point
@@ -207,9 +208,9 @@ class MACD:
                 histogram.append(hist_value)
             
             # Текущие значения
-            signal_line = signal_line[99]
-            hist_line = macd_line[99]
-            prev_hist_line = macd_line[98]
+            signal_line = signal_line[98]
+            hist_line = macd_line[98]
+            prev_hist_line = macd_line[97]
             
             #print(f"Ручной MACD {symbol}: hist_line={hist_line:.5f}, prev_hist_line={prev_hist_line:.5f}, signal_line={signal_line:.5f}")
             return hist_line, prev_hist_line, signal_line
@@ -222,9 +223,13 @@ class MACD:
         if hist_line > 0 and hist_line > prev_hist_line and hist_line > signal_line:
             return {'signal': 'BUY', 'hist_line': hist_line, 'prev_hist_line': prev_hist_line, 'signal_line': signal_line}
         elif hist_line < 0 and hist_line < prev_hist_line and hist_line < signal_line:
-             return {'signal': 'SELL', 'hist_line': hist_line, 'prev_hist_line': prev_hist_line, 'signal_line': signal_line}
+            return {'signal': 'SELL', 'hist_line': hist_line, 'prev_hist_line': prev_hist_line, 'signal_line': signal_line}
+        elif hist_line > 0 and hist_line < prev_hist_line:
+            return {'signal': 'CLOSE_BUY', 'hist_line': hist_line, 'prev_hist_line': prev_hist_line, 'signal_line': signal_line}
+        elif hist_line < 0 and hist_line > prev_hist_line:
+            return {'signal': 'CLOSE_SELL', 'hist_line': hist_line, 'prev_hist_line': prev_hist_line, 'signal_line': signal_line}
         else:
-             return {'signal': 'NO_SIGNAL', 'hist_line': hist_line, 'prev_hist_line': prev_hist_line, 'signal_line': signal_line}
+            return {'signal': 'NO_SIGNAL', 'hist_line': hist_line, 'prev_hist_line': prev_hist_line, 'signal_line': signal_line}
         
 class MovingAverage:
     """
@@ -312,7 +317,7 @@ class MovingAverage:
         else:
             raise ValueError(f"Неизвестный тип скользящей средней: {ma_type}")
     
-    def ma_cross_signal(self, fast_ma, slow_ma, symbol):
+    def ma_cross_signal(self, fast_ma, slow_ma):
         """
         Определение сигналов пересечения скользящих средних
         
@@ -328,14 +333,10 @@ class MovingAverage:
         
         current_fast = fast_ma.iloc[-1]
         previous_fast = fast_ma.iloc[-2]
-        alligator = Alligator()
-        atr = ATR()
-        atr_value = atr.calculate_atr(symbol, mt5.TIMEFRAME_H1)
-        x = atr_value.iloc[-1] / mt5.symbol_info(symbol).point
-        angle_fast = alligator.angle(current_fast, previous_fast, symbol, x)
+       
         current_slow = slow_ma.iloc[-1]
         previous_slow = slow_ma.iloc[-2]
-        angle_slow = alligator.angle(current_slow, previous_slow, symbol, x)
+        
         
         # Проверка на наличие NaN значений
         if pd.isna(current_fast) or pd.isna(previous_fast) or pd.isna(current_slow) or pd.isna(previous_slow):
@@ -350,27 +351,22 @@ class MovingAverage:
                 'signal': 'BUY',
                 'strength': abs(current_fast - current_slow),
                 'current_fast': current_fast,
-                'current_slow': current_slow,
-                'angle_fast': angle_fast,
-                'angle_slow': angle_slow
+                'current_slow': current_slow
             }
         elif condition_diff_sell:
             return {
                 'signal': 'SELL', 
                 'strength': abs(current_fast - current_slow),
                 'current_fast': current_fast,
-                'current_slow': current_slow,
-                'angle_fast': angle_fast,
-                'angle_slow': angle_slow
+                'current_slow': current_slow
             }
         else:
             return {
                 'signal': 'NO_SIGNAL',
                 'strength': abs(current_fast - current_slow),
                 'current_fast': current_fast,
-                'current_slow': current_slow,
-                'angle_fast': angle_fast,
-                'angle_slow': angle_slow}
+                'current_slow': current_slow
+                }
     
     def ma_critical_angle(self, fast_ma, slow_ma, symbol):
         """
@@ -390,7 +386,7 @@ class MovingAverage:
         previous_fast = fast_ma.iloc[-2]
         alligator = Alligator()
         atr = ATR()
-        atr_value = atr.calculate_atr(symbol, mt5.TIMEFRAME_H1)
+        atr_value = atr.calculate_atr(symbol, TIME_FRAME)
         x = atr_value.iloc[-1] / mt5.symbol_info(symbol).point
         angle_fast = alligator.angle(current_fast, previous_fast, symbol, x)
         current_slow = slow_ma.iloc[-1]

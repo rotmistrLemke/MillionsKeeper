@@ -9,7 +9,7 @@ import datetime
 from account import Account
 from indicators import AdaptiveMovingAverage, Alligator, BullsBearsPower, MACD, MovingAverage, ADX, RSI, ATR
 from trading import Trading
-from settings import TargetType, IndicatorType, Dictionary
+from settings import TargetType, IndicatorType, Dictionary, GlobalValues
 from logs.logger import Logger
 from authenticator import MT5Auth
 from history import History
@@ -36,7 +36,7 @@ AMA = AdaptiveMovingAverage()
 X_VALUE_DICT = Dictionary.symbolTradingStatus
 lastCheckedTime = None
 checkFlat = None
-TIME_FRAME = mt5.TIMEFRAME_H1
+TIME_FRAME = GlobalValues.time_frame
 macd = MACD()
 atr = ATR()
 adx = ADX()
@@ -990,6 +990,7 @@ def trading_loop():
                 fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
                 slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
                 signal_ma = ma.ma_simple_signal(fast_ma, slow_ma)
+                cross_signal_ma = ma.ma_cross_signal(fast_ma, slow_ma)
                 signal_critical_angle_ma = ma.ma_critical_angle(fast_ma, slow_ma, symbol)
                 # Получаем сигнал от MACD
                 hist_line, prev_hist_line, signal_line = macd.calculate_macd_manual(symbol, TIME_FRAME)
@@ -1019,9 +1020,9 @@ def trading_loop():
                     dict.symbolTradingStatus[symbol] = 0
                     current_status = 0
                 
-                if signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY' and rsi_signal['signal'] == 'BUY':
+                if (signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY') or cross_signal_ma['signal'] == 'BUY':
                     sum_signal = 'BUY'
-                elif signal_ma['signal'] == 'SELL' and MACD_signal['signal'] == 'SELL' and rsi_signal['signal'] == 'SELL':
+                elif (signal_ma['signal'] == 'SELL' and MACD_signal['signal'] == 'SELL') or cross_signal_ma['signal'] == 'SELL':
                     sum_signal = 'SELL'
                 else:
                     sum_signal = 'NO_SIGNAL'
@@ -1046,20 +1047,21 @@ def trading_loop():
                                  # Для LONG позиций (BUY)
                                 if order_type == 0:  # BUY
                                     
-                                    condition_rsi = rsi_signal['signal'] == 'SELL'
+                                    condition_MACD = MACD_signal['signal'] == 'CLOSE_BUY'
+                                    condition_ma = signal_ma['signal'] == 'SELL'
 
                                     
 
-                                    if condition_sl or condition_rsi:
+                                    if condition_ma or condition_MACD:
                                         trading.orderClose(ticketId, symbol)
                                         dict.symbolStopLossValue[symbol] = 0.0
                                             
                                         if CHAT_ID:
                                             reason = ""
-                                            if condition_sl:
-                                                reason = "Закрытие по Stop Loss"
-                                            if condition_rsi:
-                                                reason = "Закрытие по RSI"
+                                            if condition_ma:
+                                                reason = "Закрытие по MA"
+                                            if condition_MACD:
+                                                reason = "Закрытие по MACD"
                                             result = "😊" if profit > 0 else "😡"
                                                 
                                             telegram_message = (
@@ -1079,20 +1081,21 @@ def trading_loop():
                                 # Для SHORT позиций (SELL)
                                 elif order_type == 1:  # SELL
                                         
-                                        condition_rsi = rsi_signal['signal'] == 'BUY'
+                                        condition_MACD = MACD_signal['signal'] == 'CLOSE_SELL'
+                                        condition_ma = signal_ma['signal'] == 'BUY'
                                         
 
-                                        if  condition_sl or condition_rsi:
+                                        if  condition_ma or condition_MACD:
                                             trading.orderClose(ticketId, symbol)
                                             dict.symbolStopLossValue[symbol] = 0.0
 
                                             if CHAT_ID:
 
                                                 reason = ""
-                                                if condition_sl:
-                                                    reason = "Закрытие по Stop Loss"
-                                                if condition_rsi:
-                                                    reason = "Закрытие по RSI"
+                                                if condition_ma:
+                                                    reason = "Закрытие по MA"
+                                                if condition_MACD:
+                                                    reason = "Закрытие по MACD"
                                                 result = "😊" if profit > 0 else "😡"
                                                     
                                                 telegram_message = (
@@ -1114,7 +1117,7 @@ def trading_loop():
                         dict.symbolExtremumStatus[symbol] = 1
                     if 65 > rsi_value['RSI'].iloc[-1] > 50 or  50 > rsi_value['RSI'].iloc[-1] > 35:
                         dict.symbolExtremumStatus[symbol] = 0
-                    print(f"{symbol} signal_ma: {signal_ma['signal']} MACD_signal: {MACD_signal['signal']} ADX_signal: {ADX_signal['signal']} rsi_signal: {rsi_signal['signal']} angle: {signal_critical_angle_ma['angle_fast']}" )
+                    print(f"{symbol} sum_signal: {sum_signal} signal_ma: {signal_ma['signal']} cross_signal: {cross_signal_ma['signal']} MACD_signal: {MACD_signal['signal']} MACD_prev: {MACD_signal['prev_hist_line']} MACD_current: {MACD_signal['hist_line']}" )
                     message = (
                         f"📊 Значение индикаторов\n\n"
                         f"🔢 Пара: {symbol}\n"
