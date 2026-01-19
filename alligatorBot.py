@@ -318,14 +318,6 @@ class TradingBot:
                     f"⏰ Время: {serverTime}\n"
                     f"🔄 Сигнал МА: {signal_ma['signal']}\n"
                     f"🔄 Угол fast_ma: {signal_critical_angle_ma['angle_fast']}\n\n"
-                    f"🔄 Сигнал MACD: {MACD_signal['signal']}\n"
-                    f"🔄 предыдущее значение: {MACD_signal['prev_hist_line']:.5f}\n"
-                    f"🔄 текущее значение: {MACD_signal['hist_line']:.5f}\n"
-                    f"🔄 сигнальнная линия: {MACD_signal['signal_line']:.5f}\n\n"
-                    f"🔄 Сигнал RSI: {rsi_signal['signal']}\n"
-                    f"🔄 Экстремум статус: {dict.symbolExtremumStatus.get(symbol, 0)}\n"
-                    f"🔄 предыдущее значение: {rsi_signal['prev_rsi']:.5f}\n"
-                    f"🔄 текущее значение: {rsi_signal['rsi']:.5f}"
                 )
                 asyncio.run_coroutine_threadsafe(
                     self.send_telegram_message(telegram_message),
@@ -364,14 +356,6 @@ class TradingBot:
                     f"⏰ Время: {serverTime}\n"
                     f"🔄 Сигнал МА: {signal_ma['signal']}\n"
                     f"🔄 Угол fast_ma: {signal_critical_angle_ma['angle_fast']}\n\n"
-                    f"🔄 Сигнал MACD: {MACD_signal['signal']}\n"
-                    f"🔄 предыдущее значение: {MACD_signal['prev_hist_line']:.5f}\n"
-                    f"🔄 текущее значение: {MACD_signal['hist_line']:.5f}\n"
-                    f"🔄 сигнальнная линия: {MACD_signal['signal_line']:.5f}\n\n"
-                    f"🔄 Сигнал RSI: {rsi_signal['signal']}\n"
-                    f"🔄 Экстремум статус: {dict.symbolExtremumStatus.get(symbol, 0)}\n"
-                    f"🔄 предыдущее значение: {rsi_signal['prev_rsi']:.5f}\n"
-                    f"🔄 текущее значение: {rsi_signal['rsi']:.5f}"
                 )
                 asyncio.run_coroutine_threadsafe(
                     self.send_telegram_message(telegram_message),
@@ -968,10 +952,10 @@ def trading_loop():
             
             print(f"{datetime.datetime.now().time()} все ОК!")
             
-            if not trading_bot.isTradingAlowed():
+            '''if not trading_bot.isTradingAlowed():
                 print("Сейчас торговля запрещена (23:40-02:00 ежедневно или пятница 23:40 - понедельник 03:00)")
                 time.sleep(10)
-                continue
+                continue'''
 
             if not trading_bot.bot_running:
                 time.sleep(5)
@@ -1017,12 +1001,13 @@ def trading_loop():
                 current_status = dict.symbolTradingStatus.get(symbol, 0)
 
                 if isNewBar and current_status == 1:
+                    time.sleep(60)
                     dict.symbolTradingStatus[symbol] = 0
                     current_status = 0
                 
-                if (signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY') or cross_signal_ma['signal'] == 'BUY':
+                if signal_ma['signal'] == 'BUY':
                     sum_signal = 'BUY'
-                elif (signal_ma['signal'] == 'SELL' and MACD_signal['signal'] == 'SELL') or cross_signal_ma['signal'] == 'SELL':
+                elif signal_ma['signal'] == 'SELL':
                     sum_signal = 'SELL'
                 else:
                     sum_signal = 'NO_SIGNAL'
@@ -1047,12 +1032,12 @@ def trading_loop():
                                  # Для LONG позиций (BUY)
                                 if order_type == 0:  # BUY
                                     
-                                    condition_MACD = MACD_signal['signal'] == 'CLOSE_BUY'
+                                    #condition_MACD = MACD_signal['signal'] == 'CLOSE_BUY'
                                     condition_ma = signal_ma['signal'] == 'SELL'
 
                                     
 
-                                    if condition_ma or condition_MACD:
+                                    if condition_ma:
                                         trading.orderClose(ticketId, symbol)
                                         dict.symbolStopLossValue[symbol] = 0.0
                                             
@@ -1060,8 +1045,6 @@ def trading_loop():
                                             reason = ""
                                             if condition_ma:
                                                 reason = "Закрытие по MA"
-                                            if condition_MACD:
-                                                reason = "Закрытие по MACD"
                                             result = "😊" if profit > 0 else "😡"
                                                 
                                             telegram_message = (
@@ -1081,11 +1064,11 @@ def trading_loop():
                                 # Для SHORT позиций (SELL)
                                 elif order_type == 1:  # SELL
                                         
-                                        condition_MACD = MACD_signal['signal'] == 'CLOSE_SELL'
+                                        #condition_MACD = MACD_signal['signal'] == 'CLOSE_SELL'
                                         condition_ma = signal_ma['signal'] == 'BUY'
                                         
 
-                                        if  condition_ma or condition_MACD:
+                                        if  condition_ma:
                                             trading.orderClose(ticketId, symbol)
                                             dict.symbolStopLossValue[symbol] = 0.0
 
@@ -1094,8 +1077,6 @@ def trading_loop():
                                                 reason = ""
                                                 if condition_ma:
                                                     reason = "Закрытие по MA"
-                                                if condition_MACD:
-                                                    reason = "Закрытие по MACD"
                                                 result = "😊" if profit > 0 else "😡"
                                                     
                                                 telegram_message = (
@@ -1112,27 +1093,12 @@ def trading_loop():
                                                     trading_bot.loop
                                                 )
                     
-                    
-                    if rsi_value['RSI'].iloc[-1] > 70 or  rsi_value['RSI'].iloc[-1] < 30:
-                        dict.symbolExtremumStatus[symbol] = 1
-                    if 65 > rsi_value['RSI'].iloc[-1] > 50 or  50 > rsi_value['RSI'].iloc[-1] > 35:
-                        dict.symbolExtremumStatus[symbol] = 0
-                    print(f"{symbol} sum_signal: {sum_signal} signal_ma: {signal_ma['signal']} cross_signal: {cross_signal_ma['signal']} MACD_signal: {MACD_signal['signal']} MACD_prev: {MACD_signal['prev_hist_line']} MACD_current: {MACD_signal['hist_line']}" )
+                    print(f"{symbol} sum_signal: {sum_signal} signal_ma: {signal_ma['signal']} cross_signal: {cross_signal_ma['signal']}")
                     message = (
                         f"📊 Значение индикаторов\n\n"
                         f"🔢 Пара: {symbol}\n"
                         f"🔄 Сигнал МА: {signal_ma['signal']}\n"
                         f"🔄 Угол fast_ma: {signal_critical_angle_ma['angle_fast']}\n\n"
-                        f"🔄 Сигнал MACD: {MACD_signal['signal']}\n"
-                        f"🔄 Предыдущее значение: {MACD_signal['prev_hist_line']:.5f}\n"
-                        f"🔄 Текущее значение: {MACD_signal['hist_line']:.5f}\n"
-                        f"🔄 Сигнальнная линия: {MACD_signal['signal_line']:.5f}\n\n"
-                        f"🔄 Сигнал RSI: {rsi_signal['signal']}\n"
-                        f"🔄 Экстремум статус: {dict.symbolExtremumStatus.get(symbol, 0)}\n"
-                        f"🔄 Предпредыдущее значение: {rsi_signal['prev2_rsi']:.5f}\n"
-                        f"🔄 Предыдущее значение: {rsi_signal['prev_rsi']:.5f}\n"
-                        f"🔄 Текущее значение: {rsi_signal['rsi']:.5f}\n\n"
-                        f"🔄 Стоп-лосс: {dict.symbolStopLossValue[symbol]}\n\n"
                         f"⏰ Время: {trading.serverTime(symbol)}\n"
 
                     )
