@@ -999,11 +999,6 @@ def trading_loop():
                 # Сохраняем предыдущий статус
                 previous_status = previous_statuses.get(symbol, 0)
                 current_status = dict.symbolTradingStatus.get(symbol, 0)
-
-                if isNewBar and current_status == 1:
-                    time.sleep(60)
-                    dict.symbolTradingStatus[symbol] = 0
-                    current_status = 0
                 
                 if signal_ma['signal'] == 'BUY':
                     sum_signal = 'BUY'
@@ -1111,7 +1106,7 @@ def trading_loop():
                         )
                     #Проверяем на открытие
                    
-                    if sum_signal != 'NO_SIGNAL' and dict.symbolTradingStatus[symbol] == 0:
+                    if sum_signal != 'NO_SIGNAL':
                         trading_bot.checkOpen(symbol, sum_signal, 'sum_signal', atr_value, signal_ma, signal_critical_angle_ma, MACD_signal, rsi_signal)
                     
                     
