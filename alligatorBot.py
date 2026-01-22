@@ -1034,10 +1034,11 @@ def trading_loop():
                                     
                                     #condition_MACD = MACD_signal['signal'] == 'CLOSE_BUY'
                                     condition_ma = signal_ma['signal'] == 'SELL'
+                                    condition_angle = signal_critical_angle_ma['angle_fast'] < -10
 
                                     
 
-                                    if condition_ma:
+                                    if condition_ma or condition_angle:
                                         trading.orderClose(ticketId, symbol)
                                         dict.symbolStopLossValue[symbol] = 0.0
                                             
@@ -1066,9 +1067,10 @@ def trading_loop():
                                         
                                         #condition_MACD = MACD_signal['signal'] == 'CLOSE_SELL'
                                         condition_ma = signal_ma['signal'] == 'BUY'
+                                        condition_angle = signal_critical_angle_ma['angle_fast'] > 10
                                         
 
-                                        if  condition_ma:
+                                        if  condition_ma or condition_angle:
                                             trading.orderClose(ticketId, symbol)
                                             dict.symbolStopLossValue[symbol] = 0.0
 
@@ -1111,7 +1113,9 @@ def trading_loop():
                         )
                     #Проверяем на открытие
                    
-                    if sum_signal != 'NO_SIGNAL' and dict.symbolTradingStatus[symbol] == 0:
+                    if sum_signal == 'BUY' and dict.symbolTradingStatus[symbol] == 0 and signal_critical_angle_ma['angle_fast'] > 10:
+                        trading_bot.checkOpen(symbol, sum_signal, 'sum_signal', atr_value, signal_ma, signal_critical_angle_ma, MACD_signal, rsi_signal)
+                    if sum_signal == 'SELL' and dict.symbolTradingStatus[symbol] == 0 and signal_critical_angle_ma['angle_fast'] < -10:
                         trading_bot.checkOpen(symbol, sum_signal, 'sum_signal', atr_value, signal_ma, signal_critical_angle_ma, MACD_signal, rsi_signal)
                     
                     
