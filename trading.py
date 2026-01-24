@@ -50,7 +50,7 @@ class Trading:
                 print("4. order_send failed, retcode={}".format(result.retcode))
                 print("   result",result) 
         else:
-            dict.symbolTradingStatus[symbol] = 1
+            #dict.symbolTradingStatus[symbol] = 1
             print(f"Пара {symbol} Ордер {result.order} цена {result.price} статус торговли: {dict.symbolTradingStatus[symbol]}")
         
         return {"order":result.order,"price":result.price,"symbol":symbol,"targetType":type}
