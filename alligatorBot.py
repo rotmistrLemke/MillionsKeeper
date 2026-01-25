@@ -117,7 +117,7 @@ class TradingBot:
                     continue
                 
                 if not trading_bot.isTradingAlowed():
-                    print("Сейчас торговля запрещена (23:40-02:00 ежедневно или пятница 23:40 - понедельник 03:00)")
+                    print("Сейчас торговля запрещена (пятница 23:30 - понедельник 02:00)")
                     time.sleep(10)
                     continue
                 
@@ -267,12 +267,12 @@ class TradingBot:
             current_time < datetime.time(2, 0))
         
         friday_off_period = (
-            current_weekday == 4 and current_time >= datetime.time(23, 40)) or (
+            current_weekday == 4 and current_time >= datetime.time(23, 30)) or (
             current_weekday == 5) or (
             current_weekday == 6) or (
-            current_weekday == 0 and current_time < datetime.time(3, 0))
+            current_weekday == 0 and current_time < datetime.time(2, 10))
         
-        return not (daily_off_period or friday_off_period)
+        return not (friday_off_period)
 
     def checkOpen(self, symbol, signal, comment, atr, signal_ma, signal_critical_angle_ma, MACD_signal, rsi_signal):  
         active_symbols = [symbol for symbol in dict.symbolTradingStatus.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]  
@@ -952,10 +952,18 @@ def trading_loop():
             
             print(f"{datetime.datetime.now().time()} все ОК!")
             
-            '''if not trading_bot.isTradingAlowed():
-                print("Сейчас торговля запрещена (23:40-02:00 ежедневно или пятница 23:40 - понедельник 03:00)")
+            if not trading_bot.isTradingAlowed():
+                positions = trading.getPositions()
+                if len(positions) > 0:                    
+                    for position in positions:
+                        order_dict = position._asdict()
+                        ticket_id = order_dict.get("ticket", 0)
+                        symbol = order_dict.get("symbol", "Unknown")
+                        trading.orderClose(ticket_id, symbol)
+                        time.sleep(0.1) 
+                print("Сейчас торговля запрещена (пятница 23:30 - понедельник 02:00)")
                 time.sleep(10)
-                continue'''
+                continue
 
             if not trading_bot.bot_running:
                 time.sleep(5)
