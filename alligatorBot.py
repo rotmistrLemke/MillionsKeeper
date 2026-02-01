@@ -278,7 +278,8 @@ class TradingBot:
         active_symbols = [symbol for symbol in dict.symbolTradingStatus.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]  
         serverTime = trading.serverTime(symbol)
 
-        if len(trading.getPositions()) == len(active_symbols):
+        #if len(trading.getPositions()) == len(active_symbols):
+        if len(trading.getPositions()) == 3:
             return
 
         if trading.symbolInPostions(symbol, TargetType.LONG) or trading.symbolInPostions(symbol, TargetType.SHORT):
@@ -980,8 +981,8 @@ def trading_loop():
             for symbol in active_symbols:
                 # Получаем сигнал от быстрой и медленной MA
                 fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
-                slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
-                signal_ma = ma.ma_simple_signal(fast_ma, slow_ma)
+                slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 200)
+                #signal_ma = ma.ma_simple_signal(fast_ma, slow_ma)
                 cross_signal_ma = ma.ma_cross_signal(fast_ma, slow_ma)
                 signal_critical_angle_ma = ma.ma_critical_angle(fast_ma, slow_ma, symbol)
                 # Получаем сигнал от MACD
@@ -1013,9 +1014,9 @@ def trading_loop():
                     dict.symbolTradingStatus[symbol] = 0
                     current_status = 0
                 
-                if signal_ma['signal'] == 'BUY':
+                if cross_signal_ma['signal'] == 'BUY':
                     sum_signal = 'BUY'
-                elif signal_ma['signal'] == 'SELL':
+                elif cross_signal_ma['signal'] == 'SELL':
                     sum_signal = 'SELL'
                 else:
                     sum_signal = 'NO_SIGNAL'
@@ -1041,12 +1042,13 @@ def trading_loop():
                                 if order_type == 0:  # BUY
                                     
                                     #condition_MACD = MACD_signal['signal'] == 'CLOSE_BUY'
-                                    condition_ma = signal_ma['signal'] == 'SELL'
-                                    condition_angle = signal_critical_angle_ma['angle_fast'] < -10
+                                    condition_ma = cross_signal_ma['signal'] == 'SELL'
+                                    #condition_angle = signal_critical_angle_ma['angle_fast'] < -10
 
                                     
 
-                                    if condition_ma or condition_angle:
+                                    #if condition_ma or condition_angle:
+                                    if condition_ma:
                                         trading.orderClose(ticketId, symbol)
                                         dict.symbolStopLossValue[symbol] = 0.0
                                             
@@ -1074,11 +1076,12 @@ def trading_loop():
                                 elif order_type == 1:  # SELL
                                         
                                         #condition_MACD = MACD_signal['signal'] == 'CLOSE_SELL'
-                                        condition_ma = signal_ma['signal'] == 'BUY'
-                                        condition_angle = signal_critical_angle_ma['angle_fast'] > 10
+                                        condition_ma = cross_signal_ma['signal'] == 'BUY'
+                                        #condition_angle = signal_critical_angle_ma['angle_fast'] > 10
                                         
 
-                                        if  condition_ma or condition_angle:
+                                        #if  condition_ma or condition_angle:
+                                        if  condition_ma:
                                             trading.orderClose(ticketId, symbol)
                                             dict.symbolStopLossValue[symbol] = 0.0
 
@@ -1103,11 +1106,11 @@ def trading_loop():
                                                     trading_bot.loop
                                                 )
                     
-                    print(f"{symbol} sum_signal: {sum_signal} signal_ma: {signal_ma['signal']} cross_signal: {cross_signal_ma['signal']}")
+                    print(f"{symbol} sum_signal: {sum_signal} cross_signal: {cross_signal_ma['signal']}")
                     message = (
                         f"📊 Значение индикаторов\n\n"
                         f"🔢 Пара: {symbol}\n"
-                        f"🔄 Сигнал МА: {signal_ma['signal']}\n"
+                        f"🔄 Сигнал МА: {cross_signal_ma['signal']}\n"
                         f"🔄 Угол fast_ma: {signal_critical_angle_ma['angle_fast']}\n\n"
                         f"⏰ Время: {trading.serverTime(symbol)}\n"
 
@@ -1121,10 +1124,10 @@ def trading_loop():
                         )
                     #Проверяем на открытие
                    
-                    if sum_signal == 'BUY' and dict.symbolTradingStatus[symbol] == 0 and signal_critical_angle_ma['angle_fast'] > 10:
-                        trading_bot.checkOpen(symbol, sum_signal, 'sum_signal', atr_value, signal_ma, signal_critical_angle_ma, MACD_signal, rsi_signal)
-                    if sum_signal == 'SELL' and dict.symbolTradingStatus[symbol] == 0 and signal_critical_angle_ma['angle_fast'] < -10:
-                        trading_bot.checkOpen(symbol, sum_signal, 'sum_signal', atr_value, signal_ma, signal_critical_angle_ma, MACD_signal, rsi_signal)
+                    if sum_signal == 'BUY' and dict.symbolTradingStatus[symbol] == 0:
+                        trading_bot.checkOpen(symbol, sum_signal, 'sum_signal', atr_value, cross_signal_ma, signal_critical_angle_ma, MACD_signal, rsi_signal)
+                    if sum_signal == 'SELL' and dict.symbolTradingStatus[symbol] == 0:
+                        trading_bot.checkOpen(symbol, sum_signal, 'sum_signal', atr_value, cross_signal_ma, signal_critical_angle_ma, MACD_signal, rsi_signal)
                     
                     
                     
