@@ -1042,7 +1042,7 @@ def trading_loop():
                                 if order_type == 0:  # BUY
                                     
                                     #condition_MACD = MACD_signal['signal'] == 'CLOSE_BUY'
-                                    condition_ma = cross_signal_ma['signal'] == 'SELL' or signal_ma =='SELL'
+                                    condition_ma = cross_signal_ma['signal'] == 'SELL' or signal_ma['signal'] =='SELL'
                                     #condition_angle = signal_critical_angle_ma['angle_fast'] < -10
 
                                     
@@ -1076,7 +1076,7 @@ def trading_loop():
                                 elif order_type == 1:  # SELL
                                         
                                         #condition_MACD = MACD_signal['signal'] == 'CLOSE_SELL'
-                                        condition_ma = cross_signal_ma['signal'] == 'BUY' or signal_ma =='BUY'
+                                        condition_ma = cross_signal_ma['signal'] == 'BUY' or signal_ma['signal'] =='BUY'
                                         #condition_angle = signal_critical_angle_ma['angle_fast'] > 10
                                         
 
@@ -1106,11 +1106,12 @@ def trading_loop():
                                                     trading_bot.loop
                                                 )
                     
-                    print(f"{symbol} sum_signal: {sum_signal} cross_signal: {cross_signal_ma['signal']}")
+                    print(f"{symbol} sum_signal: {sum_signal} cross_signal: {cross_signal_ma['signal']} signal_ma: {signal_ma['signal']}")
                     message = (
                         f"📊 Значение индикаторов\n\n"
                         f"🔢 Пара: {symbol}\n"
-                        f"🔄 Сигнал МА: {cross_signal_ma['signal']}\n"
+                        f"🔄 Кросс сигнал МА: {cross_signal_ma['signal']}\n"
+                        f"🔄 Сигнал МА: {signal_ma['signal']}\n"
                         f"🔄 Угол fast_ma: {signal_critical_angle_ma['angle_fast']}\n\n"
                         f"⏰ Время: {trading.serverTime(symbol)}\n"
 
