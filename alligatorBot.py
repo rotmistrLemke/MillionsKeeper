@@ -278,8 +278,8 @@ class TradingBot:
         active_symbols = [symbol for symbol in dict.symbolTradingStatus.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]  
         serverTime = trading.serverTime(symbol)
 
-        #if len(trading.getPositions()) == len(active_symbols):
-        if len(trading.getPositions()) == 3:
+        if len(trading.getPositions()) == len(active_symbols):
+        #if len(trading.getPositions()) == 3:
             return
 
         if trading.symbolInPostions(symbol, TargetType.LONG) or trading.symbolInPostions(symbol, TargetType.SHORT):
@@ -982,7 +982,7 @@ def trading_loop():
                 # Получаем сигнал от быстрой и медленной MA
                 fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
                 slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 200)
-                #signal_ma = ma.ma_simple_signal(fast_ma, slow_ma)
+                signal_ma = ma.ma_simple_signal(fast_ma, slow_ma)
                 cross_signal_ma = ma.ma_cross_signal(fast_ma, slow_ma)
                 signal_critical_angle_ma = ma.ma_critical_angle(fast_ma, slow_ma, symbol)
                 # Получаем сигнал от MACD
@@ -1042,7 +1042,7 @@ def trading_loop():
                                 if order_type == 0:  # BUY
                                     
                                     #condition_MACD = MACD_signal['signal'] == 'CLOSE_BUY'
-                                    condition_ma = cross_signal_ma['signal'] == 'SELL'
+                                    condition_ma = cross_signal_ma['signal'] == 'SELL' or signal_ma =='SELL'
                                     #condition_angle = signal_critical_angle_ma['angle_fast'] < -10
 
                                     
@@ -1076,7 +1076,7 @@ def trading_loop():
                                 elif order_type == 1:  # SELL
                                         
                                         #condition_MACD = MACD_signal['signal'] == 'CLOSE_SELL'
-                                        condition_ma = cross_signal_ma['signal'] == 'BUY'
+                                        condition_ma = cross_signal_ma['signal'] == 'BUY' or signal_ma =='BUY'
                                         #condition_angle = signal_critical_angle_ma['angle_fast'] > 10
                                         
 
