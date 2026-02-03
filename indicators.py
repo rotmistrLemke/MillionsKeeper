@@ -6,8 +6,14 @@ import MetaTrader5 as mt5
 import talib
 from settings import Dictionary, GlobalValues
 
-dict = Dictionary()
+symbols_dict = Dictionary()
 TIME_FRAME = GlobalValues.time_frame
+
+def safe_iloc(series, n=1, default=None):
+    try:
+        return series.iloc[-n]
+    except Exception:
+        return default
 
 class Alligator:
 
@@ -43,7 +49,7 @@ class Alligator:
     
     def MainData(self, df):
         medianPrice = (df['high'] + df['low']) / 2  # Медианная цена (HL/2)
-        openPrice = df['open'].iloc[-1]
+        openPrice = safe_iloc(df['open'], 1, default=np.nan)
         # Рассчитываем линии Аллигатора
         jaw = self.smma(medianPrice, 13)  # Челюсти (13)
         teeth = self.smma(medianPrice, 8)   # Зубы (8)
@@ -64,10 +70,10 @@ class Alligator:
     
     def LastData(self,symbol,jawShifted,teethShifted,lipsShifted): 
         countDecimalPlace = self.CountDecimalPlace(symbol)
-        lastJaw = float(f"{jawShifted.iloc[-2]:.{countDecimalPlace}f}")
-        lastTeeth =  float(f"{teethShifted.iloc[-2]:.{countDecimalPlace}f}")
-        lastLips = float(f"{lipsShifted.iloc[-2]:.{countDecimalPlace}f}")
-        prelastLips = float(f"{lipsShifted.iloc[-3]:.{countDecimalPlace}f}")
+        lastJaw = float(f"{safe_iloc(jawShifted,2,0):.{countDecimalPlace}f}")
+        lastTeeth =  float(f"{safe_iloc(teethShifted,2,0):.{countDecimalPlace}f}")
+        lastLips = float(f"{safe_iloc(lipsShifted,2,0):.{countDecimalPlace}f}")
+        prelastLips = float(f"{safe_iloc(lipsShifted,3,0):.{countDecimalPlace}f}")
         return lastJaw,lastTeeth,lastLips,prelastLips
     
     def SupportData(self, lastLips, prelastLips, symbol, dictPairXvalue):
@@ -103,12 +109,11 @@ class AdaptiveMovingAverage:
         # Добавление AMA в DataFrame
         df['AMA'] = ama
         last_two = df[['AMA']].tail(2)
-        
-        lastAma = last_two['AMA'].iloc[-1]
-        prevAma = last_two['AMA'].iloc[-2]
+        lastAma = safe_iloc(df['AMA'],1, default=np.nan)
+        prevAma = safe_iloc(df['AMA'],2, default=np.nan)
         atr = ATR()
         atr_value = atr.calculate_atr(symbol, TIME_FRAME)
-        x = atr_value.iloc[-1]
+        x = safe_iloc(atr_value,1, default=1.0)
         
         y = (lastAma - prevAma) / mt5.symbol_info(symbol).point
         angle_rad = math.atan2(y, x/2)
@@ -144,13 +149,10 @@ class BullsBearsPower:
             df['bulls_power'] = df['high'] - df['ema']
             df['bears_power'] = df['low'] - df['ema']
             
-            # Берем последние значения
-            current_bulls = df['bulls_power'].iloc[-1]
-            current_bears = df['bears_power'].iloc[-1]
-            
-            # Предыдущие значения для анализа тренда
-            prev_bulls = df['bulls_power'].iloc[-2]
-            prev_bears = df['bears_power'].iloc[-2]
+            current_bulls = safe_iloc(df['bulls_power'],1, default=np.nan)
+            current_bears = safe_iloc(df['bears_power'],1, default=np.nan)
+            prev_bulls = safe_iloc(df['bulls_power'],2, default=np.nan)
+            prev_bears = safe_iloc(df['bears_power'],2, default=np.nan)
             
             return current_bulls, current_bears
             
@@ -387,7 +389,7 @@ class MovingAverage:
         alligator = Alligator()
         atr = ATR()
         atr_value = atr.calculate_atr(symbol, TIME_FRAME)
-        x = atr_value.iloc[-1] / mt5.symbol_info(symbol).point
+        x = safe_iloc(atr_value,1,default=1.0) / mt5.symbol_info(symbol).point
         angle_fast = alligator.angle(current_fast, previous_fast, symbol, x)
         current_slow = slow_ma.iloc[-1]
         previous_slow = slow_ma.iloc[-2]

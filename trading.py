@@ -6,7 +6,7 @@ import talib
 import time
 
 TIME_FRAME = GlobalValues.time_frame
-dict = Dictionary()
+symbols_dict = Dictionary()
 atr = ATR()
 class Trading:
 
@@ -50,8 +50,8 @@ class Trading:
                 print("4. order_send failed, retcode={}".format(result.retcode))
                 print("   result",result) 
         else:
-            #dict.symbolTradingStatus[symbol] = 1
-            print(f"Пара {symbol} Ордер {result.order} цена {result.price} статус торговли: {dict.symbolTradingStatus[symbol]}")
+            #symbols_dict.symbolTradingStatus[symbol] = 1
+            print(f"Пара {symbol} Ордер {result.order} цена {result.price} статус торговли: {symbols_dict.symbolTradingStatus[symbol]}")
         
         return {"order":result.order,"price":result.price,"symbol":symbol,"targetType":type}
      
@@ -112,7 +112,7 @@ class Trading:
         oldStopLossValue = float(oldStopLossValue)
         
         if newStopLossValue > oldStopLossValue or oldStopLossValue == 0.0:
-            dict.symbolStopLossValue[symbol] = newStopLossValue
+            symbols_dict.symbolStopLossValue[symbol] = newStopLossValue
             return newStopLossValue
         else: 
             return oldStopLossValue
@@ -121,12 +121,16 @@ class Trading:
 
         
         atr_value = atr.calculate_atr(symbol, TIME_FRAME)
+        try:
+            atr_last = atr_value.iloc[-1] if (atr_value is not None and len(atr_value) > 0) else 0.0
+        except Exception:
+            atr_last = 0.0
 
         if orderType == TargetType.LONG:
-            stopLoss = priceCurrent - (2 * atr_value.iloc[-1]) 
+            stopLoss = priceCurrent - (2 * atr_last)
         
         if orderType == TargetType.SHORT:
-            stopLoss = priceCurrent + (2 * atr_value.iloc[-1])
+            stopLoss = priceCurrent + (2 * atr_last)
 
         return stopLoss
 
@@ -236,8 +240,8 @@ class Trading:
                         continue
                     return 0
                 
-                active_symbols = [symbol for symbol in dict.symbolTradingStatus.keys() 
-                                if dict.symbolTradingStatus.get(symbol, 0) < 3]
+                active_symbols = [symbol for symbol in symbols_dict.symbolTradingStatus.keys() 
+                                if symbols_dict.symbolTradingStatus.get(symbol, 0) < 3]
                 orders = self.getPositions()
 
                 balance = account_info.balance

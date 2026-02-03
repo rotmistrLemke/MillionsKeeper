@@ -46,3 +46,52 @@ class MT5Auth:
     def __del__(self):
         """Деструктор - автоматическое отключение при удалении объекта"""
         self.logout()
+
+    def ensure_connection(self, max_retries: int = 3, wait_seconds: int = 2) -> bool:
+        """Проверяет и при необходимости восстанавливает соединение с MT5.
+
+        Возвращает True, если соединение установлено, иначе False.
+        """
+        import time
+
+        retries = 0
+        while retries < max_retries:
+            try:
+                # Попытка инициализации (если не инициализировано)
+                initialized = mt5.initialize()
+                if not initialized:
+                    print("MT5 не инициализирован, пробуем инициализировать...")
+                    try:
+                        mt5.shutdown()
+                    except Exception:
+                        pass
+                    time.sleep(1)
+                    initialized = mt5.initialize()
+
+                # Если терминал инициализирован, проверяем состояние терминала
+                if initialized:
+                    term = mt5.terminal_info()
+                    if term is None:
+                        # Если терминал не готов — попробуем выполнить вход
+                        print("Терминал MT5 не отвечает, пытаемся выполнить login...")
+                        logged = self.login()
+                        if logged:
+                            print("Успешная авторизация в MT5 (ensure_connection)")
+                            return True
+                        else:
+                            print(f"Ошибка авторизации MT5: {mt5.last_error()}")
+                    else:
+                        # Терминал отвечает — считаем соединение установленным
+                        print("MT5 инициализирован и терминал отвечает")
+                        return True
+
+                # Если не получилось — увеличиваем счётчик и ждём перед повторной попыткой
+            except Exception as e:
+                print(f"Ошибка при восстановлении соединения MT5: {e}")
+
+            retries += 1
+            print(f"Повторная попытка подключения MT5 ({retries}/{max_retries}) через {wait_seconds}s")
+            time.sleep(wait_seconds)
+
+        print("Не удалось восстановить соединение с MT5 после попыток")
+        return False

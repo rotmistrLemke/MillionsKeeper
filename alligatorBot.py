@@ -31,7 +31,7 @@ history = History()
 alligator = Alligator()
 bbp = BullsBearsPower()
 logger = Logger()
-dict = Dictionary()
+symbols_dict = Dictionary()
 AMA = AdaptiveMovingAverage()
 X_VALUE_DICT = Dictionary.symbolTradingStatus
 lastCheckedTime = None
@@ -43,13 +43,125 @@ adx = ADX()
 rsi = RSI()
 ma = MovingAverage()
 
+# Флаг для включения/выключения MoneySaver
+ENABLE_MONEY_SAVER = False
+
+# Кеш индикаторов по символу: {'time': last_bar_time, 'fast_ma':..., 'slow_ma':..., 'signal_ma':..., 'cross_signal_ma':..., 'signal_critical_angle_ma':..., 'macd':(...), 'MACD_signal':..., 'adx':(...), 'ADX_signal':..., 'rsi':..., 'rsi_signal':..., 'atr':...}
+indicator_cache = {}
+
+def safe_iloc(series, n=1, default=None):
+    try:
+        return series.iloc[-n]
+    except Exception:
+        return default
+
+
+def update_indicator_cache(symbol, df):
+    """Вычисляет и сохраняет индикаторы в `indicator_cache` для символа по переданному df."""
+    try:
+        latest_time = df['time'].iloc[0]
+    except Exception:
+        return
+
+    cache = indicator_cache.get(symbol)
+    if cache is not None and cache.get('time') == latest_time:
+        return
+
+    # MA
+    try:
+        fast_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 8)
+    except Exception:
+        fast_ma = None
+    try:
+        slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 200)
+    except Exception:
+        slow_ma = None
+    try:
+        signal_ma = ma.ma_simple_signal(fast_ma, slow_ma)
+    except Exception:
+        signal_ma = {'signal': 'NO_SIGNAL'}
+    try:
+        cross_signal_ma = ma.ma_cross_signal(fast_ma, slow_ma)
+    except Exception:
+        cross_signal_ma = {'signal': 'NO_SIGNAL', 'angle_fast': 0}
+    try:
+        signal_critical_angle_ma = ma.ma_critical_angle(fast_ma, slow_ma, symbol)
+    except Exception:
+        signal_critical_angle_ma = {'angle_fast': 0}
+
+    # MACD
+    try:
+        hist_line, prev_hist_line, signal_line = macd.calculate_macd_manual(symbol, TIME_FRAME)
+    except Exception:
+        hist_line = prev_hist_line = signal_line = None
+    try:
+        MACD_signal = macd.MACD_signal(hist_line, prev_hist_line, signal_line) if hist_line is not None else {'signal': 'NO_SIGNAL'}
+    except Exception:
+        MACD_signal = {'signal': 'NO_SIGNAL'}
+
+    # ADX
+    try:
+        adx_values, plus_di_values, minus_di_values = adx.ADX(
+            df['high'].values,
+            df['low'].values,
+            df['close'].values,
+            14
+        )
+    except Exception:
+        adx_values = plus_di_values = minus_di_values = None
+    try:
+        if adx_values is not None and len(adx_values) > 0:
+            ADX_signal = adx.ADX_signal(adx_values[-1], plus_di_values[-1] if plus_di_values is not None and len(plus_di_values) > 0 else None, minus_di_values[-1] if minus_di_values is not None and len(minus_di_values) > 0 else None)
+        else:
+            ADX_signal = {'signal': 'NO_SIGNAL'}
+    except Exception:
+        ADX_signal = {'signal': 'NO_SIGNAL'}
+
+    # RSI
+    try:
+        rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
+    except Exception:
+        rsi_value = None
+    try:
+        if rsi_value is not None and 'RSI' in rsi_value and len(rsi_value['RSI']) >= 3:
+            rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2], rsi_value['RSI'].iloc[-3])
+        else:
+            rsi_signal = {'signal': 'NO_SIGNAL'}
+    except Exception:
+        rsi_signal = {'signal': 'NO_SIGNAL'}
+
+    # ATR
+    try:
+        atr_calc = atr.calculate_atr(symbol, TIME_FRAME)
+        atr_value = atr_calc.iloc[-1] if atr_calc is not None and len(atr_calc) > 0 else None
+    except Exception:
+        atr_calc = None
+        atr_value = None
+
+    indicator_cache[symbol] = {
+        'time': latest_time,
+        'fast_ma': fast_ma,
+        'slow_ma': slow_ma,
+        'signal_ma': signal_ma,
+        'cross_signal_ma': cross_signal_ma,
+        'signal_critical_angle_ma': signal_critical_angle_ma,
+        'macd': (hist_line, prev_hist_line, signal_line),
+        'MACD_signal': MACD_signal,
+        'adx': (adx_values, plus_di_values, minus_di_values),
+        'ADX_signal': ADX_signal,
+        'rsi': rsi_value,
+        'rsi_signal': rsi_signal,
+        'atr': atr_calc,
+        'atr_value': atr_value,
+    }
+
 
 
 
 class TradingBot:
-    def __init__(self, trading, dict, alligator, ama):
+    def __init__(self, trading, symbols_dict, alligator, ama):
         self.mt5 = trading
-        self.dict = dict
+        self.symbols_dict = symbols_dict
         self.alligator = alligator
         self.ama = ama
         self.lastCheckedTime = None
@@ -58,36 +170,15 @@ class TradingBot:
         self.application = None
         self.loop = asyncio.new_event_loop() 
         self.allowed_users = ALLOWED_USERS  
+        # MT5 connection retry counters
+        self.connection_retries = 0
+        self.max_retries = 3
 
     def ensure_mt5_connection(self):
         """Проверяет и восстанавливает соединение с MT5"""
-        try:
-            if not mt5.initialize():
-                print("MT5 не инициализирован, пытаемся переподключиться...")
-                if self.connection_retries < self.max_retries:
-                    self.connection_retries += 1
-                    auth.login()
-                    time.sleep(2)
-                    return mt5.initialize()
-                else:
-                    print("Достигнуто максимальное количество попыток подключения")
-                    return False
-            
-            # Проверяем активность соединения
-            if not mt5.terminal_info():
-                print("Соединение с MT5 разорвано, переподключаемся...")
-                mt5.shutdown()
-                time.sleep(1)
-                auth.login()
-                time.sleep(2)
-                return mt5.initialize()
-            
-            self.connection_retries = 0
-            return True
-            
-        except Exception as e:
-            print(f"Ошибка при проверке соединения MT5: {e}")
-            return False
+        # Перенесено в MT5Auth.ensure_connection
+        connected = auth.ensure_connection(max_retries=self.max_retries, wait_seconds=2)
+        return connected
         
     async def isUserAllowed(self, update: Update) -> bool:
         """Проверяет, есть ли пользователь в белом списке"""
@@ -133,28 +224,23 @@ class TradingBot:
                         ticketId = order_dict.get("ticket", 0)
                         symbol = order_dict.get("symbol", 0)
                         order_type = order_dict.get("type", 0)  # 0 = BUY, 1 = SELL
-                        # Получаем сигнал от быстрой и медленной MA
-                        fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
-                        slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
-                        signal_ma = ma.ma_simple_signal(fast_ma, slow_ma)
-                        # Получаем сигнал от MACD
-                        hist_line, prev_hist_line, signal_line = macd.calculate_macd_manual(symbol, TIME_FRAME)
-                        MACD_signal = macd.MACD_signal(hist_line, prev_hist_line, signal_line)
-                        # Получаем сигнал от ADX
+
+                        # Используем кеш индикаторов (обновляем если нужно)
                         df = alligator.Df(symbol, TIME_FRAME)
-                        adx_values, plus_di_values, minus_di_values = adx.ADX(
-                            df['high'].values,
-                            df['low'].values, 
-                            df['close'].values,
-                            14
-                        )
-                        ADX_signal = adx.ADX_signal(adx_values[499], plus_di_values[499], minus_di_values[499])
-                        # Получаем сигнал от RSI
-                        rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
-                        rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2], rsi_value['RSI'].iloc[-3])
-                        
-                        atr_calc = atr.calculate_atr(symbol, TIME_FRAME)
-                        atr_value = atr_calc.iloc[-1]
+                        if df is None or df.empty:
+                            continue
+                        update_indicator_cache(symbol, df)
+                        cached = indicator_cache.get(symbol, {})
+
+                        fast_ma = cached.get('fast_ma')
+                        slow_ma = cached.get('slow_ma')
+                        signal_ma = cached.get('signal_ma', {'signal': 'NO_SIGNAL'})
+                        MACD_signal = cached.get('MACD_signal', {'signal': 'NO_SIGNAL'})
+                        ADX_signal = cached.get('ADX_signal', {'signal': 'NO_SIGNAL'})
+                        rsi_value = cached.get('rsi')
+                        rsi_signal = cached.get('rsi_signal', {'signal': 'NO_SIGNAL'})
+                        atr_calc = cached.get('atr')
+                        atr_value = cached.get('atr_value')
                         
                         if signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY' and rsi_signal['signal'] == 'BUY':
                             sum_signal = 'BUY'
@@ -164,10 +250,10 @@ class TradingBot:
                             sum_signal = 'NO_SIGNAL'
                             
                         # Рассчитываем уровни Stop Loss
-                        stop_loss_value = trading.calculateStopLoss(symbol, profit, atr_value, dict.symbolStopLossValue[symbol], volume)
-                        dict.symbolStopLossValue[symbol] = stop_loss_value
-                            
-                        if dict.symbolTradingStatus[symbol] > 0:
+                        stop_loss_value = trading.calculateStopLoss(symbol, profit, atr_value, self.symbols_dict.symbolStopLossValue[symbol], volume)
+                        self.symbols_dict.symbolStopLossValue[symbol] = stop_loss_value
+
+                        if self.symbols_dict.symbolTradingStatus[symbol] > 0:
                             continue
 
                                                 
@@ -184,14 +270,14 @@ class TradingBot:
                                     continue
                                 
                                 condition_signal = sum_signal == 'SELL'
-                                #condition_leave_extremum = rsi_value['RSI'].iloc[-1] < 65 and dict.symbolExtremumStatus[symbol] == 1
+                                #condition_leave_extremum = rsi_value['RSI'].iloc[-1] < 65 and self.symbols_dict.symbolExtremumStatus[symbol] == 1
 
                                 
 
                                 if condition_signal:
                                     trading.orderClose(ticketId, symbol)
-                                    dict.symbolStopLossValue[symbol] = 0.0
-                                    dict.symbolExtremumStatus[symbol] = 0
+                                    self.symbols_dict.symbolStopLossValue[symbol] = 0.0
+                                    self.symbols_dict.symbolExtremumStatus[symbol] = 0
                                         
                                     if CHAT_ID:
                                         reason = ""
@@ -204,13 +290,10 @@ class TradingBot:
                                             f"💵 Пара: {symbol}\n"
                                             f"💰 Профит: {profit:.2f}\n"
                                             f"🎯 Причина: {reason}\n"
-                                            f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}\n"
+                                            f"🎯 RSI: {safe_iloc(rsi_value['RSI'],1,'N/A')}\n"
                                             
                                         )
-                                        asyncio.run_coroutine_threadsafe(
-                                            self.send_telegram_message(telegram_message),
-                                            self.loop
-                                        )
+                                        self.send_message(telegram_message)
                         
                         # Для SHORT позиций (SELL)
                         elif order_type == 1:  # SELL
@@ -222,14 +305,14 @@ class TradingBot:
                                 if sum_signal == 'SELL':
                                     continue
                                 condition_signal = sum_signal == 'BUY'
-                                #condition_leave_extremum = rsi_value['RSI'].iloc[-1] > 50 and dict.symbolExtremumStatus[symbol] == 1
+                                #condition_leave_extremum = rsi_value['RSI'].iloc[-1] > 50 and self.symbols_dict.symbolExtremumStatus[symbol] == 1
 
                                 
 
                                 if  condition_signal:
                                     trading.orderClose(ticketId, symbol)
-                                    dict.symbolStopLossValue[symbol] = 0.0
-                                    dict.symbolExtremumStatus[symbol] = 0
+                                    self.symbols_dict.symbolStopLossValue[symbol] = 0.0
+                                    self.symbols_dict.symbolExtremumStatus[symbol] = 0
 
                                     if CHAT_ID:
 
@@ -243,13 +326,10 @@ class TradingBot:
                                             f"💵 Пара: {symbol}\n"
                                             f"💰 Профит: {profit:.2f}\n"
                                             f"🎯 Причина: {reason}\n"
-                                            f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}"
+                                            f"🎯 RSI: {safe_iloc(rsi_value['RSI'],1,'N/A')}"
 
                                         )
-                                        asyncio.run_coroutine_threadsafe(
-                                            self.send_telegram_message(telegram_message),
-                                            self.loop
-                                        )
+                                        self.send_message(telegram_message)
 
             except Exception as e:
                 print(f"Ошибка в moneySaver: {str(e)}")
@@ -275,7 +355,7 @@ class TradingBot:
         return not (friday_off_period)
 
     def checkOpen(self, symbol, signal, comment, atr, signal_ma, signal_critical_angle_ma, MACD_signal, rsi_signal):  
-        active_symbols = [symbol for symbol in dict.symbolTradingStatus.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]  
+        active_symbols = [symbol for symbol in self.symbols_dict.symbolTradingStatus.keys() if self.symbols_dict.symbolTradingStatus.get(symbol, 0) < 3]  
         serverTime = trading.serverTime(symbol)
 
         if len(trading.getPositions()) == len(active_symbols):
@@ -300,10 +380,7 @@ class TradingBot:
                     f"🎯 Ошибка открытия позиции: неправильный расчет безопасного объема\n"
  
                 )
-                asyncio.run_coroutine_threadsafe(
-                    self.send_telegram_message(telegram_message_error),
-                    self.loop
-                )
+                self.send_message(telegram_message_error)
             
             result = trading.orderOpen(symbol, TargetType.LONG, safeVolume, f"{comment}")
             
@@ -320,10 +397,7 @@ class TradingBot:
                     f"🔄 Сигнал МА: {signal_ma['signal']}\n"
                     f"🔄 Угол fast_ma: {signal_critical_angle_ma['angle_fast']}\n\n"
                 )
-                asyncio.run_coroutine_threadsafe(
-                    self.send_telegram_message(telegram_message),
-                    self.loop
-                )
+                self.send_message(telegram_message)
                 
         if signal == 'SELL':
             safeVolume = trading.calculateSafeTradeWithMargin(
@@ -338,10 +412,7 @@ class TradingBot:
                     f"🎯 Ошибка открытия позиции: неправильный расчет безопасного объема\n"
  
                 )
-                asyncio.run_coroutine_threadsafe(
-                    self.send_telegram_message(telegram_message_error),
-                    self.loop
-                )
+                self.send_message(telegram_message_error)
             
             result = trading.orderOpen(symbol, TargetType.SHORT, safeVolume, f"{comment}")
 
@@ -358,10 +429,7 @@ class TradingBot:
                     f"🔄 Сигнал МА: {signal_ma['signal']}\n"
                     f"🔄 Угол fast_ma: {signal_critical_angle_ma['angle_fast']}\n\n"
                 )
-                asyncio.run_coroutine_threadsafe(
-                    self.send_telegram_message(telegram_message),
-                    self.loop
-                )
+                self.send_message(telegram_message)
             #logger.saveToExcel(symbol, "OPEN_SHORT", 0,  angle, "Ордер SHORT выставлен по условию", Settings.filenameAlligator)
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -404,14 +472,14 @@ class TradingBot:
         )
         
         for symbol in symbols:
-            status = self.dict.symbolTradingStatus.get(symbol, 0)
+            status = self.symbols_dict.symbolTradingStatus.get(symbol, 0)
             status_text = {
                 0: "🟢 Торговля разрешена",
                 1: "🟡 Торговля приостановлена",
                 2: "🔴 Торговля заблокирована",
                 3: "⚫️ Торговля выключена"
             }.get(status, "❓ Неизвестный статус")
-            
+
             if status < 3:
                 message += f"{symbol}: {status_text}\n"
         
@@ -454,14 +522,25 @@ class TradingBot:
                     direction = "🟦 LONG" if pos.type == mt5.ORDER_TYPE_BUY else "🟥 SHORT"
                     # Получить сигнал пересечения быстрой и медленной MA
                     result = "😊 Прибыль" if pos.profit > 0 else "😡 Потери"
-                    fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
-                    slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
-                    signal = ma.ma_cross_signal(fast_ma, slow_ma, symbol)
+                    df = alligator.Df(symbol, TIME_FRAME)
+                    if df is None or df.empty:
+                        fast_ma = slow_ma = None
+                        signal = {'angle_fast': 0}
+                    else:
+                        update_indicator_cache(symbol, df)
+                        cached = indicator_cache.get(symbol, {})
+                        fast_ma = cached.get('fast_ma')
+                        slow_ma = cached.get('slow_ma')
+                        try:
+                            signal = ma.ma_cross_signal(fast_ma, slow_ma)
+                        except Exception:
+                            signal = {'angle_fast': 0}
+
                     message += (
                         f"{direction}: {pos.volume} лот(ов)\n"
                         f"{result}: {pos.profit}\n"
-                        f"🛑  Стоп-лосс значение: {dict.symbolStopLossValue[symbol]}\n"
-                        f"📐 Угол быстрой МА:{signal['angle_fast']}\n"
+                        f"🛑  Стоп-лосс значение: {self.symbols_dict.symbolStopLossValue.get(symbol, 0)}\n"
+                        f"📐 Угол быстрой МА:{signal.get('angle_fast', 0)}\n"
                         "\n"
 
                     )
@@ -482,7 +561,7 @@ class TradingBot:
             return
             
         for symbol in X_VALUE_DICT.keys():
-            self.dict.symbolTradingStatus[symbol] = 0
+            self.symbols_dict.symbolTradingStatus[symbol] = 0
             
         await update.message.reply_text("✅ Торговля разрешена для всех пар")
 
@@ -501,7 +580,7 @@ class TradingBot:
         for i in range(0, len(symbols), 2):
             row = []
             for symbol in symbols[i:i+2]:
-                current_status = self.dict.symbolTradingStatus.get(symbol, 0)
+                current_status = self.symbols_dict.symbolTradingStatus.get(symbol, 0)
                 status_emoji = {0: "🟢", 1: "🟡", 2: "🔴", 3: "⚫️"}.get(current_status, "❓")
                 row.append(InlineKeyboardButton(f"{status_emoji} {symbol}", callback_data=f"manage_{symbol}"))
             keyboard.append(row)
@@ -546,7 +625,7 @@ class TradingBot:
                 )
             else:
                 # Меню для конкретной пары
-                current_status = self.dict.symbolTradingStatus.get(symbol, 0)
+                current_status = self.symbols_dict.symbolTradingStatus.get(symbol, 0)
                 status_text = {0: "🟢 Разрешена", 1: "🟡 Приостановлена", 2: "🔴 Заблокирована", 3: "⚫️ Выключена"}.get(current_status, "❓ Неизвестно")
                 
                 keyboard = [
@@ -584,16 +663,16 @@ class TradingBot:
                 # Изменяем статус для всех пар
                 changed_count = 0
                 for p in X_VALUE_DICT.keys():
-                    old_status = self.dict.symbolTradingStatus.get(p, 0)
+                    old_status = self.symbols_dict.symbolTradingStatus.get(p, 0)
                     if old_status != new_status:
-                        self.dict.symbolTradingStatus[p] = new_status
+                        self.symbols_dict.symbolTradingStatus[p] = new_status
                         changed_count += 1
                 
                 message = f"✅ Статус изменен для {changed_count} пар: {status_names[new_status]}"
             else:
                 # Изменяем статус для конкретной пары
-                old_status = self.dict.symbolTradingStatus.get(symbol, 0)
-                self.dict.symbolTradingStatus[symbol] = new_status
+                old_status = self.symbols_dict.symbolTradingStatus.get(symbol, 0)
+                self.symbols_dict.symbolTradingStatus[symbol] = new_status
                 
                 message = f"✅ Пара {symbol}: {status_names[old_status]} → {status_names[new_status]}"
             
@@ -608,10 +687,7 @@ class TradingBot:
             )
             
             if CHAT_ID:
-                asyncio.run_coroutine_threadsafe(
-                    self.send_telegram_message(notification),
-                    self.loop
-                )
+                self.send_message(notification)
 
     async def handle_back_button(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not await self.isUserAllowed(update):
@@ -628,7 +704,7 @@ class TradingBot:
             for i in range(0, len(symbols), 2):
                 row = []
                 for symbol in symbols[i:i+2]:
-                    current_status = self.dict.symbolTradingStatus.get(symbol, 0)
+                    current_status = self.symbols_dict.symbolTradingStatus.get(symbol, 0)
                     status_emoji = {0: "🟢", 1: "🟡", 2: "🔴", 3: "⚫️"}.get(current_status, "❓")
                     row.append(InlineKeyboardButton(f"{status_emoji} {symbol}", callback_data=f"manage_{symbol}"))
                 keyboard.append(row)
@@ -668,42 +744,36 @@ class TradingBot:
             symbol = query.data.replace("pair_", "")
             
             try:
-                # Получаем сигнал от быстрой и медленной MA
-                fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
-                slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
-                signal_ma = ma.ma_simple_signal(fast_ma, slow_ma)
-                signal_critical_angle_ma = ma.ma_critical_angle(fast_ma, slow_ma, symbol)
-                # Получаем сигнал от MACD
-                hist_line, prev_hist_line, signal_line = macd.calculate_macd_manual(symbol, TIME_FRAME)
-                MACD_signal = macd.MACD_signal(hist_line, prev_hist_line, signal_line)
-                # Получаем сигнал от ADX
                 df = alligator.Df(symbol, TIME_FRAME)
-                adx_values, plus_di_values, minus_di_values = adx.ADX(
-                    df['high'].values,
-                    df['low'].values, 
-                    df['close'].values,
-                    14
-                )
-                ADX_signal = adx.ADX_signal(adx_values[499], plus_di_values[499], minus_di_values[499])
-                # Получаем сигнал от RSI
-                rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
-                rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2], rsi_value['RSI'].iloc[-3])
-                
-                message = (
-                    f"📈 Информация по паре {symbol}:\n\n"
-                    f"🔄 Сигнал МА: {signal_ma['signal']}\n"
-                    f"🔄 Угол fast_ma: {signal_critical_angle_ma['angle_fast']}\n\n"
-                    f"🔄 Сигнал MACD: {MACD_signal['signal']}\n"
-                    f"🔄 предыдущее значение: {MACD_signal['prev_hist_line']:.5f}\n"
-                    f"🔄 текущее значение: {MACD_signal['hist_line']:.5f}\n"
-                    f"🔄 сигнальнная линия: {MACD_signal['signal_line']:.5f}\n\n"
-                    f"🔄 Сигнал RSI: {rsi_signal['signal']}\n"
-                    f"🔄 Экстремум статус: {dict.symbolExtremumStatus.get(symbol, 0)}\n"
-                    f"🔄 предыдущее значение: {rsi_signal['prev_rsi']:.5f}\n"
-                    f"🔄 текущее значение: {rsi_signal['rsi']:.5f}"
+                if df is None or df.empty:
+                    await query.edit_message_text(f"❌ Нет данных по паре {symbol}")
+                    return
+                update_indicator_cache(symbol, df)
+                cached = indicator_cache.get(symbol, {})
 
-                )
-                
+                signal_ma = cached.get('signal_ma', {'signal': 'NO_SIGNAL'})
+                signal_critical_angle_ma = cached.get('signal_critical_angle_ma', {'angle_fast': 0})
+                MACD_signal = cached.get('MACD_signal', {'signal': 'NO_SIGNAL', 'prev_hist_line': 0.0, 'hist_line': 0.0, 'signal_line': 0.0})
+                ADX_signal = cached.get('ADX_signal', {'signal': 'NO_SIGNAL'})
+                rsi_signal = cached.get('rsi_signal', {'signal': 'NO_SIGNAL', 'prev_rsi': 0.0, 'rsi': 0.0})
+
+                try:
+                    message = (
+                        f"📈 Информация по паре {symbol}:\n\n"
+                        f"🔄 Сигнал МА: {signal_ma.get('signal','NO_SIGNAL')}\n"
+                        f"🔄 Угол fast_ma: {signal_critical_angle_ma.get('angle_fast',0)}\n\n"
+                        f"🔄 Сигнал MACD: {MACD_signal.get('signal','NO_SIGNAL')}\n"
+                        f"🔄 предыдущее значение: {float(MACD_signal.get('prev_hist_line',0.0)):.5f}\n"
+                        f"🔄 текущее значение: {float(MACD_signal.get('hist_line',0.0)):.5f}\n"
+                        f"🔄 сигнальнная линия: {float(MACD_signal.get('signal_line',0.0)):.5f}\n\n"
+                        f"🔄 Сигнал RSI: {rsi_signal.get('signal','NO_SIGNAL')}\n"
+                        f"🔄 Экстремум статус: {self.symbols_dict.symbolExtremumStatus.get(symbol, 0)}\n"
+                        f"🔄 предыдущее значение: {float(rsi_signal.get('prev_rsi',0.0)):.5f}\n"
+                        f"🔄 текущее значение: {float(rsi_signal.get('rsi',0.0)):.5f}"
+                    )
+                except Exception as e:
+                    message = f"📈 Информация по паре {symbol}: (ошибка форматирования: {e})"
+
                 await query.edit_message_text(message)
             except Exception as e:
                 await query.edit_message_text(f"❌ Ошибка при получении информации по паре {symbol}: {str(e)}")
@@ -717,7 +787,7 @@ class TradingBot:
         # Создаем инлайн-клавиатуру с парами
         keyboard = []
         #symbols = list(X_VALUE_DICT.keys())
-        symbols = [symbol for symbol in dict.symbolTradingStatus.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]
+        symbols = [symbol for symbol in self.symbols_dict.symbolTradingStatus.keys() if self.symbols_dict.symbolTradingStatus.get(symbol, 0) < 3]
         
         # Разбиваем пары на строки по 2 кнопки
         for i in range(0, len(symbols), 2):
@@ -878,6 +948,17 @@ class TradingBot:
                 )
         except Exception as e:
             print(f"Ошибка отправки сообщения в Telegram: {e}")
+    
+    def send_message(self, message):
+        """Синхронная обёртка для безопасной отправки сообщений из других потоков/контекстов."""
+        try:
+            if self.loop and CHAT_ID:
+                try:
+                    asyncio.run_coroutine_threadsafe(self.send_telegram_message(message), self.loop)
+                except Exception as e:
+                    print(f"Ошибка планирования отправки сообщения: {e}")
+        except Exception as e:
+            print(f"Ошибка в send_message: {e}")
    
     def run_bot(self):
         """Запуск бота в отдельном потоке"""
@@ -940,7 +1021,7 @@ def trading_loop():
     global lastCheckedTime
 
     # Словарь для хранения предыдущих статусов
-    previous_statuses = {symbol: dict.symbolTradingStatus.get(symbol, 0) for symbol in symbols}
+    previous_statuses = {symbol: symbols_dict.symbolTradingStatus.get(symbol, 0) for symbol in symbols}
     
     
     while True:
@@ -974,44 +1055,140 @@ def trading_loop():
             isNewBar, lastCheckedTime = alligator.IsNewBar(df_for_new_bar, lastCheckedTime, TIME_FRAME)
             
             # Фильтруем пары: только те, у которых статус <= 3
-            active_symbols = [symbol for symbol in symbols if dict.symbolTradingStatus.get(symbol, 0) < 3]
+            active_symbols = [symbol for symbol in symbols if symbols_dict.symbolTradingStatus.get(symbol, 0) < 3]
             
             
             
             for symbol in active_symbols:
-                # Получаем сигнал от быстрой и медленной MA
-                fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
-                slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 200)
-                signal_ma = ma.ma_simple_signal(fast_ma, slow_ma)
-                cross_signal_ma = ma.ma_cross_signal(fast_ma, slow_ma)
-                signal_critical_angle_ma = ma.ma_critical_angle(fast_ma, slow_ma, symbol)
-                # Получаем сигнал от MACD
-                hist_line, prev_hist_line, signal_line = macd.calculate_macd_manual(symbol, TIME_FRAME)
-                MACD_signal = macd.MACD_signal(hist_line, prev_hist_line, signal_line)
-                # Получаем сигнал от ADX
+                # Получаем последние бары
                 df = alligator.Df(symbol, TIME_FRAME)
-                adx_values, plus_di_values, minus_di_values = adx.ADX(
-                    df['high'].values,
-                    df['low'].values, 
-                    df['close'].values,
-                    14
-                )
-                ADX_signal = adx.ADX_signal(adx_values[499], plus_di_values[499], minus_di_values[499])
-                # Получаем сигнал от RSI
-                rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
-                rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2], rsi_value['RSI'].iloc[-3])
-                # Получаем atr
-                atr_calc = atr.calculate_atr(symbol, TIME_FRAME)
-                atr_value = atr_calc.iloc[-1]
+                if df is None or df.empty:
+                    continue
+
+                # Метка текущего бара для кеша
+                try:
+                    latest_time = df['time'].iloc[0]
+                except Exception:
+                    continue
+
+                cache = indicator_cache.get(symbol)
+
+                # Если кеш устарел или отсутствует — пересчитываем индикаторы
+                if cache is None or cache.get('time') != latest_time:
+                    # MA
+                    try:
+                        fast_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 8)
+                    except Exception:
+                        fast_ma = None
+                    try:
+                        slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 200)
+                    except Exception:
+                        slow_ma = None
+                    try:
+                        signal_ma = ma.ma_simple_signal(fast_ma, slow_ma)
+                    except Exception:
+                        signal_ma = {'signal': 'NO_SIGNAL'}
+                    try:
+                        cross_signal_ma = ma.ma_cross_signal(fast_ma, slow_ma)
+                    except Exception:
+                        cross_signal_ma = {'signal': 'NO_SIGNAL', 'angle_fast': 0}
+                    try:
+                        signal_critical_angle_ma = ma.ma_critical_angle(fast_ma, slow_ma, symbol)
+                    except Exception:
+                        signal_critical_angle_ma = {'angle_fast': 0}
+
+                    # MACD
+                    try:
+                        hist_line, prev_hist_line, signal_line = macd.calculate_macd_manual(symbol, TIME_FRAME)
+                    except Exception:
+                        hist_line = prev_hist_line = signal_line = None
+                    try:
+                        MACD_signal = macd.MACD_signal(hist_line, prev_hist_line, signal_line) if hist_line is not None else {'signal': 'NO_SIGNAL'}
+                    except Exception:
+                        MACD_signal = {'signal': 'NO_SIGNAL'}
+
+                    # ADX
+                    try:
+                        adx_values, plus_di_values, minus_di_values = adx.ADX(
+                            df['high'].values,
+                            df['low'].values,
+                            df['close'].values,
+                            14
+                        )
+                    except Exception:
+                        adx_values = plus_di_values = minus_di_values = None
+                    try:
+                        if adx_values is not None and len(adx_values) > 0:
+                            ADX_signal = adx.ADX_signal(adx_values[-1], plus_di_values[-1], minus_di_values[-1])
+                        else:
+                            ADX_signal = {'signal': 'NO_SIGNAL'}
+                    except Exception:
+                        ADX_signal = {'signal': 'NO_SIGNAL'}
+
+                    # RSI
+                    try:
+                        rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
+                    except Exception:
+                        rsi_value = None
+                    try:
+                        if rsi_value is not None and 'RSI' in rsi_value and len(rsi_value['RSI']) >= 3:
+                            rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2], rsi_value['RSI'].iloc[-3])
+                        else:
+                            rsi_signal = {'signal': 'NO_SIGNAL'}
+                    except Exception:
+                        rsi_signal = {'signal': 'NO_SIGNAL'}
+
+                    # ATR
+                    try:
+                        atr_calc = atr.calculate_atr(symbol, TIME_FRAME)
+                        atr_value = atr_calc.iloc[-1] if atr_calc is not None and len(atr_calc) > 0 else None
+                    except Exception:
+                        atr_calc = None
+                        atr_value = None
+
+                    # Сохраняем все в кеш
+                    indicator_cache[symbol] = {
+                        'time': latest_time,
+                        'fast_ma': fast_ma,
+                        'slow_ma': slow_ma,
+                        'signal_ma': signal_ma,
+                        'cross_signal_ma': cross_signal_ma,
+                        'signal_critical_angle_ma': signal_critical_angle_ma,
+                        'macd': (hist_line, prev_hist_line, signal_line),
+                        'MACD_signal': MACD_signal,
+                        'adx': (adx_values, plus_di_values, minus_di_values),
+                        'ADX_signal': ADX_signal,
+                        'rsi': rsi_value,
+                        'rsi_signal': rsi_signal,
+                        'atr': atr_calc,
+                        'atr_value': atr_value,
+                    }
+
+                else:
+                    # Используем кешированные значения
+                    cached = indicator_cache.get(symbol, {})
+                    fast_ma = cached.get('fast_ma')
+                    slow_ma = cached.get('slow_ma')
+                    signal_ma = cached.get('signal_ma', {'signal': 'NO_SIGNAL'})
+                    cross_signal_ma = cached.get('cross_signal_ma', {'signal': 'NO_SIGNAL'})
+                    signal_critical_angle_ma = cached.get('signal_critical_angle_ma', {'angle_fast': 0})
+                    hist_line, prev_hist_line, signal_line = cached.get('macd', (None, None, None))
+                    MACD_signal = cached.get('MACD_signal', {'signal': 'NO_SIGNAL'})
+                    adx_values, plus_di_values, minus_di_values = cached.get('adx', (None, None, None))
+                    ADX_signal = cached.get('ADX_signal', {'signal': 'NO_SIGNAL'})
+                    rsi_value = cached.get('rsi')
+                    rsi_signal = cached.get('rsi_signal', {'signal': 'NO_SIGNAL'})
+                    atr_calc = cached.get('atr')
+                    atr_value = cached.get('atr_value')
                 
                 
                 # Сохраняем предыдущий статус
                 previous_status = previous_statuses.get(symbol, 0)
-                current_status = dict.symbolTradingStatus.get(symbol, 0)
+                current_status = symbols_dict.symbolTradingStatus.get(symbol, 0)
 
                 if isNewBar and current_status == 1:
                     time.sleep(60)
-                    dict.symbolTradingStatus[symbol] = 0
+                    symbols_dict.symbolTradingStatus[symbol] = 0
                     current_status = 0
                 
                 if cross_signal_ma['signal'] == 'BUY':
@@ -1034,7 +1211,7 @@ def trading_loop():
                             
                             if symbol == order_symbol:
                                 print("проверка на стопЛосс")
-                                #condition_sl = profit < dict.symbolStopLossValue[symbol]
+                                #condition_sl = profit < symbols_dict.symbolStopLossValue[symbol]
                                 condition_sl = False
                                 
                                 
@@ -1050,7 +1227,7 @@ def trading_loop():
                                     #if condition_ma or condition_angle:
                                     if condition_ma:
                                         trading.orderClose(ticketId, symbol)
-                                        dict.symbolStopLossValue[symbol] = 0.0
+                                        symbols_dict.symbolStopLossValue[symbol] = 0.0
                                             
                                         if CHAT_ID:
                                             reason = ""
@@ -1063,14 +1240,11 @@ def trading_loop():
                                                 f"💵 Пара: {symbol}\n"
                                                 f"💰 Профит: {profit:.2f}\n"
                                                 f"🎯 Причина: {reason}\n"
-                                                f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}\n"
-                                                f"🎯 StopLoss: {dict.symbolStopLossValue[symbol]}"
+                                                                f"🎯 RSI: {safe_iloc(rsi_value['RSI'],1,'N/A')}\n"
+                                                f"🎯 StopLoss: {symbols_dict.symbolStopLossValue[symbol]}"
                                                 
                                             )
-                                            asyncio.run_coroutine_threadsafe(
-                                                trading_bot.send_telegram_message(telegram_message),
-                                                trading_bot.loop
-                                            )
+                                            trading_bot.send_message(telegram_message)
                         
                                 # Для SHORT позиций (SELL)
                                 elif order_type == 1:  # SELL
@@ -1083,7 +1257,7 @@ def trading_loop():
                                         #if  condition_ma or condition_angle:
                                         if  condition_ma:
                                             trading.orderClose(ticketId, symbol)
-                                            dict.symbolStopLossValue[symbol] = 0.0
+                                            symbols_dict.symbolStopLossValue[symbol] = 0.0
 
                                             if CHAT_ID:
 
@@ -1097,14 +1271,11 @@ def trading_loop():
                                                     f"💵 Пара: {symbol}\n"
                                                     f"💰 Профит: {profit:.2f}\n"
                                                     f"🎯 Причина: {reason}\n"
-                                                    f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}\n"
-                                                    f"🎯 StopLoss: {dict.symbolStopLossValue[symbol]}"
+                                                        f"🎯 RSI: {safe_iloc(rsi_value['RSI'],1,'N/A')}\n"
+                                                    f"🎯 StopLoss: {symbols_dict.symbolStopLossValue[symbol]}"
 
                                                 )
-                                                asyncio.run_coroutine_threadsafe(
-                                                    trading_bot.send_telegram_message(telegram_message),
-                                                    trading_bot.loop
-                                                )
+                                                trading_bot.send_message(telegram_message)
                     
                     print(f"{symbol} sum_signal: {sum_signal} cross_signal: {cross_signal_ma['signal']} signal_ma: {signal_ma['signal']}")
                     message = (
@@ -1119,15 +1290,12 @@ def trading_loop():
                     
                     # Отправляем сообщение в Telegram
                     if CHAT_ID:
-                        asyncio.run_coroutine_threadsafe(
-                            trading_bot.send_telegram_message(message),
-                            trading_bot.loop
-                        )
+                        trading_bot.send_message(message)
                     #Проверяем на открытие
                    
-                    if sum_signal == 'BUY' and dict.symbolTradingStatus[symbol] == 0:
+                    if sum_signal == 'BUY' and symbols_dict.symbolTradingStatus[symbol] == 0:
                         trading_bot.checkOpen(symbol, sum_signal, 'sum_signal', atr_value, cross_signal_ma, signal_critical_angle_ma, MACD_signal, rsi_signal)
-                    if sum_signal == 'SELL' and dict.symbolTradingStatus[symbol] == 0:
+                    if sum_signal == 'SELL' and symbols_dict.symbolTradingStatus[symbol] == 0:
                         trading_bot.checkOpen(symbol, sum_signal, 'sum_signal', atr_value, cross_signal_ma, signal_critical_angle_ma, MACD_signal, rsi_signal)
                     
                     
@@ -1174,15 +1342,18 @@ def trading_loop():
 
 if __name__ == '__main__':
     # Инициализация торгового бота
-    trading_bot = TradingBot(trading, dict, alligator, AMA)
+    trading_bot = TradingBot(trading, symbols_dict, alligator, AMA)
     
     # Запуск телеграм бота в отдельном потоке
     bot_thread = threading.Thread(target=trading_bot.run_bot, daemon=True)
     bot_thread.start()
-    
-     # Запуск MoneySaver
-    money_saver_thread = threading.Thread(target=trading_bot.moneySaverLoop, daemon=True)
-    money_saver_thread.start()
+
+    # Запуск MoneySaver (опционально в зависимости от флага)
+    if ENABLE_MONEY_SAVER:
+        money_saver_thread = threading.Thread(target=trading_bot.moneySaverLoop, daemon=True)
+        money_saver_thread.start()
+    else:
+        print("MoneySaverLoop отключён (ENABLE_MONEY_SAVER=False)")
     
     # Запуск основного торгового цикла
     trading_loop()
