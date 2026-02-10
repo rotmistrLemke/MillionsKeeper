@@ -105,174 +105,20 @@ class TradingBot:
             "Если вы должны иметь доступ, свяжитесь с администратором."
         )
         return False      
-
-    def moneySaverLoop(self):
-
-        while self.bot_running:
-            try:
-                # Проверяем соединение перед началом цикла
-                if not trading_bot.ensure_mt5_connection():
-                    print("Нет соединения с MT5, ждем...")
-                    time.sleep(10)
-                    continue
-                
-                if not trading_bot.isTradingAlowed():
-                    print("Сейчас торговля запрещена (23:40-02:00 ежедневно или пятница 23:40 - понедельник 03:00)")
-                    time.sleep(10)
-                    continue
-                
-                orders = trading.getPositions()
-
-                if len(orders) == 0:
-                    continue
-                else:
-                    for order in orders:
-                        order_dict = order._asdict()
-                        volume = order_dict.get("volume", 0)
-                        profit = order_dict.get("profit", 0)
-                        ticketId = order_dict.get("ticket", 0)
-                        symbol = order_dict.get("symbol", 0)
-                        order_type = order_dict.get("type", 0)  # 0 = BUY, 1 = SELL
-                        # Получаем сигнал от быстрой и медленной MA
-                        fast_ma = ma.get_ma_for_symbol(symbol,TIME_FRAME, 8)
-                        slow_ma = ma.get_ma_for_symbol(symbol, TIME_FRAME, 21)
-                        signal_ma = ma.ma_simple_signal(fast_ma, slow_ma)
-                        # Получаем сигнал от MACD
-                        hist_line, prev_hist_line, signal_line = macd.calculate_macd_manual(symbol, TIME_FRAME)
-                        MACD_signal = macd.MACD_signal(hist_line, prev_hist_line, signal_line)
-                        # Получаем сигнал от ADX
-                        df = alligator.Df(symbol, TIME_FRAME)
-                        adx_values, plus_di_values, minus_di_values = adx.ADX(
-                            df['high'].values,
-                            df['low'].values, 
-                            df['close'].values,
-                            14
-                        )
-                        ADX_signal = adx.ADX_signal(adx_values[499], plus_di_values[499], minus_di_values[499])
-                        # Получаем сигнал от RSI
-                        rsi_value = rsi.get_rsi_talib(symbol, TIME_FRAME)
-                        rsi_signal = rsi.RSI_signal(rsi_value['RSI'].iloc[-1], rsi_value['RSI'].iloc[-2], rsi_value['RSI'].iloc[-3])
-                        
-                        atr_calc = atr.calculate_atr(symbol, TIME_FRAME)
-                        atr_value = atr_calc.iloc[-1]
-                        
-                        if signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY' and rsi_signal['signal'] == 'BUY':
-                            sum_signal = 'BUY'
-                        elif signal_ma['signal'] == 'SELL' and MACD_signal['signal'] == 'SELL' and rsi_signal['signal'] == 'SELL':
-                            sum_signal = 'SELL'
-                        else:
-                            sum_signal = 'NO_SIGNAL'
-                            
-                        # Рассчитываем уровни Stop Loss
-                        stop_loss_value = trading.calculateStopLoss(symbol, profit, atr_value, dict.symbolStopLossValue[symbol], volume)
-                        dict.symbolStopLossValue[symbol] = stop_loss_value
-                            
-                        if dict.symbolTradingStatus[symbol] > 0:
-                            continue
-
-                                                
-                        
-                        
-                        # Для LONG позиций (BUY)
-                        if order_type == 0:  # BUY
-                                
-                                # Условия закрытия для LONG:
-                                # 1. Текущий профит < Stop Loss  
-                                # 2. Появился противоположный сигнал
-
-                                if sum_signal == 'BUY':
-                                    continue
-                                
-                                condition_signal = sum_signal == 'SELL'
-                                #condition_leave_extremum = rsi_value['RSI'].iloc[-1] < 65 and dict.symbolExtremumStatus[symbol] == 1
-
-                                
-
-                                if condition_signal:
-                                    trading.orderClose(ticketId, symbol)
-                                    dict.symbolStopLossValue[symbol] = 0.0
-                                    dict.symbolExtremumStatus[symbol] = 0
-                                        
-                                    if CHAT_ID:
-                                        reason = ""
-                                        if condition_signal:
-                                            reason = "Изменился сигнал"
-                                        result = "😊" if profit > 0 else "😡"
-                                            
-                                        telegram_message = (
-                                            f"{result} ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
-                                            f"💵 Пара: {symbol}\n"
-                                            f"💰 Профит: {profit:.2f}\n"
-                                            f"🎯 Причина: {reason}\n"
-                                            f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}\n"
-                                            
-                                        )
-                                        asyncio.run_coroutine_threadsafe(
-                                            self.send_telegram_message(telegram_message),
-                                            self.loop
-                                        )
-                        
-                        # Для SHORT позиций (SELL)
-                        elif order_type == 1:  # SELL
-                           
-                                # Условия закрытия для SHORT:
-                                # 1. Текущий профит < Stop Loss  
-                                # 2. Появился противоположный сигнал
-                                
-                                if sum_signal == 'SELL':
-                                    continue
-                                condition_signal = sum_signal == 'BUY'
-                                #condition_leave_extremum = rsi_value['RSI'].iloc[-1] > 50 and dict.symbolExtremumStatus[symbol] == 1
-
-                                
-
-                                if  condition_signal:
-                                    trading.orderClose(ticketId, symbol)
-                                    dict.symbolStopLossValue[symbol] = 0.0
-                                    dict.symbolExtremumStatus[symbol] = 0
-
-                                    if CHAT_ID:
-
-                                        reason = ""
-                                        if condition_signal:
-                                            reason = "Изменился сигнал"
-                                        result = "😊" if profit > 0 else "😡"
-                                            
-                                        telegram_message = (
-                                            f"{result} ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
-                                            f"💵 Пара: {symbol}\n"
-                                            f"💰 Профит: {profit:.2f}\n"
-                                            f"🎯 Причина: {reason}\n"
-                                            f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}"
-
-                                        )
-                                        asyncio.run_coroutine_threadsafe(
-                                            self.send_telegram_message(telegram_message),
-                                            self.loop
-                                        )
-
-            except Exception as e:
-                print(f"Ошибка в moneySaver: {str(e)}")
-                continue
-            time.sleep(0.1)
-        
+   
     def isTradingAlowed(self):
         """Проверка разрешенного времени для торговли"""
         now = datetime.datetime.now()
         current_time = now.time()
         current_weekday = now.weekday()
-        
-        daily_off_period = (
-            datetime.time(23, 40) <= current_time or 
-            current_time < datetime.time(2, 0))
-        
+                
         friday_off_period = (
-            current_weekday == 4 and current_time >= datetime.time(23, 40)) or (
+            current_weekday == 4 and current_time >= datetime.time(23, 30)) or (
             current_weekday == 5) or (
             current_weekday == 6) or (
-            current_weekday == 0 and current_time < datetime.time(3, 0))
-        
-        return not (daily_off_period or friday_off_period)
+            current_weekday == 0 and current_time < datetime.time(2, 10))
+            
+        return not (friday_off_period)
 
     def checkOpen(self, symbol, signal, comment, atr, signal_ma, signal_critical_angle_ma, MACD_signal, rsi_signal):  
         active_symbols = [symbol for symbol in dict.symbolTradingStatus.keys() if dict.symbolTradingStatus.get(symbol, 0) < 3]  
@@ -969,7 +815,15 @@ def trading_loop():
             print(f"{datetime.datetime.now().time()} все ОК!")
             
             if not trading_bot.isTradingAlowed():
-                print("Сейчас торговля запрещена (23:40-02:00 ежедневно или пятница 23:40 - понедельник 03:00)")
+                positions = trading.getPositions()
+                if len(positions) > 0:                    
+                    for position in positions:
+                        order_dict = position._asdict()
+                        ticket_id = order_dict.get("ticket", 0)
+                        symbol = order_dict.get("symbol", "Unknown")
+                        trading.orderClose(ticket_id, symbol)
+                        time.sleep(0.1) 
+                print("Сейчас торговля запрещена (пятница 23:40 - понедельник 02:00)")
                 time.sleep(10)
                 continue
 
@@ -1039,14 +893,14 @@ def trading_loop():
                             
                             if symbol == order_symbol:
                                 print("проверка на стопЛосс")
-                                #condition_sl = profit < dict.symbolStopLossValue[symbol]
-                                condition_sl = False
+                                condition_sl = profit > dict.symbolStopLossValue[symbol]
+                                #condition_sl = False
                                 
                                 
                                  # Для LONG позиций (BUY)
                                 if order_type == 0:  # BUY
                                     
-                                    condition_rsi = rsi_signal['signal'] == 'SELL'
+                                    condition_rsi = rsi_signal['rsi'] < 50
 
                                     
 
@@ -1079,7 +933,7 @@ def trading_loop():
                                 # Для SHORT позиций (SELL)
                                 elif order_type == 1:  # SELL
                                         
-                                        condition_rsi = rsi_signal['signal'] == 'BUY'
+                                        condition_rsi = rsi_signal['rsi'] > 50
                                         
 
                                         if  condition_sl or condition_rsi:
@@ -1194,10 +1048,6 @@ if __name__ == '__main__':
     # Запуск телеграм бота в отдельном потоке
     bot_thread = threading.Thread(target=trading_bot.run_bot, daemon=True)
     bot_thread.start()
-    
-     # Запуск MoneySaver
-    money_saver_thread = threading.Thread(target=trading_bot.moneySaverLoop, daemon=True)
-    money_saver_thread.start()
-    
+        
     # Запуск основного торгового цикла
     trading_loop()
