@@ -908,9 +908,11 @@ def trading_loop():
 
                                     
 
+                                    if condition_sl:
+                                        dict.symbolTradingStatus[symbol] = 2
                                     if condition_sl or condition_rsi:
                                         trading.orderClose(ticketId, symbol)
-                                        #dict.symbolStopLossValue[symbol] = 0.0
+
                                             
                                         if CHAT_ID:
                                             reason = ""
@@ -940,9 +942,10 @@ def trading_loop():
                                         condition_rsi = rsi_signal['rsi'] > 50
                                         
 
+                                        if condition_sl:
+                                            dict.symbolTradingStatus[symbol] = 2
                                         if  condition_sl or condition_rsi:
                                             trading.orderClose(ticketId, symbol)
-                                            #dict.symbolStopLossValue[symbol] = 0.0
 
                                             if CHAT_ID:
 
