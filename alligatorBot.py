@@ -872,6 +872,10 @@ def trading_loop():
                 if isNewBar and current_status == 1:
                     dict.symbolTradingStatus[symbol] = 0
                     current_status = 0
+                    
+                if isNewBar and current_status == 2 and MACD_signal['signal'] =='NO_SIGNAL':
+                    dict.symbolTradingStatus[symbol] = 0
+                    current_status = 0
                 
                 if signal_ma['signal'] == 'BUY' and MACD_signal['signal'] == 'BUY' and rsi_signal['signal'] == 'BUY':
                     sum_signal = 'BUY'
@@ -906,7 +910,7 @@ def trading_loop():
 
                                     if condition_sl or condition_rsi:
                                         trading.orderClose(ticketId, symbol)
-                                        dict.symbolStopLossValue[symbol] = 0.0
+                                        #dict.symbolStopLossValue[symbol] = 0.0
                                             
                                         if CHAT_ID:
                                             reason = ""
@@ -938,7 +942,7 @@ def trading_loop():
 
                                         if  condition_sl or condition_rsi:
                                             trading.orderClose(ticketId, symbol)
-                                            dict.symbolStopLossValue[symbol] = 0.0
+                                            #dict.symbolStopLossValue[symbol] = 0.0
 
                                             if CHAT_ID:
 
