@@ -135,7 +135,7 @@ class TradingBot:
 
             safeVolume = trading.calculateSafeTradeWithMargin(
                 symbol, 
-                risk_percent=90, 
+                risk_percent=80, 
                 stop_loss_pips = 2 * atr / mt5.symbol_info(symbol).point, 
                 order_type=TargetType.LONG
             )

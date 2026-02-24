@@ -366,7 +366,7 @@ class Trading:
         
         return 0
 
-    def checkMarginWithStopLoss(self, symbol, volume, order_type, stop_loss_pips, margin_safety=1.1):
+    def checkMarginWithStopLoss(self, symbol, volume, order_type, stop_loss_pips, margin_safety=1.2):
         """
         Проверка маржинальных требований с учетом стоп-лосса (110%+)
         """
@@ -420,7 +420,7 @@ class Trading:
         
         # Рассчитываем максимальный объем с проверкой маржи
         max_volume = self.calculateMaxVolumeWithMarginCheck(
-            symbol, risk_percent, stop_loss_pips, order_type, margin_safety=1.1
+            symbol, risk_percent, stop_loss_pips, order_type, margin_safety=1.2
         )
         
         if max_volume <= 0:
@@ -429,7 +429,7 @@ class Trading:
         
         # Дополнительная проверка маржи с учетом стоп-лосса
         margin_ok, margin_ratio = self.checkMarginWithStopLoss(
-            symbol, max_volume, order_type, stop_loss_pips, margin_safety=1.1
+            symbol, max_volume, order_type, stop_loss_pips, margin_safety=1.2
         )
         
         if margin_ok:
@@ -449,7 +449,7 @@ class Trading:
                 safe_volume = max_volume
                 while safe_volume >= min_volume:
                     margin_ok, margin_ratio = self.checkMarginWithStopLoss(
-                        symbol, safe_volume, order_type, stop_loss_pips, margin_safety=1.1
+                        symbol, safe_volume, order_type, stop_loss_pips, margin_safety=1.2
                     )
                     if margin_ok:
                         print(f"✅ Безопасный объем: {safe_volume:.2f} лотов")
