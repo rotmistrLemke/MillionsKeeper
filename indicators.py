@@ -57,10 +57,6 @@ class Alligator:
         return medianPrice,jaw,teeth,lips,openPrice
 
     def ShiftedData(self, jaw, teeth, lips, medianPrice):
-        # Рассчитываем линии Аллигатора
-        jaw = self.smma(medianPrice, 13)  # Челюсти (13)
-        teeth = self.smma(medianPrice, 8)   # Зубы (8)
-        lips = self.smma(medianPrice, 5)    # Губы (5)
         # Смещаем линии  (бары 3, 1, -1)
         jawShifted = jaw.shift(3)
         teethShifted = teeth.shift(1)
@@ -117,7 +113,7 @@ class AdaptiveMovingAverage:
         
         y = (lastAma - prevAma) / mt5.symbol_info(symbol).point
         angle_rad = math.atan2(y, x/2)
-        angle = int(f"{math.degrees(angle_rad):.0f}") if math.degrees else int(f"{angle_rad:.0f}")
+        angle = int(f"{math.degrees(angle_rad):.0f}")
         
         if angle > 4 or angle < -4:
             return {"value": False, "angle": angle}
@@ -210,9 +206,9 @@ class MACD:
                 histogram.append(hist_value)
             
             # Текущие значения
-            signal_line = signal_line[98]
-            hist_line = macd_line[98]
-            prev_hist_line = macd_line[97]
+            signal_line = signal_line[-2]
+            hist_line = macd_line[-2]
+            prev_hist_line = macd_line[-3]
             
             #print(f"Ручной MACD {symbol}: hist_line={hist_line:.5f}, prev_hist_line={prev_hist_line:.5f}, signal_line={signal_line:.5f}")
             return hist_line, prev_hist_line, signal_line
@@ -516,6 +512,9 @@ class ATR:
   
     def calculate_atr(self, symbol, timeframe):
         rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, 500)
+        if rates is None:
+            print(f"Не удалось получить данные ATR для {symbol}")
+            return None
         df = pd.DataFrame(rates)
         high = df['high']
         low = df['low']
@@ -613,10 +612,6 @@ class RSI:
         """
         RSI через TA-Lib
         """
-        if not mt5.initialize():
-            print("Ошибка инициализации MT5")
-            return None
-        
         try:
             rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, bars)
             df = pd.DataFrame(rates)

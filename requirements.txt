@@ -1,0 +1,7 @@
+MetaTrader5
+python-telegram-bot
+python-dotenv
+pandas
+numpy
+openpyxl
+TA-Lib

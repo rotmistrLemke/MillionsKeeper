@@ -44,13 +44,14 @@ class Trading:
                 "type_filling": mt5.ORDER_FILLING_FOK,
             })
         if not result:
-            print(mt5.last_error()) 
+            print(mt5.last_error())
+            return None
 
         elif result.retcode != mt5.TRADE_RETCODE_DONE:
                 print("4. order_send failed, retcode={}".format(result.retcode))
-                print("   result",result) 
+                print("   result",result)
+                return None
         else:
-            #symbols_dict.symbolTradingStatus[symbol] = 1
             print(f"Пара {symbol} Ордер {result.order} цена {result.price} статус торговли: {symbols_dict.symbolTradingStatus[symbol]}")
         
         return {"order":result.order,"price":result.price,"symbol":symbol,"targetType":type}
@@ -117,7 +118,7 @@ class Trading:
         else: 
             return oldStopLossValue
         
-    def calculateStopLossOld(symbol, priceCurrent, orderType):
+    def calculateStopLossOld(self, symbol, priceCurrent, orderType):
 
         
         atr_value = atr.calculate_atr(symbol, TIME_FRAME)
@@ -134,7 +135,7 @@ class Trading:
 
         return stopLoss
 
-    def setStopLoss(ticket, new_sl , oldSl, orderType):
+    def setStopLoss(self, ticket, new_sl, oldSl, orderType):
 
         if (orderType == TargetType.LONG and new_sl > oldSl) or  oldSl == 0.0:
             # Подготавливаем структуру для изменения
@@ -240,12 +241,11 @@ class Trading:
                         continue
                     return 0
                 
-                active_symbols = [symbol for symbol in symbols_dict.symbolTradingStatus.keys() 
-                                if symbols_dict.symbolTradingStatus.get(symbol, 0) < 3]
+                active_symbols = [s for s in symbols_dict.symbolTradingStatus.keys() 
+                                if symbols_dict.symbolTradingStatus.get(s, 0) < 3]
                 orders = self.getPositions()
 
                 balance = account_info.balance
-                equity = account_info.equity
                 
                 # Ключевое исправление - проверка деления на ноль
                 divisor = len(active_symbols) - len(orders)

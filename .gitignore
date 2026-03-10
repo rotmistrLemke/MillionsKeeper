@@ -1,7 +1,14 @@
 
+.env
 *.xlsx
+*.pyc
+*.log
 test*
 account*
 settings*
 # Игнорировать кэш Python
 __pycache__/
+.vscode/
+*.egg-info/
+dist/
+build/

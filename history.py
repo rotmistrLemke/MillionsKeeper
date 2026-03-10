@@ -10,7 +10,7 @@ class History:
         """
         if not mt5.initialize():
             print("Ошибка подключения к MT5")
-            return 0
+            return 0, []
         
         try:
             # Получаем историю сделок за указанный период
@@ -18,7 +18,7 @@ class History:
             
             if deals is None:
                 print("Нет сделок за указанный период")
-                return 0
+                return 0, []
             
             total_profit = 0.0
             closed_deals = []

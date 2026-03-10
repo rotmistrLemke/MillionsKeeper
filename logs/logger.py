@@ -17,15 +17,11 @@ class Logger:
             # Пытаемся загрузить существующий файл
             workbook = load_workbook(fileName)
             sheet = workbook.active
-        #except FileNotFoundError:
-            # Если файла нет — создаем новый
-            #workbook = Workbook()
-            #sheet = workbook.active
-            #sheet.append(["Дата", "Событие", "Пара", "Зубы (Teeth)", "Угол", "Комментарий"])
         except (FileNotFoundError, zipfile.BadZipFile, InvalidFileException) as e:
-            print(f"⚠️ Ошибка при загрузке файла {fileName}: {e}")
-            print("Продолжаю работу без сохранения в Excel...")
-            return
+            # Если файла нет — создаем новый
+            workbook = Workbook()
+            sheet = workbook.active
+            sheet.append(["Дата", "Событие", "Пара", "Зубы (Teeth)", "Угол", "Комментарий"])
         
         # Добавляем новую строку
         sheet.append([
@@ -91,12 +87,10 @@ class Logger:
         except (FileNotFoundError, zipfile.BadZipFile, InvalidFileException) as e:
             
             print(f"⚠️ Ошибка при загрузке файла {fileName}: {e}")
-            print("Продолжаю работу без сохранения в Excel...")
+            print("Создаю новый файл...")
             workbook = Workbook()
             sheet = workbook.active
             sheet.append(["Дата", "сервис", "ошибка"])
-            
-            return
         
         # Добавляем новую строку
         sheet.append([
