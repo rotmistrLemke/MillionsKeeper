@@ -45,6 +45,26 @@ ma = MovingAverage()
 # Флаг для включения/выключения MoneySaver
 ENABLE_MONEY_SAVER = False
 
+# Функция проверки блокировки торговли перед выходными
+def is_trading_blocked_before_weekend(bar_time: datetime.datetime) -> bool:
+    """
+    Возвращает True, если торговля должна быть заблокирована.
+    Блокировка: пятница с 23:30 до начала понедельника.
+    """
+    weekday = bar_time.weekday()  # 0=пн, 1=вт, ..., 4=пт, 5=сб, 6=вс
+    hour = bar_time.hour
+    minute = bar_time.minute
+    
+    # Пятница после 23:30
+    if weekday == 4 and (hour > 23 or (hour == 23 and minute >= 30)):
+        return True
+    
+    # Суббота и воскресенье полностью заблокированы
+    if weekday in (5, 6):
+        return True
+    
+    return False
+
 # Кеш индикаторов по символу: {'time': last_bar_time, 'fast_ma':..., 'slow_ma':..., 'signal_ma':..., 'cross_signal_ma':..., 'signal_critical_angle_ma':..., 'macd':(...), 'MACD_signal':..., 'adx':(...), 'ADX_signal':..., 'rsi':..., 'rsi_signal':..., 'atr':...}
 indicator_cache = {}
 
@@ -369,7 +389,7 @@ class TradingBot:
 
             safeVolume = trading.calculateSafeTradeWithMargin(
                 symbol, 
-                risk_percent=90, 
+                risk_percent=80, 
                 stop_loss_pips = 2 * atr / mt5.symbol_info(symbol).point, 
                 order_type=TargetType.LONG
             )
@@ -1081,6 +1101,8 @@ def trading_loop():
                 atr_calc = cached.get('atr')
                 atr_value = cached.get('atr_value')
                 
+                # Получаем текущую цену закрытия бара
+                close_price = df['close'].iloc[-1] if df is not None and len(df) > 0 else 0
                 
                 # Сохраняем предыдущий статус
                 previous_status = previous_statuses.get(symbol, 0)
@@ -1114,28 +1136,41 @@ def trading_loop():
                             
                             if symbol == order_symbol:
                                 print("проверка на стопЛосс")
-                                condition_sl = profit > symbols_dict.symbolStopLossValue[symbol]
-                                #condition_sl = False
+                                # Получаем цену открытия позиции
+                                price_open = order_dict.get("price_open", 0)
+                                price_current = close_price  # используем текущую цену закрытия бара
                                 
+                                # Stop Loss на основе 2 ATR от цены открытия
+                                point = mt5.symbol_info(symbol).point if mt5.symbol_info(symbol) else 0.0001
+                                atr_in_price = 2 * atr_value if atr_value else 0
+                                
+                                condition_before_weekend = is_trading_blocked_before_weekend(datetime.datetime.now())
+                                
+                                # Проверка SL в зависимости от направления
+                                if order_type == 0:  # BUY
+                                    sl_price = price_open - atr_in_price
+                                    condition_sl = price_current <= sl_price
+                                else:  # SELL
+                                    sl_price = price_open + atr_in_price
+                                    condition_sl = price_current >= sl_price
                                 
                                  # Для LONG позиций (BUY)
                                 if order_type == 0:  # BUY
-                                    
                                     condition_rsi = rsi_signal['rsi'] < 50
-
-                                    
 
                                     if condition_sl:
                                         symbols_dict.symbolTradingStatus[symbol] = 2
-                                    if condition_sl or condition_rsi:
+                                    if condition_sl or condition_rsi or condition_before_weekend:
                                         trading.orderClose(ticketId, symbol)
 
                                             
                                         if CHAT_ID:
                                             reason = ""
-                                            if condition_sl:
-                                                reason = "Закрытие по Stop Loss"
-                                            if condition_rsi:
+                                            if condition_before_weekend:
+                                                reason = "Выходные (пятница 23:30)"
+                                            elif condition_sl:
+                                                reason = "Закрытие по Stop Loss (2 ATR)"
+                                            elif condition_rsi:
                                                 reason = "Закрытие по RSI"
                                             result = "😊" if profit > 0 else "😡"
                                                 
@@ -1145,7 +1180,7 @@ def trading_loop():
                                                 f"💰 Профит: {profit:.2f}\n"
                                                 f"🎯 Причина: {reason}\n"
                                                 f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}\n"
-                                                f"🎯 StopLoss: {symbols_dict.symbolStopLossValue[symbol]}"
+                                                f"🎯 Open: {price_open:.5f}, SL: {sl_price:.5f}"
                                                 
                                             )
                                             asyncio.run_coroutine_threadsafe(
@@ -1161,25 +1196,27 @@ def trading_loop():
 
                                         if condition_sl:
                                             symbols_dict.symbolTradingStatus[symbol] = 2
-                                        if  condition_sl or condition_rsi:
+                                        if  condition_sl or condition_rsi or condition_before_weekend:
                                             trading.orderClose(ticketId, symbol)
 
                                             if CHAT_ID:
 
                                                 reason = ""
-                                                if condition_sl:
-                                                    reason = "Закрытие по Stop Loss"
-                                                if condition_rsi:
+                                                if condition_before_weekend:
+                                                    reason = "Выходные (пятница 23:30)"
+                                                elif condition_sl:
+                                                    reason = "Закрытие по Stop Loss (2 ATR)"
+                                                elif condition_rsi:
                                                     reason = "Закрытие по RSI"
                                                 result = "😊" if profit > 0 else "😡"
                                                     
                                                 telegram_message = (
-                                                    f"{result} ЗАКРЫТИЕ LONG ПОЗИЦИИ\n\n"
+                                                    f"{result} ЗАКРЫТИЕ SHORT ПОЗИЦИИ\n\n"
                                                     f"💵 Пара: {symbol}\n"
                                                     f"💰 Профит: {profit:.2f}\n"
                                                     f"🎯 Причина: {reason}\n"
                                                     f"🎯 RSI: {rsi_value['RSI'].iloc[-1]}\n"
-                                                    f"🎯 StopLoss: {symbols_dict.symbolStopLossValue[symbol]}"
+                                                    f"🎯 Open: {price_open:.5f}, SL: {sl_price:.5f}"
 
                                                 )
                                                 asyncio.run_coroutine_threadsafe(
@@ -1220,7 +1257,7 @@ def trading_loop():
                         )
                     #Проверяем на открытие
                    
-                    if sum_signal != 'NO_SIGNAL' and symbols_dict.symbolTradingStatus[symbol] == 0:
+                    if sum_signal != 'NO_SIGNAL' and symbols_dict.symbolTradingStatus[symbol] == 0 and not is_trading_blocked_before_weekend(datetime.datetime.now()):
                         trading_bot.checkOpen(symbol, sum_signal, 'sum_signal', atr_value, signal_ma, signal_critical_angle_ma, MACD_signal, rsi_signal)                    
                     # Обновляем предыдущий статус
                     previous_statuses[symbol] = current_status

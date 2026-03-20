@@ -151,6 +151,28 @@ def ma_simple_signal(fast_val, slow_val):
     return 'NO_SIGNAL'
 
 
+# ───────────────────────── Проверка торговли перед выходными ──────────────
+
+def is_trading_blocked_before_weekend(bar_time: datetime) -> bool:
+    """
+    Возвращает True, если торговля должна быть заблокирована.
+    Блокировка: пятница с 23:30 до начала понедельника.
+    """
+    weekday = bar_time.weekday()  # 0=пн, 1=вт, ..., 4=пт, 5=сб, 6=вс
+    hour = bar_time.hour
+    minute = bar_time.minute
+    
+    # Пятница после 23:30
+    if weekday == 4 and (hour > 23 or (hour == 23 and minute >= 30)):
+        return True
+    
+    # Суббота и воскресенье полностью заблокированы
+    if weekday in (5, 6):
+        return True
+    
+    return False
+
+
 # ───────────────────────── Позиция / Сделка ─────────────────────────────
 
 @dataclass
@@ -161,6 +183,7 @@ class Position:
     open_bar: int
     atr_at_open: float
     symbol: str
+    volume: float  # размер лота в контрактах
 
 
 @dataclass
@@ -175,6 +198,7 @@ class Trade:
     open_bar: int
     close_bar: int
     close_reason: str
+    volume: float  # размер лота
 
 
 # ───────────────────────── Основной бэктестер ───────────────────────────
@@ -190,12 +214,17 @@ class Backtester:
     # Минимальное кол-во баров для прогрева индикаторов
     WARMUP = 50
 
-    def __init__(self, symbol: str, timeframe, bars: int = 1000, verbose: bool = False):
+    def __init__(self, symbol: str, timeframe, bars: int = 1000, verbose: bool = False, initial_balance: float = 10000):
         self.symbol = symbol
         self.timeframe = timeframe
         self.bars = bars
         self.verbose = verbose
         self.point = mt5.symbol_info(symbol).point
+        
+        # Параметры счета
+        self.initial_balance = initial_balance
+        self.balance = initial_balance  # текущий баланс
+        self.risk_percent = 1.0  # 1% за сделку
 
         # Загрузка данных
         rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, bars)
@@ -214,6 +243,20 @@ class Backtester:
         """Печатает и сохраняет строку в лог."""
         print(text)
         self.log.append(text)
+
+    def _calculate_volume(self, atr_at_open: float) -> float:
+        """
+        Расчет объема на основе риска 1% от баланса.
+        Риск = volume * atr_at_open * 2 (за 2 ATR)
+        volume = (balance * 0.01) / (atr_at_open * 2)
+        """
+        risk_amount = self.balance * (self.risk_percent / 100)
+        sl_distance = 2 * atr_at_open  # стоп в 2 ATR
+        if sl_distance > 0:
+            volume = risk_amount / sl_distance
+        else:
+            volume = 0.01  # минимальный лот
+        return round(volume, 2)
 
     # ── Расчёт индикаторов на подмножестве [0..end] ──
 
@@ -332,6 +375,13 @@ class Backtester:
         else:
             profit_pips = (pos.open_price - price) / self.point
 
+        # Прибыль в долларах = прибыль в пипсах * размер_лота * стоимость_пипса
+        # Для большинства пар: profit_money = profit_pips * volume * point * 10
+        profit_money = profit_pips * pos.volume * self.point * 10
+        
+        # Обновляем баланс
+        self.balance += profit_money
+
         self.trades.append(Trade(
             direction=pos.direction,
             open_price=pos.open_price,
@@ -339,10 +389,11 @@ class Backtester:
             open_time=pos.open_time,
             close_time=bar_time,
             profit_pips=profit_pips,
-            profit_money=profit_pips * self.point,
+            profit_money=profit_money,
             open_bar=pos.open_bar,
             close_bar=bar_idx,
             close_reason=reason,
+            volume=pos.volume,
         ))
         self.position = None
 
@@ -384,22 +435,33 @@ class Backtester:
                 # Расчёт текущего профита в пипсах
                 if pos.direction == 'BUY':
                     current_profit_pips = (close_price - pos.open_price) / self.point
-                    # Стоп-лосс: 2*ATR от цены открытия
-                    sl_price = pos.open_price - 2 * pos.atr_at_open
-                    condition_sl = close_price <= sl_price
+                    # Stop Loss: потеря > 2 ATR
+                    atr_in_pips = pos.atr_at_open / self.point
+                    condition_sl = current_profit_pips < -2 * atr_in_pips
                     condition_rsi = rsi_cur < 50
                 else:
                     current_profit_pips = (pos.open_price - close_price) / self.point
-                    sl_price = pos.open_price + 2 * pos.atr_at_open
-                    condition_sl = close_price >= sl_price
+                    atr_in_pips = pos.atr_at_open / self.point
+                    condition_sl = current_profit_pips < -2 * atr_in_pips
                     condition_rsi = rsi_cur > 50
+
+                # Расчет прибыли в долларах для вывода
+                current_profit_money = current_profit_pips * pos.volume * self.point * 10
+
+                # Закрыть позицию перед выходными
+                condition_before_weekend = is_trading_blocked_before_weekend(bar_time)
 
                 if condition_sl:
                     status = 2
-                if condition_sl or condition_rsi:
-                    reason = "Stop Loss" if condition_sl else "RSI"
+                if condition_sl or condition_rsi or condition_before_weekend:
+                    if condition_before_weekend:
+                        reason = "Before Weekend"
+                    elif condition_sl:
+                        reason = "Stop Loss (2 ATR)"
+                    else:
+                        reason = "RSI"
                     # ── Вывод индикаторов при закрытии сделки ──
-                    self._log(f"\n<<< ЗАКРЫТИЕ {pos.direction} @ {close_price:.5f}  P/L={current_profit_pips:+.1f} pips  [{bar_time.strftime('%Y-%m-%d %H:%M')}]  Причина: {reason}")
+                    self._log(f"\n<<< ЗАКРЫТИЕ {pos.direction} @ {close_price:.5f}  P/L=${current_profit_money:+,.2f}  [{bar_time.strftime('%Y-%m-%d %H:%M')}]  Причина: {reason}")
                     self._log(f"    {self._format_indicators(ind, i)}")
                     self._log('')
                     self._close_position(close_price, bar_time, i, reason)
@@ -410,18 +472,22 @@ class Backtester:
 
             # ── Проверка открытия новой позиции ──
             if self.position is None and sum_sig != 'NO_SIGNAL' and status == 0:
-                self.position = Position(
-                    direction=sum_sig,
-                    open_price=close_price,
-                    open_time=bar_time,
-                    open_bar=i,
-                    atr_at_open=atr_val,
-                    symbol=self.symbol,
-                )
-                # ── Вывод индикаторов при открытии сделки ──
-                self._log(f"\n>>> ОТКРЫТИЕ {sum_sig} @ {close_price:.5f}  [{bar_time.strftime('%Y-%m-%d %H:%M')}]")
-                self._log(f"    {self._format_indicators(ind, i)}")
-                self._log('')
+                # Не открываем позиции перед выходными
+                if not is_trading_blocked_before_weekend(bar_time):
+                    volume = self._calculate_volume(atr_val)
+                    self.position = Position(
+                        direction=sum_sig,
+                        open_price=close_price,
+                        open_time=bar_time,
+                        open_bar=i,
+                        atr_at_open=atr_val,
+                        symbol=self.symbol,
+                        volume=volume,
+                    )
+                    # ── Вывод индикаторов при открытии сделки ──
+                    self._log(f"\n>>> ОТКРЫТИЕ {sum_sig} @ {close_price:.5f}  Лот: {volume:.2f}  [{bar_time.strftime('%Y-%m-%d %H:%M')}]")
+                    self._log(f"    {self._format_indicators(ind, i)}")
+                    self._log('')
 
         # Закрываем позицию на последнем баре, если осталась открытой
         if self.position is not None:
@@ -437,27 +503,33 @@ class Backtester:
         lines.append(f"  Период: {self.df['time'].iloc[0]} — {self.df['time'].iloc[-1]}")
         lines.append(f"  Баров: {len(self.df)}, прогрев: {self.WARMUP}")
         lines.append(f"{'=' * 70}")
+        lines.append(f"  Начальный баланс:   ${self.initial_balance:,.2f}")
+        lines.append(f"  Финальный баланс:   ${self.balance:,.2f}")
+        final_profit = self.balance - self.initial_balance
+        profit_percent = (final_profit / self.initial_balance) * 100
+        lines.append(f"  Прибыль/убыток:     ${final_profit:+,.2f} ({profit_percent:+.2f}%)")
+        lines.append(f"{'=' * 70}")
 
         if not self.trades:
             lines.append("  Нет сделок за период.")
             return '\n'.join(lines)
 
-        wins = [t for t in self.trades if t.profit_pips > 0]
-        losses = [t for t in self.trades if t.profit_pips <= 0]
-        total_pips = sum(t.profit_pips for t in self.trades)
-        avg_win = np.mean([t.profit_pips for t in wins]) if wins else 0
-        avg_loss = np.mean([t.profit_pips for t in losses]) if losses else 0
-        max_win = max((t.profit_pips for t in self.trades), default=0)
-        max_loss = min((t.profit_pips for t in self.trades), default=0)
+        wins = [t for t in self.trades if t.profit_money > 0]
+        losses = [t for t in self.trades if t.profit_money <= 0]
+        total_profit = sum(t.profit_money for t in self.trades)
+        avg_win = np.mean([t.profit_money for t in wins]) if wins else 0
+        avg_loss = np.mean([t.profit_money for t in losses]) if losses else 0
+        max_win = max((t.profit_money for t in self.trades), default=0)
+        max_loss = min((t.profit_money for t in self.trades), default=0)
 
         win_rate = len(wins) / len(self.trades) * 100
 
-        # Max drawdown (по пипсам)
+        # Max drawdown (по долларам)
         cumulative = 0.0
         peak = 0.0
         max_dd = 0.0
         for t in self.trades:
-            cumulative += t.profit_pips
+            cumulative += t.profit_money
             if cumulative > peak:
                 peak = cumulative
             dd = peak - cumulative
@@ -465,8 +537,8 @@ class Backtester:
                 max_dd = dd
 
         # Profit factor
-        gross_profit = sum(t.profit_pips for t in wins) if wins else 0
-        gross_loss = abs(sum(t.profit_pips for t in losses)) if losses else 0
+        gross_profit = sum(t.profit_money for t in wins) if wins else 0
+        gross_loss = abs(sum(t.profit_money for t in losses)) if losses else 0
         profit_factor = gross_profit / gross_loss if gross_loss > 0 else float('inf')
 
         # Средняя длительность сделки (в барах)
@@ -476,28 +548,28 @@ class Backtester:
         lines.append(f"  Прибыльных:         {len(wins)} ({win_rate:.1f}%)")
         lines.append(f"  Убыточных:          {len(losses)} ({100 - win_rate:.1f}%)")
         lines.append(f"  ─────────────────────────────────────")
-        lines.append(f"  Итого (пипсы):      {total_pips:+.1f}")
-        lines.append(f"  Средний выигрыш:    {avg_win:+.1f} пипсов")
-        lines.append(f"  Средний проигрыш:   {avg_loss:+.1f} пипсов")
-        lines.append(f"  Макс. выигрыш:      {max_win:+.1f} пипсов")
-        lines.append(f"  Макс. проигрыш:     {max_loss:+.1f} пипсов")
+        lines.append(f"  Итого прибыль:      ${total_profit:+,.2f}")
+        lines.append(f"  Средний выигрыш:    ${avg_win:+,.2f}")
+        lines.append(f"  Средний убыток:     ${avg_loss:+,.2f}")
+        lines.append(f"  Макс. выигрыш:      ${max_win:+,.2f}")
+        lines.append(f"  Макс. убыток:       ${max_loss:+,.2f}")
         lines.append(f"  ─────────────────────────────────────")
         lines.append(f"  Profit Factor:      {profit_factor:.2f}")
-        lines.append(f"  Max Drawdown:       {max_dd:.1f} пипсов")
+        lines.append(f"  Max Drawdown:       ${max_dd:,.2f}")
         lines.append(f"  Средняя длит. (баров): {avg_bars:.1f}")
         lines.append(f"{'=' * 70}")
 
         # Список сделок
-        lines.append(f"\n  {'№':>3}  {'Напр.':>5}  {'Откр. цена':>12}  {'Закр. цена':>12}  "
-                      f"{'П/У пипс':>10}  {'Причина':>12}  {'Время открытия':>20}  {'Время закрытия':>20}")
-        lines.append(f"  {'─' * 110}")
+        lines.append(f"\n  {'№':>3}  {'Напр.':>5}  {'Лот':>8}  {'Откр. цена':>12}  {'Закр. цена':>12}  "
+                      f"{'П/У $':>12}  {'Причина':>15}  {'Время открытия':>20}")
+        lines.append(f"  {'─' * 120}")
 
         for idx, t in enumerate(self.trades, 1):
-            emoji = "+" if t.profit_pips > 0 else "-"
+            emoji = "+" if t.profit_money > 0 else "-"
             lines.append(
-                f"  {idx:>3}  {t.direction:>5}  {t.open_price:>12.5f}  {t.close_price:>12.5f}  "
-                f"{emoji}{abs(t.profit_pips):>9.1f}  {t.close_reason:>12}  "
-                f"{t.open_time.strftime('%Y-%m-%d %H:%M'):>20}  {t.close_time.strftime('%Y-%m-%d %H:%M'):>20}"
+                f"  {idx:>3}  {t.direction:>5}  {t.volume:>8.2f}  {t.open_price:>12.5f}  {t.close_price:>12.5f}  "
+                f"{emoji}{abs(t.profit_money):>11,.2f}  {t.close_reason:>15}  "
+                f"{t.open_time.strftime('%Y-%m-%d %H:%M'):>20}"
             )
 
         return '\n'.join(lines)
@@ -515,6 +587,8 @@ def main():
                         help='Таймфрейм: M1, M5, M15, M30, H1, H4, D1, W1, MN1 (по умолчанию из settings)')
     parser.add_argument('--verbose', action='store_true',
                         help='Выводить индикаторы на каждом баре')
+    parser.add_argument('--balance', type=float, default=10000,
+                        help='Начальный баланс счета в долларах (по умолчанию 10000)')
     args = parser.parse_args()
 
     TIMEFRAMES = {
@@ -553,7 +627,7 @@ def main():
         print(f"\n{'─' * 40}")
         print(f"Запуск бэктеста для {symbol}...")
         try:
-            bt = Backtester(symbol, timeframe, bars=args.bars, verbose=args.verbose)
+            bt = Backtester(symbol, timeframe, bars=args.bars, verbose=args.verbose, initial_balance=args.balance)
             bt.run()
             report = bt.report()
             results.append((report, bt.log))

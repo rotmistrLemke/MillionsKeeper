@@ -1,0 +1,622 @@
+
+>>> ОТКРЫТИЕ SELL @ 90.49000  [2026-01-15 12:00]
+    Bar   50 | 2026-01-15 12:00 | Close=90.49000 | MA8=89.68350 MA20=89.96417 MA_sig=     SELL | MACD=-0.164683 sig=+0.154277 MACD_sig= CLOSE_SELL | RSI=53.36 RSI_sig=      BUY | Angle=  14
+
+
+<<< ЗАКРЫТИЕ SELL @ 91.08100  P/L=-5910.0 pips  [2026-01-15 15:00]  Причина: RSI
+    Bar   53 | 2026-01-15 15:00 | Close=91.08100 | MA8=90.45454 MA20=90.26964 MA_sig=      BUY | MACD=+0.116232 sig=+0.094062 MACD_sig=        BUY | RSI=55.72 RSI_sig=NO_SIGNAL | Angle=  11
+
+
+>>> ОТКРЫТИЕ BUY @ 91.08100  [2026-01-15 15:00]
+    Bar   53 | 2026-01-15 15:00 | Close=91.08100 | MA8=90.45454 MA20=90.26964 MA_sig=      BUY | MACD=+0.116232 sig=+0.094062 MACD_sig=        BUY | RSI=55.72 RSI_sig=NO_SIGNAL | Angle=  11
+
+
+<<< ЗАКРЫТИЕ BUY @ 90.37700  P/L=-7040.0 pips  [2026-01-15 17:00]  Причина: RSI
+    Bar   55 | 2026-01-15 17:00 | Close=90.37700 | MA8=90.10329 MA20=90.12927 MA_sig=     SELL | MACD=+0.019291 sig=+0.092453 MACD_sig=  CLOSE_BUY | RSI=51.64 RSI_sig=NO_SIGNAL | Angle=   4
+
+
+>>> ОТКРЫТИЕ SELL @ 90.37700  [2026-01-15 17:00]
+    Bar   55 | 2026-01-15 17:00 | Close=90.37700 | MA8=90.10329 MA20=90.12927 MA_sig=     SELL | MACD=+0.019291 sig=+0.092453 MACD_sig=  CLOSE_BUY | RSI=51.64 RSI_sig=NO_SIGNAL | Angle=   4
+
+
+<<< ЗАКРЫТИЕ SELL @ 91.84300  P/L=-14660.0 pips  [2026-01-15 20:00]  Причина: RSI
+    Bar   58 | 2026-01-15 20:00 | Close=91.84300 | MA8=90.73040 MA20=90.41403 MA_sig=      BUY | MACD=+0.146902 sig=+0.095438 MACD_sig=        BUY | RSI=57.64 RSI_sig=      BUY | Angle=  24
+
+
+>>> ОТКРЫТИЕ BUY @ 91.84300  [2026-01-15 20:00]
+    Bar   58 | 2026-01-15 20:00 | Close=91.84300 | MA8=90.73040 MA20=90.41403 MA_sig=      BUY | MACD=+0.146902 sig=+0.095438 MACD_sig=        BUY | RSI=57.64 RSI_sig=      BUY | Angle=  24
+
+
+<<< ЗАКРЫТИЕ BUY @ 90.02700  P/L=-18160.0 pips  [2026-01-16 05:00]  Причина: RSI
+    Bar   66 | 2026-01-16 05:00 | Close=90.02700 | MA8=91.06230 MA20=90.94581 MA_sig=      BUY | MACD=+0.384535 sig=+0.396824 MACD_sig=  CLOSE_BUY | RSI=46.13 RSI_sig=NO_SIGNAL | Angle= -20
+
+
+>>> ОТКРЫТИЕ SELL @ 90.02700  [2026-01-16 05:00]
+    Bar   66 | 2026-01-16 05:00 | Close=90.02700 | MA8=91.06230 MA20=90.94581 MA_sig=      BUY | MACD=+0.384535 sig=+0.396824 MACD_sig=  CLOSE_BUY | RSI=46.13 RSI_sig=NO_SIGNAL | Angle= -20
+
+
+<<< ЗАКРЫТИЕ SELL @ 93.36300  P/L=-33360.0 pips  [2026-01-19 02:00]  Причина: Stop Loss
+    Bar   85 | 2026-01-19 02:00 | Close=93.36300 | MA8=90.18802 MA20=90.14006 MA_sig=      BUY | MACD=-0.467730 sig=-0.359419 MACD_sig= CLOSE_SELL | RSI=64.90 RSI_sig=      BUY | Angle=  49
+
+
+>>> ОТКРЫТИЕ SELL @ 94.46500  [2026-01-20 08:00]
+    Bar  111 | 2026-01-20 08:00 | Close=94.46500 | MA8=93.81062 MA20=93.40082 MA_sig=      BUY | MACD=+0.497754 sig=+0.608386 MACD_sig=  NO_SIGNAL | RSI=62.15 RSI_sig=      BUY | Angle=  26
+
+
+<<< ЗАКРЫТИЕ SELL @ 94.93700  P/L=-4720.0 pips  [2026-01-20 12:00]  Причина: RSI
+    Bar  115 | 2026-01-20 12:00 | Close=94.93700 | MA8=94.39736 MA20=93.81739 MA_sig=      BUY | MACD=+0.599926 sig=+0.571276 MACD_sig=        BUY | RSI=61.53 RSI_sig=NO_SIGNAL | Angle=  20
+
+
+>>> ОТКРЫТИЕ BUY @ 94.93700  [2026-01-20 12:00]
+    Bar  115 | 2026-01-20 12:00 | Close=94.93700 | MA8=94.39736 MA20=93.81739 MA_sig=      BUY | MACD=+0.599926 sig=+0.571276 MACD_sig=        BUY | RSI=61.53 RSI_sig=NO_SIGNAL | Angle=  20
+
+
+<<< ЗАКРЫТИЕ BUY @ 94.13000  P/L=-8070.0 pips  [2026-01-20 19:00]  Причина: RSI
+    Bar  122 | 2026-01-20 19:00 | Close=94.13000 | MA8=94.62167 MA20=94.33075 MA_sig=      BUY | MACD=+0.565389 sig=+0.650087 MACD_sig=  CLOSE_BUY | RSI=50.58 RSI_sig=NO_SIGNAL | Angle= -15
+
+
+>>> ОТКРЫТИЕ SELL @ 94.13000  [2026-01-20 19:00]
+    Bar  122 | 2026-01-20 19:00 | Close=94.13000 | MA8=94.62167 MA20=94.33075 MA_sig=      BUY | MACD=+0.565389 sig=+0.650087 MACD_sig=  CLOSE_BUY | RSI=50.58 RSI_sig=NO_SIGNAL | Angle= -15
+
+
+<<< ЗАКРЫТИЕ SELL @ 94.86600  P/L=-7360.0 pips  [2026-01-21 13:00]  Причина: RSI
+    Bar  139 | 2026-01-21 13:00 | Close=94.86600 | MA8=94.75370 MA20=94.58989 MA_sig=      BUY | MACD=+0.198901 sig=+0.196939 MACD_sig=        BUY | RSI=54.36 RSI_sig=NO_SIGNAL | Angle=   4
+
+
+>>> ОТКРЫТИЕ BUY @ 94.86600  [2026-01-21 13:00]
+    Bar  139 | 2026-01-21 13:00 | Close=94.86600 | MA8=94.75370 MA20=94.58989 MA_sig=      BUY | MACD=+0.198901 sig=+0.196939 MACD_sig=        BUY | RSI=54.36 RSI_sig=NO_SIGNAL | Angle=   4
+
+
+<<< ЗАКРЫТИЕ BUY @ 94.21300  P/L=-6530.0 pips  [2026-01-21 15:00]  Причина: RSI
+    Bar  141 | 2026-01-21 15:00 | Close=94.21300 | MA8=94.63239 MA20=94.56754 MA_sig=      BUY | MACD=+0.190556 sig=+0.196285 MACD_sig=  CLOSE_BUY | RSI=47.17 RSI_sig=     SELL | Angle= -16
+
+
+>>> ОТКРЫТИЕ SELL @ 94.21300  [2026-01-21 15:00]
+    Bar  141 | 2026-01-21 15:00 | Close=94.21300 | MA8=94.63239 MA20=94.56754 MA_sig=      BUY | MACD=+0.190556 sig=+0.196285 MACD_sig=  CLOSE_BUY | RSI=47.17 RSI_sig=     SELL | Angle= -16
+
+
+<<< ЗАКРЫТИЕ SELL @ 93.81500  P/L=+3980.0 pips  [2026-01-22 08:00]  Причина: RSI
+    Bar  157 | 2026-01-22 08:00 | Close=93.81500 | MA8=93.05137 MA20=93.25293 MA_sig=     SELL | MACD=-0.425506 sig=-0.454942 MACD_sig= CLOSE_SELL | RSI=52.71 RSI_sig=NO_SIGNAL | Angle=  17
+
+
+>>> ОТКРЫТИЕ BUY @ 93.81500  [2026-01-22 08:00]
+    Bar  157 | 2026-01-22 08:00 | Close=93.81500 | MA8=93.05137 MA20=93.25293 MA_sig=     SELL | MACD=-0.425506 sig=-0.454942 MACD_sig= CLOSE_SELL | RSI=52.71 RSI_sig=NO_SIGNAL | Angle=  17
+
+
+<<< ЗАКРЫТИЕ BUY @ 99.19900  P/L=+53840.0 pips  [2026-01-23 15:00]  Причина: RSI
+    Bar  187 | 2026-01-23 15:00 | Close=99.19900 | MA8=98.68219 MA20=97.68529 MA_sig=      BUY | MACD=+1.144883 sig=+1.150606 MACD_sig=  CLOSE_BUY | RSI=70.63 RSI_sig=NO_SIGNAL | Angle=  20
+
+
+>>> ОТКРЫТИЕ SELL @ 99.19900  [2026-01-23 15:00]
+    Bar  187 | 2026-01-23 15:00 | Close=99.19900 | MA8=98.68219 MA20=97.68529 MA_sig=      BUY | MACD=+1.144883 sig=+1.150606 MACD_sig=  CLOSE_BUY | RSI=70.63 RSI_sig=NO_SIGNAL | Angle=  20
+
+
+<<< ЗАКРЫТИЕ SELL @ 99.28600  P/L=-870.0 pips  [2026-01-23 17:00]  Причина: RSI
+    Bar  189 | 2026-01-23 17:00 | Close=99.28600 | MA8=98.97673 MA20=98.00359 MA_sig=      BUY | MACD=+1.152378 sig=+1.148940 MACD_sig=        BUY | RSI=68.42 RSI_sig=NO_SIGNAL | Angle=  11
+
+
+>>> ОТКРЫТИЕ BUY @ 99.28600  [2026-01-23 17:00]
+    Bar  189 | 2026-01-23 17:00 | Close=99.28600 | MA8=98.97673 MA20=98.00359 MA_sig=      BUY | MACD=+1.152378 sig=+1.148940 MACD_sig=        BUY | RSI=68.42 RSI_sig=NO_SIGNAL | Angle=  11
+
+
+<<< ЗАКРЫТИЕ BUY @ 99.82500  P/L=+5390.0 pips  [2026-01-23 18:00]  Причина: RSI
+    Bar  190 | 2026-01-23 18:00 | Close=99.82500 | MA8=99.16524 MA20=98.17706 MA_sig=      BUY | MACD=+1.124685 sig=+1.144089 MACD_sig=  CLOSE_BUY | RSI=71.55 RSI_sig=NO_SIGNAL | Angle=  25
+
+
+>>> ОТКРЫТИЕ SELL @ 99.82500  [2026-01-23 18:00]
+    Bar  190 | 2026-01-23 18:00 | Close=99.82500 | MA8=99.16524 MA20=98.17706 MA_sig=      BUY | MACD=+1.124685 sig=+1.144089 MACD_sig=  CLOSE_BUY | RSI=71.55 RSI_sig=NO_SIGNAL | Angle=  25
+
+
+<<< ЗАКРЫТИЕ SELL @ 100.69950  P/L=-8745.0 pips  [2026-01-23 20:00]  Причина: RSI
+    Bar  192 | 2026-01-23 20:00 | Close=100.69950 | MA8=99.75175 MA20=98.62486 MA_sig=      BUY | MACD=+1.187608 sig=+1.151045 MACD_sig=        BUY | RSI=75.78 RSI_sig=NO_SIGNAL | Angle=  34
+
+
+>>> ОТКРЫТИЕ BUY @ 100.69950  [2026-01-23 20:00]
+    Bar  192 | 2026-01-23 20:00 | Close=100.69950 | MA8=99.75175 MA20=98.62486 MA_sig=      BUY | MACD=+1.187608 sig=+1.151045 MACD_sig=        BUY | RSI=75.78 RSI_sig=NO_SIGNAL | Angle=  34
+
+
+<<< ЗАКРЫТИЕ BUY @ 111.21150  P/L=+105120.0 pips  [2026-01-26 17:00]  Причина: RSI
+    Bar  211 | 2026-01-26 17:00 | Close=111.21150 | MA8=109.29532 MA20=106.98664 MA_sig=      BUY | MACD=+2.609074 sig=+2.693309 MACD_sig=  CLOSE_BUY | RSI=83.50 RSI_sig=NO_SIGNAL | Angle=  32
+
+
+>>> ОТКРЫТИЕ SELL @ 111.21150  [2026-01-26 17:00]
+    Bar  211 | 2026-01-26 17:00 | Close=111.21150 | MA8=109.29532 MA20=106.98664 MA_sig=      BUY | MACD=+2.609074 sig=+2.693309 MACD_sig=  CLOSE_BUY | RSI=83.50 RSI_sig=NO_SIGNAL | Angle=  32
+
+
+<<< ЗАКРЫТИЕ SELL @ 114.25700  P/L=-30455.0 pips  [2026-01-26 19:00]  Причина: RSI
+    Bar  213 | 2026-01-26 19:00 | Close=114.25700 | MA8=110.88302 MA20=108.11983 MA_sig=      BUY | MACD=+2.750848 sig=+2.700410 MACD_sig=        BUY | RSI=88.15 RSI_sig=NO_SIGNAL | Angle=  49
+
+
+>>> ОТКРЫТИЕ BUY @ 114.25700  [2026-01-26 19:00]
+    Bar  213 | 2026-01-26 19:00 | Close=114.25700 | MA8=110.88302 MA20=108.11983 MA_sig=      BUY | MACD=+2.750848 sig=+2.700410 MACD_sig=        BUY | RSI=88.15 RSI_sig=NO_SIGNAL | Angle=  49
+
+
+<<< ЗАКРЫТИЕ BUY @ 107.44100  P/L=-68160.0 pips  [2026-01-26 22:00]  Причина: Stop Loss
+    Bar  216 | 2026-01-26 22:00 | Close=107.44100 | MA8=111.01230 MA20=109.02281 MA_sig=      BUY | MACD=+3.085214 sig=+2.908789 MACD_sig=  CLOSE_BUY | RSI=49.21 RSI_sig=     SELL | Angle= -40
+
+
+>>> ОТКРЫТИЕ SELL @ 110.38750  [2026-01-27 05:00]
+    Bar  222 | 2026-01-27 05:00 | Close=110.38750 | MA8=108.90919 MA20=108.52031 MA_sig=      BUY | MACD=+1.015293 sig=+1.785188 MACD_sig=  NO_SIGNAL | RSI=55.74 RSI_sig=      BUY | Angle=  13
+
+
+<<< ЗАКРЫТИЕ SELL @ 112.41050  P/L=-20230.0 pips  [2026-01-27 13:00]  Причина: RSI
+    Bar  230 | 2026-01-27 13:00 | Close=112.41050 | MA8=111.15896 MA20=109.95013 MA_sig=      BUY | MACD=+1.273042 sig=+1.211118 MACD_sig=        BUY | RSI=58.32 RSI_sig=NO_SIGNAL | Angle=  13
+
+
+>>> ОТКРЫТИЕ BUY @ 112.41050  [2026-01-27 13:00]
+    Bar  230 | 2026-01-27 13:00 | Close=112.41050 | MA8=111.15896 MA20=109.95013 MA_sig=      BUY | MACD=+1.273042 sig=+1.211118 MACD_sig=        BUY | RSI=58.32 RSI_sig=NO_SIGNAL | Angle=  13
+
+
+<<< ЗАКРЫТИЕ BUY @ 112.04600  P/L=-3645.0 pips  [2026-01-27 16:00]  Причина: RSI
+    Bar  233 | 2026-01-27 16:00 | Close=112.04600 | MA8=111.42255 MA20=110.38684 MA_sig=      BUY | MACD=+1.247461 sig=+1.252548 MACD_sig=  CLOSE_BUY | RSI=56.80 RSI_sig=NO_SIGNAL | Angle=   8
+
+
+>>> ОТКРЫТИЕ SELL @ 112.04600  [2026-01-27 16:00]
+    Bar  233 | 2026-01-27 16:00 | Close=112.04600 | MA8=111.42255 MA20=110.38684 MA_sig=      BUY | MACD=+1.247461 sig=+1.252548 MACD_sig=  CLOSE_BUY | RSI=56.80 RSI_sig=NO_SIGNAL | Angle=   8
+
+
+<<< ЗАКРЫТИЕ SELL @ 113.38260  P/L=-13366.0 pips  [2026-01-28 03:00]  Причина: RSI
+    Bar  243 | 2026-01-28 03:00 | Close=113.38260 | MA8=111.25735 MA20=110.34729 MA_sig=      BUY | MACD=+0.607508 sig=+0.451624 MACD_sig=        BUY | RSI=59.69 RSI_sig=      BUY | Angle=  27
+
+
+>>> ОТКРЫТИЕ BUY @ 113.38260  [2026-01-28 03:00]
+    Bar  243 | 2026-01-28 03:00 | Close=113.38260 | MA8=111.25735 MA20=110.34729 MA_sig=      BUY | MACD=+0.607508 sig=+0.451624 MACD_sig=        BUY | RSI=59.69 RSI_sig=      BUY | Angle=  27
+
+
+<<< ЗАКРЫТИЕ BUY @ 112.48510  P/L=-8975.0 pips  [2026-01-28 14:00]  Причина: RSI
+    Bar  254 | 2026-01-28 14:00 | Close=112.48510 | MA8=113.43162 MA20=112.73823 MA_sig=      BUY | MACD=+1.192597 sig=+1.295240 MACD_sig=  CLOSE_BUY | RSI=51.24 RSI_sig=NO_SIGNAL | Angle= -19
+
+
+>>> ОТКРЫТИЕ SELL @ 112.48510  [2026-01-28 14:00]
+    Bar  254 | 2026-01-28 14:00 | Close=112.48510 | MA8=113.43162 MA20=112.73823 MA_sig=      BUY | MACD=+1.192597 sig=+1.295240 MACD_sig=  CLOSE_BUY | RSI=51.24 RSI_sig=NO_SIGNAL | Angle= -19
+
+
+<<< ЗАКРЫТИЕ SELL @ 116.17040  P/L=-36853.0 pips  [2026-01-28 23:00]  Причина: Stop Loss
+    Bar  263 | 2026-01-28 23:00 | Close=116.17040 | MA8=114.20971 MA20=113.56700 MA_sig=      BUY | MACD=+0.651491 sig=+0.867916 MACD_sig=  NO_SIGNAL | RSI=59.50 RSI_sig=      BUY | Angle=  26
+
+
+>>> ОТКРЫТИЕ SELL @ 116.60500  [2026-01-29 00:00]
+    Bar  264 | 2026-01-29 00:00 | Close=116.60500 | MA8=114.74200 MA20=113.85633 MA_sig=      BUY | MACD=+0.807679 sig=+0.855869 MACD_sig=  NO_SIGNAL | RSI=60.57 RSI_sig=      BUY | Angle=  25
+
+
+<<< ЗАКРЫТИЕ SELL @ 117.76530  P/L=-11603.0 pips  [2026-01-29 02:00]  Причина: RSI
+    Bar  265 | 2026-01-29 02:00 | Close=117.76530 | MA8=115.41384 MA20=114.22862 MA_sig=      BUY | MACD=+0.955513 sig=+0.875798 MACD_sig=        BUY | RSI=63.35 RSI_sig=      BUY | Angle=  29
+
+
+>>> ОТКРЫТИЕ BUY @ 117.76530  [2026-01-29 02:00]
+    Bar  265 | 2026-01-29 02:00 | Close=117.76530 | MA8=115.41384 MA20=114.22862 MA_sig=      BUY | MACD=+0.955513 sig=+0.875798 MACD_sig=        BUY | RSI=63.35 RSI_sig=      BUY | Angle=  29
+
+
+<<< ЗАКРЫТИЕ BUY @ 117.64930  P/L=-1160.0 pips  [2026-01-29 12:00]  Причина: RSI
+    Bar  275 | 2026-01-29 12:00 | Close=117.64930 | MA8=117.56720 MA20=116.51219 MA_sig=      BUY | MACD=+1.369637 sig=+1.407857 MACD_sig=  CLOSE_BUY | RSI=57.33 RSI_sig=NO_SIGNAL | Angle=   1
+
+
+>>> ОТКРЫТИЕ SELL @ 117.64930  [2026-01-29 12:00]
+    Bar  275 | 2026-01-29 12:00 | Close=117.64930 | MA8=117.56720 MA20=116.51219 MA_sig=      BUY | MACD=+1.369637 sig=+1.407857 MACD_sig=  CLOSE_BUY | RSI=57.33 RSI_sig=NO_SIGNAL | Angle=   1
+
+
+<<< ЗАКРЫТИЕ SELL @ 81.80930  P/L=+358400.0 pips  [2026-02-02 13:00]  Причина: RSI
+    Bar  321 | 2026-02-02 13:00 | Close=81.80930 | MA8=80.04344 MA20=85.01683 MA_sig=     SELL | MACD=-7.104990 sig=-7.575450 MACD_sig= CLOSE_SELL | RSI=39.84 RSI_sig=NO_SIGNAL | Angle=  10
+
+
+>>> ОТКРЫТИЕ BUY @ 81.80930  [2026-02-02 13:00]
+    Bar  321 | 2026-02-02 13:00 | Close=81.80930 | MA8=80.04344 MA20=85.01683 MA_sig=     SELL | MACD=-7.104990 sig=-7.575450 MACD_sig= CLOSE_SELL | RSI=39.84 RSI_sig=NO_SIGNAL | Angle=  10
+
+
+<<< ЗАКРЫТИЕ BUY @ 84.56750  P/L=+27582.0 pips  [2026-02-03 22:00]  Причина: RSI
+    Bar  353 | 2026-02-03 22:00 | Close=84.56750 | MA8=85.54468 MA20=85.18160 MA_sig=      BUY | MACD=+0.523509 sig=+0.530777 MACD_sig=  CLOSE_BUY | RSI=48.05 RSI_sig=NO_SIGNAL | Angle= -14
+
+
+>>> ОТКРЫТИЕ SELL @ 84.56750  [2026-02-03 22:00]
+    Bar  353 | 2026-02-03 22:00 | Close=84.56750 | MA8=85.54468 MA20=85.18160 MA_sig=      BUY | MACD=+0.523509 sig=+0.530777 MACD_sig=  CLOSE_BUY | RSI=48.05 RSI_sig=NO_SIGNAL | Angle= -14
+
+
+<<< ЗАКРЫТИЕ SELL @ 87.02480  P/L=-24573.0 pips  [2026-02-04 05:00]  Причина: RSI
+    Bar  359 | 2026-02-04 05:00 | Close=87.02480 | MA8=86.00429 MA20=85.49874 MA_sig=      BUY | MACD=+0.333286 sig=+0.328430 MACD_sig=        BUY | RSI=55.85 RSI_sig=NO_SIGNAL | Angle=  15
+
+
+>>> ОТКРЫТИЕ BUY @ 87.02480  [2026-02-04 05:00]
+    Bar  359 | 2026-02-04 05:00 | Close=87.02480 | MA8=86.00429 MA20=85.49874 MA_sig=      BUY | MACD=+0.333286 sig=+0.328430 MACD_sig=        BUY | RSI=55.85 RSI_sig=NO_SIGNAL | Angle=  15
+
+
+<<< ЗАКРЫТИЕ BUY @ 85.25400  P/L=-17708.0 pips  [2026-02-04 19:00]  Причина: RSI
+    Bar  373 | 2026-02-04 19:00 | Close=85.25400 | MA8=88.34890 MA20=88.08835 MA_sig=      BUY | MACD=+1.064424 sig=+1.189036 MACD_sig=  CLOSE_BUY | RSI=41.94 RSI_sig=     SELL | Angle= -40
+
+
+>>> ОТКРЫТИЕ SELL @ 85.25400  [2026-02-04 19:00]
+    Bar  373 | 2026-02-04 19:00 | Close=85.25400 | MA8=88.34890 MA20=88.08835 MA_sig=      BUY | MACD=+1.064424 sig=+1.189036 MACD_sig=  CLOSE_BUY | RSI=41.94 RSI_sig=     SELL | Angle= -40
+
+
+<<< ЗАКРЫТИЕ SELL @ 89.63340  P/L=-43794.0 pips  [2026-02-05 02:00]  Причина: Stop Loss
+    Bar  379 | 2026-02-05 02:00 | Close=89.63340 | MA8=87.92766 MA20=87.79392 MA_sig=      BUY | MACD=+0.139988 sig=+0.457974 MACD_sig=  NO_SIGNAL | RSI=57.27 RSI_sig=      BUY | Angle=  22
+
+
+>>> ОТКРЫТИЕ SELL @ 89.61150  [2026-02-05 03:00]
+    Bar  380 | 2026-02-05 03:00 | Close=89.61150 | MA8=88.30185 MA20=87.96702 MA_sig=      BUY | MACD=+0.291470 sig=+0.424673 MACD_sig=  NO_SIGNAL | RSI=57.18 RSI_sig=NO_SIGNAL | Angle=  18
+
+
+<<< ЗАКРЫТИЕ SELL @ 72.41400  P/L=+171975.0 pips  [2026-02-06 07:00]  Причина: RSI
+    Bar  407 | 2026-02-06 07:00 | Close=72.41400 | MA8=72.17778 MA20=74.51128 MA_sig=     SELL | MACD=-3.013771 sig=-3.036067 MACD_sig= CLOSE_SELL | RSI=40.98 RSI_sig=NO_SIGNAL | Angle=   2
+
+
+>>> ОТКРЫТИЕ BUY @ 72.41400  [2026-02-06 07:00]
+    Bar  407 | 2026-02-06 07:00 | Close=72.41400 | MA8=72.17778 MA20=74.51128 MA_sig=     SELL | MACD=-3.013771 sig=-3.036067 MACD_sig= CLOSE_SELL | RSI=40.98 RSI_sig=NO_SIGNAL | Angle=   2
+
+
+<<< ЗАКРЫТИЕ BUY @ 80.30430  P/L=+78903.0 pips  [2026-02-09 15:00]  Причина: RSI
+    Bar  437 | 2026-02-09 15:00 | Close=80.30430 | MA8=80.49450 MA20=79.51264 MA_sig=      BUY | MACD=+1.277829 sig=+1.341633 MACD_sig=  CLOSE_BUY | RSI=55.98 RSI_sig=      BUY | Angle=  -4
+
+
+>>> ОТКРЫТИЕ SELL @ 80.30430  [2026-02-09 15:00]
+    Bar  437 | 2026-02-09 15:00 | Close=80.30430 | MA8=80.49450 MA20=79.51264 MA_sig=      BUY | MACD=+1.277829 sig=+1.341633 MACD_sig=  CLOSE_BUY | RSI=55.98 RSI_sig=      BUY | Angle=  -4
+
+
+<<< ЗАКРЫТИЕ SELL @ 83.47010  P/L=-31658.0 pips  [2026-02-09 19:00]  Причина: Stop Loss
+    Bar  441 | 2026-02-09 19:00 | Close=83.47010 | MA8=81.59124 MA20=80.33568 MA_sig=      BUY | MACD=+1.187031 sig=+1.218915 MACD_sig=  NO_SIGNAL | RSI=66.03 RSI_sig=      BUY | Angle=  37
+
+
+>>> ОТКРЫТИЕ SELL @ 82.04210  [2026-02-10 12:00]
+    Bar  457 | 2026-02-10 12:00 | Close=82.04210 | MA8=81.88447 MA20=81.67955 MA_sig=      BUY | MACD=+0.491858 sig=+0.734022 MACD_sig=  NO_SIGNAL | RSI=54.39 RSI_sig=NO_SIGNAL | Angle=   4
+
+
+<<< ЗАКРЫТИЕ SELL @ 82.63990  P/L=-5978.0 pips  [2026-02-11 06:00]  Причина: RSI
+    Bar  474 | 2026-02-11 06:00 | Close=82.63990 | MA8=81.82846 MA20=81.61559 MA_sig=      BUY | MACD=+0.088899 sig=+0.049340 MACD_sig=        BUY | RSI=60.04 RSI_sig=      BUY | Angle=  25
+
+
+>>> ОТКРЫТИЕ BUY @ 82.63990  [2026-02-11 06:00]
+    Bar  474 | 2026-02-11 06:00 | Close=82.63990 | MA8=81.82846 MA20=81.61559 MA_sig=      BUY | MACD=+0.088899 sig=+0.049340 MACD_sig=        BUY | RSI=60.04 RSI_sig=      BUY | Angle=  25
+
+
+<<< ЗАКРЫТИЕ BUY @ 84.66170  P/L=+20218.0 pips  [2026-02-11 20:00]  Причина: RSI
+    Bar  488 | 2026-02-11 20:00 | Close=84.66170 | MA8=84.19806 MA20=83.60187 MA_sig=      BUY | MACD=+0.710681 sig=+0.763922 MACD_sig=  CLOSE_BUY | RSI=59.38 RSI_sig=      BUY | Angle=  11
+
+
+>>> ОТКРЫТИЕ SELL @ 84.66170  [2026-02-11 20:00]
+    Bar  488 | 2026-02-11 20:00 | Close=84.66170 | MA8=84.19806 MA20=83.60187 MA_sig=      BUY | MACD=+0.710681 sig=+0.763922 MACD_sig=  CLOSE_BUY | RSI=59.38 RSI_sig=      BUY | Angle=  11
+
+
+<<< ЗАКРЫТИЕ SELL @ 76.08530  P/L=+85764.0 pips  [2026-02-13 08:00]  Причина: RSI
+    Bar  522 | 2026-02-13 08:00 | Close=76.08530 | MA8=76.62771 MA20=78.09774 MA_sig=     SELL | MACD=-1.740457 sig=-1.770845 MACD_sig= CLOSE_SELL | RSI=34.34 RSI_sig=     SELL | Angle=  -9
+
+
+>>> ОТКРЫТИЕ BUY @ 76.08530  [2026-02-13 08:00]
+    Bar  522 | 2026-02-13 08:00 | Close=76.08530 | MA8=76.62771 MA20=78.09774 MA_sig=     SELL | MACD=-1.740457 sig=-1.770845 MACD_sig= CLOSE_SELL | RSI=34.34 RSI_sig=     SELL | Angle=  -9
+
+
+<<< ЗАКРЫТИЕ BUY @ 75.23990  P/L=-8454.0 pips  [2026-02-16 07:00]  Причина: RSI
+    Bar  543 | 2026-02-16 07:00 | Close=75.23990 | MA8=76.19175 MA20=76.92221 MA_sig=     SELL | MACD=-0.681882 sig=-0.608414 MACD_sig=       SELL | RSI=36.21 RSI_sig=     SELL | Angle= -19
+
+
+>>> ОТКРЫТИЕ SELL @ 75.23990  [2026-02-16 07:00]
+    Bar  543 | 2026-02-16 07:00 | Close=75.23990 | MA8=76.19175 MA20=76.92221 MA_sig=     SELL | MACD=-0.681882 sig=-0.608414 MACD_sig=       SELL | RSI=36.21 RSI_sig=     SELL | Angle= -19
+
+
+<<< ЗАКРЫТИЕ SELL @ 77.12770  P/L=-18878.0 pips  [2026-02-16 11:00]  Причина: RSI
+    Bar  547 | 2026-02-16 11:00 | Close=77.12770 | MA8=76.54629 MA20=76.84217 MA_sig=     SELL | MACD=-0.583249 sig=-0.645102 MACD_sig= CLOSE_SELL | RSI=49.96 RSI_sig=NO_SIGNAL | Angle=  15
+
+
+>>> ОТКРЫТИЕ BUY @ 77.12770  [2026-02-16 11:00]
+    Bar  547 | 2026-02-16 11:00 | Close=77.12770 | MA8=76.54629 MA20=76.84217 MA_sig=     SELL | MACD=-0.583249 sig=-0.645102 MACD_sig= CLOSE_SELL | RSI=49.96 RSI_sig=NO_SIGNAL | Angle=  15
+
+
+<<< ЗАКРЫТИЕ BUY @ 74.69850  P/L=-24292.0 pips  [2026-02-17 03:00]  Причина: Stop Loss
+    Bar  558 | 2026-02-17 03:00 | Close=74.69850 | MA8=76.14112 MA20=76.52541 MA_sig=     SELL | MACD=-0.259595 sig=-0.307171 MACD_sig= CLOSE_SELL | RSI=33.26 RSI_sig=     SELL | Angle= -47
+
+
+>>> ОТКРЫТИЕ BUY @ 72.52060  [2026-02-18 03:00]
+    Bar  581 | 2026-02-18 03:00 | Close=72.52060 | MA8=73.08376 MA20=73.79751 MA_sig=     SELL | MACD=-0.791808 sig=-0.793297 MACD_sig=  NO_SIGNAL | RSI=38.03 RSI_sig=NO_SIGNAL | Angle= -16
+
+
+<<< ЗАКРЫТИЕ BUY @ 73.42090  P/L=+9003.0 pips  [2026-02-18 04:00]  Причина: RSI
+    Bar  582 | 2026-02-18 04:00 | Close=73.42090 | MA8=73.15868 MA20=73.76164 MA_sig=     SELL | MACD=-0.808607 sig=-0.796359 MACD_sig=       SELL | RSI=45.14 RSI_sig=NO_SIGNAL | Angle=   7
+
+
+>>> ОТКРЫТИЕ SELL @ 73.42090  [2026-02-18 04:00]
+    Bar  582 | 2026-02-18 04:00 | Close=73.42090 | MA8=73.15868 MA20=73.76164 MA_sig=     SELL | MACD=-0.808607 sig=-0.796359 MACD_sig=       SELL | RSI=45.14 RSI_sig=NO_SIGNAL | Angle=   7
+
+
+<<< ЗАКРЫТИЕ SELL @ 73.52040  P/L=-995.0 pips  [2026-02-18 05:00]  Причина: RSI
+    Bar  583 | 2026-02-18 05:00 | Close=73.52040 | MA8=73.23906 MA20=73.73867 MA_sig=     SELL | MACD=-0.740734 sig=-0.785234 MACD_sig= CLOSE_SELL | RSI=45.88 RSI_sig=NO_SIGNAL | Angle=   8
+
+
+>>> ОТКРЫТИЕ BUY @ 73.52040  [2026-02-18 05:00]
+    Bar  583 | 2026-02-18 05:00 | Close=73.52040 | MA8=73.23906 MA20=73.73867 MA_sig=     SELL | MACD=-0.740734 sig=-0.785234 MACD_sig= CLOSE_SELL | RSI=45.88 RSI_sig=NO_SIGNAL | Angle=   8
+
+
+<<< ЗАКРЫТИЕ BUY @ 77.26250  P/L=+37421.0 pips  [2026-02-19 04:00]  Причина: RSI
+    Bar  605 | 2026-02-19 04:00 | Close=77.26250 | MA8=77.03453 MA20=76.51284 MA_sig=      BUY | MACD=+0.622078 sig=+0.655871 MACD_sig=  CLOSE_BUY | RSI=58.41 RSI_sig=NO_SIGNAL | Angle=   9
+
+
+>>> ОТКРЫТИЕ SELL @ 77.26250  [2026-02-19 04:00]
+    Bar  605 | 2026-02-19 04:00 | Close=77.26250 | MA8=77.03453 MA20=76.51284 MA_sig=      BUY | MACD=+0.622078 sig=+0.655871 MACD_sig=  CLOSE_BUY | RSI=58.41 RSI_sig=NO_SIGNAL | Angle=   9
+
+
+<<< ЗАКРЫТИЕ SELL @ 77.93460  P/L=-6721.0 pips  [2026-02-19 08:00]  Причина: RSI
+    Bar  609 | 2026-02-19 08:00 | Close=77.93460 | MA8=77.52472 MA20=76.92835 MA_sig=      BUY | MACD=+0.644261 sig=+0.635738 MACD_sig=        BUY | RSI=62.19 RSI_sig=NO_SIGNAL | Angle=  17
+
+
+>>> ОТКРЫТИЕ BUY @ 77.93460  [2026-02-19 08:00]
+    Bar  609 | 2026-02-19 08:00 | Close=77.93460 | MA8=77.52472 MA20=76.92835 MA_sig=      BUY | MACD=+0.644261 sig=+0.635738 MACD_sig=        BUY | RSI=62.19 RSI_sig=NO_SIGNAL | Angle=  17
+
+
+<<< ЗАКРЫТИЕ BUY @ 78.09320  P/L=+1586.0 pips  [2026-02-19 15:00]  Причина: RSI
+    Bar  616 | 2026-02-19 15:00 | Close=78.09320 | MA8=78.24756 MA20=77.72115 MA_sig=      BUY | MACD=+0.715960 sig=+0.738768 MACD_sig=  CLOSE_BUY | RSI=56.78 RSI_sig=NO_SIGNAL | Angle=  -6
+
+
+>>> ОТКРЫТИЕ SELL @ 78.09320  [2026-02-19 15:00]
+    Bar  616 | 2026-02-19 15:00 | Close=78.09320 | MA8=78.24756 MA20=77.72115 MA_sig=      BUY | MACD=+0.715960 sig=+0.738768 MACD_sig=  CLOSE_BUY | RSI=56.78 RSI_sig=NO_SIGNAL | Angle=  -6
+
+
+<<< ЗАКРЫТИЕ SELL @ 79.92920  P/L=-18360.0 pips  [2026-02-20 11:00]  Причина: Stop Loss
+    Bar  635 | 2026-02-20 11:00 | Close=79.92920 | MA8=78.76632 MA20=78.36719 MA_sig=      BUY | MACD=+0.283405 sig=+0.286790 MACD_sig=  NO_SIGNAL | RSI=65.65 RSI_sig=NO_SIGNAL | Angle=  44
+
+
+>>> ОТКРЫТИЕ SELL @ 88.17250  [2026-02-24 00:00]
+    Bar  670 | 2026-02-24 00:00 | Close=88.17250 | MA8=87.61947 MA20=86.60970 MA_sig=      BUY | MACD=+1.277586 sig=+1.364168 MACD_sig=  NO_SIGNAL | RSI=64.83 RSI_sig=NO_SIGNAL | Angle=  17
+
+
+<<< ЗАКРЫТИЕ SELL @ 89.45800  P/L=-12855.0 pips  [2026-02-25 06:00]  Причина: RSI
+    Bar  698 | 2026-02-25 06:00 | Close=89.45800 | MA8=88.27234 MA20=87.78385 MA_sig=      BUY | MACD=+0.329269 sig=+0.255851 MACD_sig=        BUY | RSI=64.53 RSI_sig=      BUY | Angle=  30
+
+
+>>> ОТКРЫТИЕ BUY @ 89.45800  [2026-02-25 06:00]
+    Bar  698 | 2026-02-25 06:00 | Close=89.45800 | MA8=88.27234 MA20=87.78385 MA_sig=      BUY | MACD=+0.329269 sig=+0.255851 MACD_sig=        BUY | RSI=64.53 RSI_sig=      BUY | Angle=  30
+
+
+<<< ЗАКРЫТИЕ BUY @ 90.97870  P/L=+15207.0 pips  [2026-02-25 20:00]  Причина: RSI
+    Bar  712 | 2026-02-25 20:00 | Close=90.97870 | MA8=90.62510 MA20=89.92004 MA_sig=      BUY | MACD=+0.830842 sig=+0.837966 MACD_sig=  CLOSE_BUY | RSI=68.03 RSI_sig=      BUY | Angle=  13
+
+
+>>> ОТКРЫТИЕ SELL @ 90.97870  [2026-02-25 20:00]
+    Bar  712 | 2026-02-25 20:00 | Close=90.97870 | MA8=90.62510 MA20=89.92004 MA_sig=      BUY | MACD=+0.830842 sig=+0.837966 MACD_sig=  CLOSE_BUY | RSI=68.03 RSI_sig=      BUY | Angle=  13
+
+
+<<< ЗАКРЫТИЕ SELL @ 88.61970  P/L=+23590.0 pips  [2026-02-26 23:00]  Причина: RSI
+    Bar  738 | 2026-02-26 23:00 | Close=88.61970 | MA8=87.69329 MA20=87.95346 MA_sig=     SELL | MACD=-0.520004 sig=-0.543430 MACD_sig= CLOSE_SELL | RSI=53.80 RSI_sig=      BUY | Angle=  23
+
+
+>>> ОТКРЫТИЕ BUY @ 88.61970  [2026-02-26 23:00]
+    Bar  738 | 2026-02-26 23:00 | Close=88.61970 | MA8=87.69329 MA20=87.95346 MA_sig=     SELL | MACD=-0.520004 sig=-0.543430 MACD_sig= CLOSE_SELL | RSI=53.80 RSI_sig=      BUY | Angle=  23
+
+
+<<< ЗАКРЫТИЕ BUY @ 94.97070  P/L=+63510.0 pips  [2026-03-02 09:00]  Причина: RSI
+    Bar  769 | 2026-03-02 09:00 | Close=94.97070 | MA8=94.04317 MA20=92.93197 MA_sig=      BUY | MACD=+1.212518 sig=+1.224982 MACD_sig=  CLOSE_BUY | RSI=62.83 RSI_sig=      BUY | Angle=  20
+
+
+>>> ОТКРЫТИЕ SELL @ 94.97070  [2026-03-02 09:00]
+    Bar  769 | 2026-03-02 09:00 | Close=94.97070 | MA8=94.04317 MA20=92.93197 MA_sig=      BUY | MACD=+1.212518 sig=+1.224982 MACD_sig=  CLOSE_BUY | RSI=62.83 RSI_sig=      BUY | Angle=  20
+
+
+<<< ЗАКРЫТИЕ SELL @ 96.08930  P/L=-11186.0 pips  [2026-03-02 10:00]  Причина: RSI
+    Bar  770 | 2026-03-02 10:00 | Close=96.08930 | MA8=94.49787 MA20=93.23267 MA_sig=      BUY | MACD=+1.243858 sig=+1.228757 MACD_sig=        BUY | RSI=66.53 RSI_sig=      BUY | Angle=  33
+
+
+>>> ОТКРЫТИЕ BUY @ 96.08930  [2026-03-02 10:00]
+    Bar  770 | 2026-03-02 10:00 | Close=96.08930 | MA8=94.49787 MA20=93.23267 MA_sig=      BUY | MACD=+1.243858 sig=+1.228757 MACD_sig=        BUY | RSI=66.53 RSI_sig=      BUY | Angle=  33
+
+
+<<< ЗАКРЫТИЕ BUY @ 95.09730  P/L=-9920.0 pips  [2026-03-02 15:00]  Причина: RSI
+    Bar  775 | 2026-03-02 15:00 | Close=95.09730 | MA8=94.91966 MA20=93.97895 MA_sig=      BUY | MACD=+1.214252 sig=+1.276137 MACD_sig=  CLOSE_BUY | RSI=59.55 RSI_sig=NO_SIGNAL | Angle=   4
+
+
+>>> ОТКРЫТИЕ SELL @ 95.09730  [2026-03-02 15:00]
+    Bar  775 | 2026-03-02 15:00 | Close=95.09730 | MA8=94.91966 MA20=93.97895 MA_sig=      BUY | MACD=+1.214252 sig=+1.276137 MACD_sig=  CLOSE_BUY | RSI=59.55 RSI_sig=NO_SIGNAL | Angle=   4
+
+
+<<< ЗАКРЫТИЕ SELL @ 82.41730  P/L=+126800.0 pips  [2026-03-03 23:00]  Причина: RSI
+    Bar  806 | 2026-03-03 23:00 | Close=82.41730 | MA8=82.76296 MA20=84.42690 MA_sig=     SELL | MACD=-2.110470 sig=-2.213927 MACD_sig= CLOSE_SELL | RSI=40.70 RSI_sig=     SELL | Angle=  -4
+
+
+>>> ОТКРЫТИЕ BUY @ 82.41730  [2026-03-03 23:00]
+    Bar  806 | 2026-03-03 23:00 | Close=82.41730 | MA8=82.76296 MA20=84.42690 MA_sig=     SELL | MACD=-2.110470 sig=-2.213927 MACD_sig= CLOSE_SELL | RSI=40.70 RSI_sig=     SELL | Angle=  -4
+
+
+<<< ЗАКРЫТИЕ BUY @ 83.33130  P/L=+9140.0 pips  [2026-03-04 21:00]  Причина: RSI
+    Bar  827 | 2026-03-04 21:00 | Close=83.33130 | MA8=84.05349 MA20=84.38741 MA_sig=     SELL | MACD=-0.291187 sig=-0.258729 MACD_sig=       SELL | RSI=42.46 RSI_sig=NO_SIGNAL | Angle= -18
+
+
+>>> ОТКРЫТИЕ SELL @ 83.33130  [2026-03-04 21:00]
+    Bar  827 | 2026-03-04 21:00 | Close=83.33130 | MA8=84.05349 MA20=84.38741 MA_sig=     SELL | MACD=-0.291187 sig=-0.258729 MACD_sig=       SELL | RSI=42.46 RSI_sig=NO_SIGNAL | Angle= -18
+
+
+<<< ЗАКРЫТИЕ SELL @ 84.31260  P/L=-9813.0 pips  [2026-03-05 04:00]  Причина: RSI
+    Bar  833 | 2026-03-05 04:00 | Close=84.31260 | MA8=83.96288 MA20=84.14474 MA_sig=     SELL | MACD=-0.345083 sig=-0.352094 MACD_sig= CLOSE_SELL | RSI=49.84 RSI_sig=NO_SIGNAL | Angle=  10
+
+
+>>> ОТКРЫТИЕ BUY @ 84.31260  [2026-03-05 04:00]
+    Bar  833 | 2026-03-05 04:00 | Close=84.31260 | MA8=83.96288 MA20=84.14474 MA_sig=     SELL | MACD=-0.345083 sig=-0.352094 MACD_sig= CLOSE_SELL | RSI=49.84 RSI_sig=NO_SIGNAL | Angle=  10
+
+
+<<< ЗАКРЫТИЕ BUY @ 83.65660  P/L=-6560.0 pips  [2026-03-05 10:00]  Причина: RSI
+    Bar  839 | 2026-03-05 10:00 | Close=83.65660 | MA8=83.83464 MA20=84.05258 MA_sig=     SELL | MACD=-0.246842 sig=-0.230425 MACD_sig=       SELL | RSI=46.52 RSI_sig=NO_SIGNAL | Angle=  -5
+
+
+>>> ОТКРЫТИЕ SELL @ 83.65660  [2026-03-05 10:00]
+    Bar  839 | 2026-03-05 10:00 | Close=83.65660 | MA8=83.83464 MA20=84.05258 MA_sig=     SELL | MACD=-0.246842 sig=-0.230425 MACD_sig=       SELL | RSI=46.52 RSI_sig=NO_SIGNAL | Angle=  -5
+
+
+<<< ЗАКРЫТИЕ SELL @ 84.25510  P/L=-5985.0 pips  [2026-03-05 13:00]  Причина: RSI
+    Bar  842 | 2026-03-05 13:00 | Close=84.25510 | MA8=83.98509 MA20=84.06464 MA_sig=     SELL | MACD=-0.203917 sig=-0.229848 MACD_sig= CLOSE_SELL | RSI=50.54 RSI_sig=      BUY | Angle=   7
+
+
+>>> ОТКРЫТИЕ BUY @ 84.25510  [2026-03-05 13:00]
+    Bar  842 | 2026-03-05 13:00 | Close=84.25510 | MA8=83.98509 MA20=84.06464 MA_sig=     SELL | MACD=-0.203917 sig=-0.229848 MACD_sig= CLOSE_SELL | RSI=50.54 RSI_sig=      BUY | Angle=   7
+
+
+<<< ЗАКРЫТИЕ BUY @ 82.62720  P/L=-16279.0 pips  [2026-03-05 17:00]  Причина: RSI
+    Bar  846 | 2026-03-05 17:00 | Close=82.62720 | MA8=83.45217 MA20=83.79596 MA_sig=     SELL | MACD=-0.239590 sig=-0.199037 MACD_sig=       SELL | RSI=39.83 RSI_sig=NO_SIGNAL | Angle= -20
+
+
+>>> ОТКРЫТИЕ SELL @ 82.62720  [2026-03-05 17:00]
+    Bar  846 | 2026-03-05 17:00 | Close=82.62720 | MA8=83.45217 MA20=83.79596 MA_sig=     SELL | MACD=-0.239590 sig=-0.199037 MACD_sig=       SELL | RSI=39.83 RSI_sig=NO_SIGNAL | Angle= -20
+
+
+<<< ЗАКРЫТИЕ SELL @ 84.07570  P/L=-14485.0 pips  [2026-03-06 04:00]  Причина: RSI
+    Bar  856 | 2026-03-06 04:00 | Close=84.07570 | MA8=82.65359 MA20=82.85821 MA_sig=     SELL | MACD=-0.560742 sig=-0.566126 MACD_sig= CLOSE_SELL | RSI=56.78 RSI_sig=NO_SIGNAL | Angle=  31
+
+
+>>> ОТКРЫТИЕ BUY @ 84.07570  [2026-03-06 04:00]
+    Bar  856 | 2026-03-06 04:00 | Close=84.07570 | MA8=82.65359 MA20=82.85821 MA_sig=     SELL | MACD=-0.560742 sig=-0.566126 MACD_sig= CLOSE_SELL | RSI=56.78 RSI_sig=NO_SIGNAL | Angle=  31
+
+
+<<< ЗАКРЫТИЕ BUY @ 82.37920  P/L=-16965.0 pips  [2026-03-06 15:00]  Причина: RSI
+    Bar  867 | 2026-03-06 15:00 | Close=82.37920 | MA8=83.05865 MA20=83.21473 MA_sig=     SELL | MACD=-0.040486 sig=-0.009651 MACD_sig=       SELL | RSI=43.42 RSI_sig=NO_SIGNAL | Angle= -19
+
+
+>>> ОТКРЫТИЕ SELL @ 82.37920  [2026-03-06 15:00]
+    Bar  867 | 2026-03-06 15:00 | Close=82.37920 | MA8=83.05865 MA20=83.21473 MA_sig=     SELL | MACD=-0.040486 sig=-0.009651 MACD_sig=       SELL | RSI=43.42 RSI_sig=NO_SIGNAL | Angle= -19
+
+
+<<< ЗАКРЫТИЕ SELL @ 83.96110  P/L=-15819.0 pips  [2026-03-06 19:00]  Причина: RSI
+    Bar  871 | 2026-03-06 19:00 | Close=83.96110 | MA8=83.49367 MA20=83.36474 MA_sig=      BUY | MACD=+0.002180 sig=-0.047313 MACD_sig=        BUY | RSI=54.35 RSI_sig=NO_SIGNAL | Angle=  12
+
+
+>>> ОТКРЫТИЕ BUY @ 83.96110  [2026-03-06 19:00]
+    Bar  871 | 2026-03-06 19:00 | Close=83.96110 | MA8=83.49367 MA20=83.36474 MA_sig=      BUY | MACD=+0.002180 sig=-0.047313 MACD_sig=        BUY | RSI=54.35 RSI_sig=NO_SIGNAL | Angle=  12
+
+
+<<< ЗАКРЫТИЕ BUY @ 81.44740  P/L=-25137.0 pips  [2026-03-09 03:00]  Причина: Stop Loss
+    Bar  877 | 2026-03-09 03:00 | Close=81.44740 | MA8=83.02102 MA20=83.27493 MA_sig=     SELL | MACD=+0.037776 sig=+0.081529 MACD_sig=  CLOSE_BUY | RSI=37.01 RSI_sig=     SELL | Angle= -33
+
+
+>>> ОТКРЫТИЕ SELL @ 88.52840  [2026-03-11 04:00]
+    Bar  924 | 2026-03-11 04:00 | Close=88.52840 | MA8=88.65079 MA20=88.38755 MA_sig=      BUY | MACD=+0.570077 sig=+0.760560 MACD_sig=  NO_SIGNAL | RSI=54.01 RSI_sig=NO_SIGNAL | Angle=  -4
+
+
+<<< ЗАКРЫТИЕ SELL @ 84.53020  P/L=+39982.0 pips  [2026-03-12 05:00]  Причина: RSI
+    Bar  948 | 2026-03-12 05:00 | Close=84.53020 | MA8=85.20184 MA20=85.81195 MA_sig=     SELL | MACD=-0.614164 sig=-0.620532 MACD_sig= CLOSE_SELL | RSI=36.94 RSI_sig=     SELL | Angle= -20
+
+
+>>> ОТКРЫТИЕ BUY @ 84.53020  [2026-03-12 05:00]
+    Bar  948 | 2026-03-12 05:00 | Close=84.53020 | MA8=85.20184 MA20=85.81195 MA_sig=     SELL | MACD=-0.614164 sig=-0.620532 MACD_sig= CLOSE_SELL | RSI=36.94 RSI_sig=     SELL | Angle= -20
+
+
+<<< ЗАКРЫТИЕ BUY @ 84.89670  P/L=+3665.0 pips  [2026-03-12 06:00]  Причина: RSI
+    Bar  949 | 2026-03-12 06:00 | Close=84.89670 | MA8=85.13403 MA20=85.72478 MA_sig=     SELL | MACD=-0.650443 sig=-0.626514 MACD_sig=       SELL | RSI=40.61 RSI_sig=NO_SIGNAL | Angle=  -7
+
+
+>>> ОТКРЫТИЕ SELL @ 84.89670  [2026-03-12 06:00]
+    Bar  949 | 2026-03-12 06:00 | Close=84.89670 | MA8=85.13403 MA20=85.72478 MA_sig=     SELL | MACD=-0.650443 sig=-0.626514 MACD_sig=       SELL | RSI=40.61 RSI_sig=NO_SIGNAL | Angle=  -7
+
+
+<<< ЗАКРЫТИЕ SELL @ 86.16130  P/L=-12646.0 pips  [2026-03-12 09:00]  Причина: RSI
+    Bar  952 | 2026-03-12 09:00 | Close=86.16130 | MA8=85.29734 MA20=85.62906 MA_sig=     SELL | MACD=-0.606619 sig=-0.631092 MACD_sig= CLOSE_SELL | RSI=52.24 RSI_sig=      BUY | Angle=  27
+
+
+>>> ОТКРЫТИЕ BUY @ 86.16130  [2026-03-12 09:00]
+    Bar  952 | 2026-03-12 09:00 | Close=86.16130 | MA8=85.29734 MA20=85.62906 MA_sig=     SELL | MACD=-0.606619 sig=-0.631092 MACD_sig= CLOSE_SELL | RSI=52.24 RSI_sig=      BUY | Angle=  27
+
+
+<<< ЗАКРЫТИЕ BUY @ 84.80530  P/L=-13560.0 pips  [2026-03-12 20:00]  Причина: RSI
+    Bar  963 | 2026-03-12 20:00 | Close=84.80530 | MA8=85.62190 MA20=85.88151 MA_sig=     SELL | MACD=-0.126836 sig=-0.083890 MACD_sig=       SELL | RSI=40.16 RSI_sig=     SELL | Angle= -27
+
+
+>>> ОТКРЫТИЕ SELL @ 84.80530  [2026-03-12 20:00]
+    Bar  963 | 2026-03-12 20:00 | Close=84.80530 | MA8=85.62190 MA20=85.88151 MA_sig=     SELL | MACD=-0.126836 sig=-0.083890 MACD_sig=       SELL | RSI=40.16 RSI_sig=     SELL | Angle= -27
+
+
+<<< ЗАКРЫТИЕ SELL @ 83.52470  P/L=+12806.0 pips  [2026-03-13 16:00]  Причина: RSI
+    Bar  982 | 2026-03-13 16:00 | Close=83.52470 | MA8=83.56320 MA20=83.99293 MA_sig=     SELL | MACD=-0.585750 sig=-0.635619 MACD_sig= CLOSE_SELL | RSI=43.92 RSI_sig=NO_SIGNAL | Angle=  -1
+
+
+>>> ОТКРЫТИЕ BUY @ 83.52470  [2026-03-13 16:00]
+    Bar  982 | 2026-03-13 16:00 | Close=83.52470 | MA8=83.56320 MA20=83.99293 MA_sig=     SELL | MACD=-0.585750 sig=-0.635619 MACD_sig= CLOSE_SELL | RSI=43.92 RSI_sig=NO_SIGNAL | Angle=  -1
+
+
+<<< ЗАКРЫТИЕ BUY @ 80.61830  P/L=-29064.0 pips  [2026-03-13 17:00]  Причина: Stop Loss
+    Bar  983 | 2026-03-13 17:00 | Close=80.61830 | MA8=82.90878 MA20=83.67154 MA_sig=     SELL | MACD=-0.556163 sig=-0.619728 MACD_sig= CLOSE_SELL | RSI=29.71 RSI_sig=NO_SIGNAL | Angle= -48
+
+
+>>> ОТКРЫТИЕ BUY @ 79.14850  [2026-03-16 11:00]
+    Bar  999 | 2026-03-16 11:00 | Close=79.14850 | MA8=79.82347 MA20=80.76158 MA_sig=     SELL | MACD=-1.059466 sig=-1.068133 MACD_sig=  NO_SIGNAL | RSI=35.72 RSI_sig=NO_SIGNAL | Angle= -17
+
+
+======================================================================
+  РЕЗУЛЬТАТЫ БЭКТЕСТА: XAGUSDrfd
+  Период: 2026-01-13 08:00:00 — 2026-03-16 11:00:00
+  Баров: 1000, прогрев: 50
+======================================================================
+  Всего сделок:       67
+  Прибыльных:         21 (31.3%)
+  Убыточных:          46 (68.7%)
+  ─────────────────────────────────────
+  Итого (пипсы):      +542325.0
+  Средний выигрыш:    +59708.7 пипсов
+  Средний проигрыш:   -15468.6 пипсов
+  Макс. выигрыш:      +358400.0 пипсов
+  Макс. проигрыш:     -68160.0 пипсов
+  ─────────────────────────────────────
+  Profit Factor:      1.76
+  Max Drawdown:       194447.0 пипсов
+  Средняя длит. (баров): 11.6
+======================================================================
+
+    №  Напр.    Откр. цена    Закр. цена    П/У пипс       Причина        Время открытия        Время закрытия
+  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    1   SELL      90.49000      91.08100  -   5910.0           RSI      2026-01-15 12:00      2026-01-15 15:00
+    2    BUY      91.08100      90.37700  -   7040.0           RSI      2026-01-15 15:00      2026-01-15 17:00
+    3   SELL      90.37700      91.84300  -  14660.0           RSI      2026-01-15 17:00      2026-01-15 20:00
+    4    BUY      91.84300      90.02700  -  18160.0           RSI      2026-01-15 20:00      2026-01-16 05:00
+    5   SELL      90.02700      93.36300  -  33360.0     Stop Loss      2026-01-16 05:00      2026-01-19 02:00
+    6   SELL      94.46500      94.93700  -   4720.0           RSI      2026-01-20 08:00      2026-01-20 12:00
+    7    BUY      94.93700      94.13000  -   8070.0           RSI      2026-01-20 12:00      2026-01-20 19:00
+    8   SELL      94.13000      94.86600  -   7360.0           RSI      2026-01-20 19:00      2026-01-21 13:00
+    9    BUY      94.86600      94.21300  -   6530.0           RSI      2026-01-21 13:00      2026-01-21 15:00
+   10   SELL      94.21300      93.81500  +   3980.0           RSI      2026-01-21 15:00      2026-01-22 08:00
+   11    BUY      93.81500      99.19900  +  53840.0           RSI      2026-01-22 08:00      2026-01-23 15:00
+   12   SELL      99.19900      99.28600  -    870.0           RSI      2026-01-23 15:00      2026-01-23 17:00
+   13    BUY      99.28600      99.82500  +   5390.0           RSI      2026-01-23 17:00      2026-01-23 18:00
+   14   SELL      99.82500     100.69950  -   8745.0           RSI      2026-01-23 18:00      2026-01-23 20:00
+   15    BUY     100.69950     111.21150  + 105120.0           RSI      2026-01-23 20:00      2026-01-26 17:00
+   16   SELL     111.21150     114.25700  -  30455.0           RSI      2026-01-26 17:00      2026-01-26 19:00
+   17    BUY     114.25700     107.44100  -  68160.0     Stop Loss      2026-01-26 19:00      2026-01-26 22:00
+   18   SELL     110.38750     112.41050  -  20230.0           RSI      2026-01-27 05:00      2026-01-27 13:00
+   19    BUY     112.41050     112.04600  -   3645.0           RSI      2026-01-27 13:00      2026-01-27 16:00
+   20   SELL     112.04600     113.38260  -  13366.0           RSI      2026-01-27 16:00      2026-01-28 03:00
+   21    BUY     113.38260     112.48510  -   8975.0           RSI      2026-01-28 03:00      2026-01-28 14:00
+   22   SELL     112.48510     116.17040  -  36853.0     Stop Loss      2026-01-28 14:00      2026-01-28 23:00
+   23   SELL     116.60500     117.76530  -  11603.0           RSI      2026-01-29 00:00      2026-01-29 02:00
+   24    BUY     117.76530     117.64930  -   1160.0           RSI      2026-01-29 02:00      2026-01-29 12:00
+   25   SELL     117.64930      81.80930  + 358400.0           RSI      2026-01-29 12:00      2026-02-02 13:00
+   26    BUY      81.80930      84.56750  +  27582.0           RSI      2026-02-02 13:00      2026-02-03 22:00
+   27   SELL      84.56750      87.02480  -  24573.0           RSI      2026-02-03 22:00      2026-02-04 05:00
+   28    BUY      87.02480      85.25400  -  17708.0           RSI      2026-02-04 05:00      2026-02-04 19:00
+   29   SELL      85.25400      89.63340  -  43794.0     Stop Loss      2026-02-04 19:00      2026-02-05 02:00
+   30   SELL      89.61150      72.41400  + 171975.0           RSI      2026-02-05 03:00      2026-02-06 07:00
+   31    BUY      72.41400      80.30430  +  78903.0           RSI      2026-02-06 07:00      2026-02-09 15:00
+   32   SELL      80.30430      83.47010  -  31658.0     Stop Loss      2026-02-09 15:00      2026-02-09 19:00
+   33   SELL      82.04210      82.63990  -   5978.0           RSI      2026-02-10 12:00      2026-02-11 06:00
+   34    BUY      82.63990      84.66170  +  20218.0           RSI      2026-02-11 06:00      2026-02-11 20:00
+   35   SELL      84.66170      76.08530  +  85764.0           RSI      2026-02-11 20:00      2026-02-13 08:00
+   36    BUY      76.08530      75.23990  -   8454.0           RSI      2026-02-13 08:00      2026-02-16 07:00
+   37   SELL      75.23990      77.12770  -  18878.0           RSI      2026-02-16 07:00      2026-02-16 11:00
+   38    BUY      77.12770      74.69850  -  24292.0     Stop Loss      2026-02-16 11:00      2026-02-17 03:00
+   39    BUY      72.52060      73.42090  +   9003.0           RSI      2026-02-18 03:00      2026-02-18 04:00
+   40   SELL      73.42090      73.52040  -    995.0           RSI      2026-02-18 04:00      2026-02-18 05:00
+   41    BUY      73.52040      77.26250  +  37421.0           RSI      2026-02-18 05:00      2026-02-19 04:00
+   42   SELL      77.26250      77.93460  -   6721.0           RSI      2026-02-19 04:00      2026-02-19 08:00
+   43    BUY      77.93460      78.09320  +   1586.0           RSI      2026-02-19 08:00      2026-02-19 15:00
+   44   SELL      78.09320      79.92920  -  18360.0     Stop Loss      2026-02-19 15:00      2026-02-20 11:00
+   45   SELL      88.17250      89.45800  -  12855.0           RSI      2026-02-24 00:00      2026-02-25 06:00
+   46    BUY      89.45800      90.97870  +  15207.0           RSI      2026-02-25 06:00      2026-02-25 20:00
+   47   SELL      90.97870      88.61970  +  23590.0           RSI      2026-02-25 20:00      2026-02-26 23:00
+   48    BUY      88.61970      94.97070  +  63510.0           RSI      2026-02-26 23:00      2026-03-02 09:00
+   49   SELL      94.97070      96.08930  -  11186.0           RSI      2026-03-02 09:00      2026-03-02 10:00
+   50    BUY      96.08930      95.09730  -   9920.0           RSI      2026-03-02 10:00      2026-03-02 15:00
+   51   SELL      95.09730      82.41730  + 126800.0           RSI      2026-03-02 15:00      2026-03-03 23:00
+   52    BUY      82.41730      83.33130  +   9140.0           RSI      2026-03-03 23:00      2026-03-04 21:00
+   53   SELL      83.33130      84.31260  -   9813.0           RSI      2026-03-04 21:00      2026-03-05 04:00
+   54    BUY      84.31260      83.65660  -   6560.0           RSI      2026-03-05 04:00      2026-03-05 10:00
+   55   SELL      83.65660      84.25510  -   5985.0           RSI      2026-03-05 10:00      2026-03-05 13:00
+   56    BUY      84.25510      82.62720  -  16279.0           RSI      2026-03-05 13:00      2026-03-05 17:00
+   57   SELL      82.62720      84.07570  -  14485.0           RSI      2026-03-05 17:00      2026-03-06 04:00
+   58    BUY      84.07570      82.37920  -  16965.0           RSI      2026-03-06 04:00      2026-03-06 15:00
+   59   SELL      82.37920      83.96110  -  15819.0           RSI      2026-03-06 15:00      2026-03-06 19:00
+   60    BUY      83.96110      81.44740  -  25137.0     Stop Loss      2026-03-06 19:00      2026-03-09 03:00
+   61   SELL      88.52840      84.53020  +  39982.0           RSI      2026-03-11 04:00      2026-03-12 05:00
+   62    BUY      84.53020      84.89670  +   3665.0           RSI      2026-03-12 05:00      2026-03-12 06:00
+   63   SELL      84.89670      86.16130  -  12646.0           RSI      2026-03-12 06:00      2026-03-12 09:00
+   64    BUY      86.16130      84.80530  -  13560.0           RSI      2026-03-12 09:00      2026-03-12 20:00
+   65   SELL      84.80530      83.52470  +  12806.0           RSI      2026-03-12 20:00      2026-03-13 16:00
+   66    BUY      83.52470      80.61830  -  29064.0     Stop Loss      2026-03-13 16:00      2026-03-13 17:00
+   67    BUY      79.14850      79.14850  -      0.0   End of data      2026-03-16 11:00      2026-03-16 11:00
