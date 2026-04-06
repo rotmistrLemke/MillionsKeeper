@@ -226,7 +226,8 @@ class MovingAverage:
             atr_series = atr_obj.calculate_atr(symbol, mt5.TIMEFRAME_H1)
             x = atr_series.iloc[-1] / cache.get_symbol_info(symbol).point
         else:
-            x = atr_value / cache.get_symbol_info(symbol).point
+            val = atr_value.iloc[-1] if isinstance(atr_value, pd.Series) else atr_value
+            x = val / cache.get_symbol_info(symbol).point
 
         alligator = Alligator()
         angle_fast = alligator.angle(current_fast, previous_fast, symbol, x)

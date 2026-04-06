@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MillionsKeeper Dashboard</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <h1>⚡ MillionsKeeper Dashboard</h1>
+  <div class="header-right">
+    <div id="conn-status">
+      <div id="conn-dot"></div>
+      <span id="conn-text">Disconnected</span>
+    </div>
+    <span id="clock"></span>
+  </div>
+</header>
+
+<!-- ── Layout ── -->
+<div class="layout">
+
+  <!-- ── Sidebar: Agents ── -->
+  <aside class="sidebar">
+    <div class="sidebar-title">Агенты</div>
+    <div id="agents-list"></div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <div class="main">
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" data-tab="positions">Позиции</div>
+      <div class="tab" data-tab="indicators">Индикаторы</div>
+      <div class="tab" data-tab="history">История</div>
+      <div class="tab" data-tab="backtest">Бэктест</div>
+      <div class="tab" data-tab="events">Лог событий</div>
+    </div>
+
+    <!-- Positions -->
+    <div id="tab-positions" class="content active">
+      <div id="positions-list">
+        <div style="color:var(--text-muted);padding:20px">Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- Indicators -->
+    <div id="tab-indicators" class="content">
+      <div class="card">
+        <div class="card-title">Сигналы по парам (MA · MACD · RSI)</div>
+        <div id="indicators-grid" class="ind-grid">
+          <div style="color:var(--text-muted)">Ожидание данных...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div id="tab-history" class="content">
+      <div class="stats-grid">
+        <div class="stat-box" id="hist-today">
+          <div class="stat-label">Сегодня</div>
+          <div class="stat-value">—</div>
+        </div>
+        <div class="stat-box" id="hist-week">
+          <div class="stat-label">Неделя</div>
+          <div class="stat-value">—</div>
+        </div>
+        <div class="stat-box" id="hist-month">
+          <div class="stat-label">Месяц</div>
+          <div class="stat-value">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Backtest -->
+    <div id="tab-backtest" class="content">
+      <div class="card">
+        <div class="card-title">Параметры бэктеста</div>
+        <div class="bt-form">
+          <label>
+            Символ
+            <input id="bt-symbol" type="text" value="XAUUSDrfd" style="width:130px">
+          </label>
+          <label>
+            Баров
+            <select id="bt-bars">
+              <option value="500">500</option>
+              <option value="1000">1 000</option>
+              <option value="2000" selected>2 000</option>
+              <option value="5000">5 000</option>
+            </select>
+          </label>
+          <label>
+            Депозит ($)
+            <input id="bt-deposit" type="number" value="10000" style="width:100px">
+          </label>
+          <label>
+            Объём (лот, 0 = авто)
+            <input id="bt-volume" type="number" value="0" min="0" step="0.01" style="width:100px">
+          </label>
+          <button class="btn-primary" id="btn-run-bt">▶ Запустить</button>
+        </div>
+      </div>
+      <div id="bt-result"></div>
+    </div>
+
+    <!-- Events Log -->
+    <div id="tab-events" class="content">
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between">
+          <span>Поток событий</span>
+          <label style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px">
+            <input type="checkbox" id="auto-scroll" checked> Авто-прокрутка
+          </label>
+        </div>
+        <div id="event-log"></div>
+      </div>
+    </div>
+
+  </div><!-- .main -->
+</div><!-- .layout -->
+
+<!-- ── Account Bar ── -->
+<div class="account-bar">
+  <span id="acc-balance">Balance: <b>—</b></span>
+  <span id="acc-equity">Equity: <b>—</b></span>
+  <span id="acc-margin">Margin: <b>—</b></span>
+  <span id="acc-free">Free: <b>—</b></span>
+</div>
+
+<script src="/static/app.js"></script>
+<script>
+  // Часы
+  setInterval(() => {
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString('ru-RU');
+  }, 1000);
+</script>
+</body>
+</html>

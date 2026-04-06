@@ -54,8 +54,10 @@ def compute_indicators(df):
     signal_line = calc_ema_series(macd_line, 9)
     df['macd_line'] = macd_line
     df['macd_signal'] = signal_line
-    df['macd_prev'] = np.roll(macd_line, 1)
-    df['macd_prev'].iloc[0] = np.nan
+    macd_prev = np.empty_like(macd_line)
+    macd_prev[0] = np.nan
+    macd_prev[1:] = macd_line[:-1]
+    df['macd_prev'] = macd_prev
 
     # --- RSI (talib, period=14) ---
     df['rsi'] = talib.RSI(close, timeperiod=14)
@@ -103,9 +105,9 @@ def get_rsi_signal(row):
     rp2 = row['rsi_prev2']
     if pd.isna(r) or pd.isna(rp) or pd.isna(rp2):
         return 'NO_SIGNAL'
-    if 70 > r > 50 and r > rp and rp > rp2:
+    if 70 > r > 50 and r > rp:
         return 'BUY'
-    elif 50 > r > 30 and r < rp and rp < rp2:
+    elif 50 > r > 30 and r < rp:
         return 'SELL'
     return 'NO_SIGNAL'
 
@@ -141,12 +143,12 @@ def get_pip_value(symbol, volume=1.0):
             if tick:
                 pip_value *= tick.ask
         else:
-            conv_symbol = info.currency_margin + info.currency_profit + 'rfd'
-            conv_info = mt5.symbol_info(conv_symbol)
+            symbol = info.currency_margin + info.currency_profit + 'rfd'
+            conv_info = mt5.symbol_info(symbol)
             if conv_info is not None:
-                tick = mt5.symbol_info_tick(conv_symbol)
+                tick = mt5.symbol_info_tick(symbol)
                 if tick:
-                    pip_value /= tick.bid
+                    pip_value *= tick.bid
     return pip_value
 
 
@@ -164,15 +166,15 @@ class BacktestResult:
 
     @property
     def winning_trades(self):
-        return [t for t in self.trades if t['pnl_points'] > 0]
+        return [t for t in self.trades if t['pnl_points'] >= 0]
 
     @property
     def losing_trades(self):
-        return [t for t in self.trades if t['pnl_points'] <= 0]
+        return [t for t in self.trades if t['pnl_points'] < 0]
 
     @property
     def win_rate(self):
-        return len(self.winning_trades) / self.total_trades * 100 if self.total_trades else 0
+        return len(self.winning_trades) / self.total_trades if self.total_trades else 0
 
     @property
     def total_pnl_points(self):
@@ -288,19 +290,44 @@ class BacktestResult:
         return max_streak
 
 
-def calc_volume(balance, risk_pct, stop_loss_pips, pip_value_per_lot, symbol_info):
+def calc_volume(balance, risk_pct, stop_loss_pips, pip_value_per_lot, symbol_info, entry_price=0.0, order_type=None, num_free_slots=1, margin_safety=1.1):
     """
-    Расчёт объёма сделки как в trading.calculateMaxVolumeWithMarginCheck.
-    risk_pct: процент риска от баланса (напр. 80 для LONG, 90 для SHORT)
-    stop_loss_pips: стоп-лосс в пунктах (2 * ATR / point)
+    Расчёт объёма сделки — повторяет логику trading.calculateMaxVolumeWithMarginCheck:
+      volume = min(volume_by_risk, volume_by_margin)
+
+    Параметры:
+        balance:           текущий баланс (= free_margin в бэктесте, 1 позиция за раз)
+        risk_pct:          процент риска (80 для LONG, 90 для SHORT)
+        stop_loss_pips:    стоп-лосс в пунктах (2 * ATR / point)
+        pip_value_per_lot: стоимость 1 пункта для 1 лота
+        symbol_info:       mt5.symbol_info() объект
+        entry_price:       цена входа (для расчёта маржи)
+        order_type:        mt5.ORDER_TYPE_BUY / SELL
+        num_free_slots:    кол-во свободных слотов (делитель free_margin как в боте)
+        margin_safety:     коэффициент безопасности маржи (1.1 как в боте)
     """
     if pip_value_per_lot <= 0 or stop_loss_pips <= 0:
         return symbol_info.volume_min if symbol_info else 0.01
 
+    # 1. Объём по риску: risk_money / stop_loss_cost
     risk_money = balance * (risk_pct / 100)
     stop_loss_cost = pip_value_per_lot * stop_loss_pips
-    volume = risk_money / stop_loss_cost
+    volume_by_risk = risk_money / stop_loss_cost
 
+    # 2. Объём по марже (как в боте: free_margin / divisor / margin_per_lot / margin_safety)
+    volume = volume_by_risk
+    if entry_price > 0 and symbol_info and order_type is not None:
+        try:
+            margin_per_lot = mt5.order_calc_margin(order_type, symbol_info.name, 1.0, entry_price)
+            if margin_per_lot and margin_per_lot > 0:
+                free_margin = balance / num_free_slots
+                available_margin = free_margin / margin_safety
+                volume_by_margin = available_margin / margin_per_lot
+                volume = min(volume_by_risk, volume_by_margin)
+        except Exception:
+            pass
+
+    # 3. Округление по параметрам символа
     if symbol_info:
         volume = min(volume, symbol_info.volume_max)
         volume = max(volume, symbol_info.volume_min)
@@ -310,7 +337,7 @@ def calc_volume(balance, risk_pct, stop_loss_pips, pip_value_per_lot, symbol_inf
     return volume
 
 
-def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0, risk_pct=80):
+def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0, risk_pct=80, fixed_volume=0.0):
     """
     Запускает бэктест стратегии.
 
@@ -321,6 +348,7 @@ def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0, ris
         spread_points:  спред в пунктах (вычитается при входе)
         deposit:        начальный депозит в $ (0 = без расчёта денег)
         risk_pct:       процент риска от баланса на сделку (по умолч. 80, как в боте)
+        fixed_volume:   фиксированный объём сделки в лотах (0 = авторасчёт по риску)
 
     Возвращает:
         BacktestResult с полной статистикой
@@ -339,7 +367,8 @@ def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0, ris
     point = symbol_info.point if symbol_info else 0.0001
 
     # Стоимость пункта для 1 лота
-    pip_value_per_lot = get_pip_value(symbol, 1.0)
+    #pip_value_per_lot = get_pip_value(symbol, 1.0)
+    pip_value_per_lot = 1
 
     result = BacktestResult(initial_deposit=deposit)
     position = None
@@ -361,10 +390,9 @@ def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0, ris
             bar_time = pd.Timestamp(bar_time, unit='s')
         weekday = bar_time.weekday()  # 0=Пн, 4=Пт
         hour = bar_time.hour
-        minute = bar_time.minute
 
         # Пятница после 23:30 или выходные — закрыть позицию и не торговать
-        is_friday_close = weekday == 4 and (hour > 23 or (hour == 23 and minute >= 30))
+        is_friday_close = weekday == 4 and hour >= 23
         is_weekend = weekday in (5, 6)
         is_monday_early = weekday == 0 and (hour < 2)
         weekend_block = is_friday_close or is_weekend or is_monday_early
@@ -377,7 +405,7 @@ def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0, ris
                 pnl_points = (position['entry_price'] - row['close']) / point
             pnl_points -= spread_points
 
-            pnl_money = pnl_points * pip_value_per_lot * position['volume'] if deposit > 0 else 0.0
+            pnl_money = pnl_points * pip_value_per_lot * position['volume'] if (deposit > 0 or fixed_volume > 0) else 0.0
             current_balance += pnl_money
             cumulative_pnl += pnl_points
 
@@ -423,7 +451,7 @@ def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0, ris
                 pnl_points -= spread_points
 
                 # Денежный P&L
-                pnl_money = pnl_points * pip_value_per_lot * position['volume'] if deposit > 0 else 0.0
+                pnl_money = pnl_points * pip_value_per_lot * position['volume'] if (deposit > 0 or fixed_volume > 0) else 0.0
                 current_balance += pnl_money
                 cumulative_pnl += pnl_points
 
@@ -463,14 +491,19 @@ def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0, ris
                 entry_price -= spread_points * point
 
             # Расчёт объёма
-            atr_val = row['atr']
-            stop_loss_pips = 2 * atr_val / point if atr_val > 0 else 100
-
-            if deposit > 0 and current_balance > 0:
-                r_pct = risk_pct if combined == 'BUY' else min(risk_pct + 10, 100)  # SHORT: +10% как в боте
-                volume = calc_volume(current_balance, r_pct, stop_loss_pips, pip_value_per_lot, symbol_info)
+            if fixed_volume > 0:
+                volume = fixed_volume
+            elif deposit > 0 and current_balance > 0:
+                atr_val = row['atr']
+                stop_loss_pips = 2 * atr_val / point if atr_val > 0 else 100
+                r_pct = risk_pct if combined == 'BUY' else min(risk_pct + 10, 100)
+                order_type = mt5.ORDER_TYPE_BUY if combined == 'BUY' else mt5.ORDER_TYPE_SELL
+                volume = calc_volume(
+                    current_balance, r_pct, stop_loss_pips, pip_value_per_lot, symbol_info,
+                    entry_price=entry_price, order_type=order_type
+                )
             else:
-                volume = 1.0  # фиксированный лот если депозит не указан
+                volume = 1.0
 
             position = {
                 'type': combined,
@@ -499,7 +532,7 @@ def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0, ris
         else:
             pnl_points = (position['entry_price'] - row['close']) / point
         pnl_points -= spread_points
-        pnl_money = pnl_points * pip_value_per_lot * position['volume'] if deposit > 0 else 0.0
+        pnl_money = pnl_points * pip_value_per_lot * position['volume'] if (deposit > 0 or fixed_volume > 0) else 0.0
         current_balance += pnl_money
         cumulative_pnl += pnl_points
         result.trades.append({
@@ -611,6 +644,7 @@ def main():
     parser.add_argument('--spread', type=int, default=0, help='Спред в пунктах (по умолчанию 0)')
     parser.add_argument('--deposit', type=float, default=0, help='Начальный депозит в $ (0 = без расчёта денег)')
     parser.add_argument('--risk', type=float, default=80, help='Процент риска на сделку (по умолчанию 80)')
+    parser.add_argument('--volume', type=float, default=0, help='Фиксированный объём в лотах (0 = авторасчёт по риску)')
     parser.add_argument('--timeframe', default='H1', choices=['M5', 'M15', 'M30', 'H1', 'H4', 'D1'],
                         help='Таймфрейм (по умолчанию H1)')
     args = parser.parse_args()
@@ -630,7 +664,8 @@ def main():
     auth.login()
 
     dep_str = f", депозит={args.deposit}$" if args.deposit > 0 else ""
-    print(f"Запуск бэктеста: {args.symbol}, {args.timeframe}, {args.bars} баров, спред={args.spread}{dep_str}...")
+    vol_str = f", объём={args.volume} лот" if args.volume > 0 else ""
+    print(f"Запуск бэктеста: {args.symbol}, {args.timeframe}, {args.bars} баров, спред={args.spread}{dep_str}{vol_str}...")
 
     if args.symbol == 'ALL':
         from settings import Dictionary
@@ -639,11 +674,11 @@ def main():
         for sym in symbols:
             print(f"\nБэктест {sym}...")
             res = run_backtest(sym, timeframe, bars=args.bars, spread_points=args.spread,
-                               deposit=args.deposit, risk_pct=args.risk)
+                               deposit=args.deposit, risk_pct=args.risk, fixed_volume=args.volume)
             print_report(sym, args.timeframe, args.bars, args.spread, res, deposit=args.deposit)
     else:
         result = run_backtest(args.symbol, timeframe, bars=args.bars, spread_points=args.spread,
-                              deposit=args.deposit, risk_pct=args.risk)
+                              deposit=args.deposit, risk_pct=args.risk, fixed_volume=args.volume)
         print_report(args.symbol, args.timeframe, args.bars, args.spread, result, deposit=args.deposit)
 
 

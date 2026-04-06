@@ -1,0 +1,9 @@
+MetaTrader5
+python-telegram-bot
+pandas
+numpy
+TA-Lib
+python-dotenv
+fastapi
+uvicorn[standard]
+websockets

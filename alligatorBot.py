@@ -717,18 +717,18 @@ class TradingBot:
 
         keyboard = [
             [
-                InlineKeyboardButton("Без депозита", callback_data=f"bt_run_{symbol}_{bars}_0"),
+                InlineKeyboardButton("Без депозита", callback_data=f"bt_dep_{symbol}_{bars}_0"),
             ],
             [
-                InlineKeyboardButton("1 000 $", callback_data=f"bt_run_{symbol}_{bars}_1000"),
-                InlineKeyboardButton("5 000 $", callback_data=f"bt_run_{symbol}_{bars}_5000"),
+                InlineKeyboardButton("1 000 $", callback_data=f"bt_dep_{symbol}_{bars}_1000"),
+                InlineKeyboardButton("5 000 $", callback_data=f"bt_dep_{symbol}_{bars}_5000"),
             ],
             [
-                InlineKeyboardButton("10 000 $", callback_data=f"bt_run_{symbol}_{bars}_10000"),
-                InlineKeyboardButton("50 000 $", callback_data=f"bt_run_{symbol}_{bars}_50000"),
+                InlineKeyboardButton("10 000 $", callback_data=f"bt_dep_{symbol}_{bars}_10000"),
+                InlineKeyboardButton("50 000 $", callback_data=f"bt_dep_{symbol}_{bars}_50000"),
             ],
             [
-                InlineKeyboardButton("100 000 $", callback_data=f"bt_run_{symbol}_{bars}_100000"),
+                InlineKeyboardButton("100 000 $", callback_data=f"bt_dep_{symbol}_{bars}_100000"),
             ],
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -741,8 +741,60 @@ class TradingBot:
             reply_markup=reply_markup
         )
 
+    async def handle_backtest_deposit(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Обработка выбора депозита — запрос объёма текстом"""
+        if not await self.isUserAllowed(update):
+            return
+        query = update.callback_query
+        await query.answer()
+
+        # bt_dep_{symbol}_{bars}_{deposit}
+        parts = query.data.split("_")
+        symbol = parts[2]
+        bars = parts[3]
+        deposit = parts[4]
+
+        # Сохраняем параметры и ждём текстового ввода объёма
+        context.user_data['bt_symbol'] = symbol
+        context.user_data['bt_bars'] = int(bars)
+        context.user_data['bt_deposit'] = float(deposit)
+        context.user_data['bt_awaiting_volume'] = True
+
+        name = "все активные пары" if symbol == "ALL" else symbol
+        dep_str = f", депозит {float(deposit):,.0f}$" if float(deposit) > 0 else ""
+        await query.edit_message_text(
+            f"🧪 Бэктест: {name}, {bars} баров{dep_str}\n\n"
+            f"📊 Введите объём сделки в лотах (число):\n"
+            f"Например: 0.1 или 1.5\n"
+            f"Введите 0 для авторасчёта по % риска от баланса"
+        )
+
+    async def handle_backtest_volume_text(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Обработка текстового ввода объёма для бэктеста"""
+        if not context.user_data.get('bt_awaiting_volume'):
+            return False  # не наш обработчик
+
+        text = update.message.text.strip().replace(',', '.')
+        try:
+            fixed_volume = float(text)
+        except ValueError:
+            await update.message.reply_text("❌ Введите число, например: 0.1 или 1.5\nИли 0 для авторасчёта.")
+            return True
+
+        if fixed_volume < 0:
+            await update.message.reply_text("❌ Объём не может быть отрицательным.")
+            return True
+
+        context.user_data['bt_awaiting_volume'] = False
+        symbol = context.user_data['bt_symbol']
+        bars = context.user_data['bt_bars']
+        deposit = context.user_data['bt_deposit']
+
+        await self._run_backtest_and_send(update, context, symbol, bars, deposit, fixed_volume)
+        return True
+
     async def handle_backtest_run(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Запуск бэктеста и отправка результата"""
+        """Запуск бэктеста из callback (обратная совместимость)"""
         if not await self.isUserAllowed(update):
             return
         query = update.callback_query
@@ -753,9 +805,24 @@ class TradingBot:
         symbol = parts[2]
         bars = int(parts[3])
         deposit = float(parts[4])
+        fixed_volume = 0.0
 
+        await self._run_backtest_and_send(update, context, symbol, bars, deposit, fixed_volume)
+
+    async def _run_backtest_and_send(self, update, context, symbol, bars, deposit, fixed_volume):
+        """Общая логика запуска бэктеста и отправки результата."""
         dep_str = f", депозит {deposit:,.0f}$" if deposit > 0 else ""
-        await query.edit_message_text(f"⏳ Бэктест запущен: {symbol}, {bars} баров H1{dep_str}...\nПодождите...")
+        vol_str = f", объём {fixed_volume} лот" if fixed_volume > 0 else ", авторасчёт объёма"
+
+        # Отправляем сообщение "ожидайте"
+        if update.callback_query:
+            await update.callback_query.edit_message_text(
+                f"⏳ Бэктест запущен: {symbol}, {bars} баров H1{dep_str}{vol_str}...\nПодождите..."
+            )
+        else:
+            await update.message.reply_text(
+                f"⏳ Бэктест запущен: {symbol}, {bars} баров H1{dep_str}{vol_str}...\nПодождите..."
+            )
 
         try:
             if symbol == "ALL":
@@ -765,8 +832,9 @@ class TradingBot:
 
             messages = []
             for sym in symbols:
-                res = run_backtest(sym, mt5.TIMEFRAME_H1, bars=bars, spread_points=0, deposit=deposit)
-                messages.append(self._format_backtest_result(sym, bars, res, deposit))
+                res = run_backtest(sym, mt5.TIMEFRAME_H1, bars=bars, spread_points=0,
+                                   deposit=deposit, fixed_volume=fixed_volume)
+                messages.append(self._format_backtest_result(sym, bars, res, deposit, fixed_volume))
 
             full_message = "\n\n".join(messages)
 
@@ -783,7 +851,7 @@ class TradingBot:
                 text=f"❌ Ошибка бэктеста: {str(e)}"
             )
 
-    def _format_backtest_result(self, symbol, bars, result, deposit=0):
+    def _format_backtest_result(self, symbol, bars, result, deposit=0, fixed_volume=0.0):
         """Форматирование результата бэктеста для Telegram."""
         if result is None or result.total_trades == 0:
             return f"🧪 {symbol} ({bars} баров)\nНет сделок за период."
@@ -796,6 +864,8 @@ class TradingBot:
 
         if deposit > 0:
             msg += f"Депозит: {deposit:,.0f} $\n"
+        if fixed_volume > 0:
+            msg += f"Объём: {fixed_volume} лот (фикс.)\n"
 
         msg += (
             f"Сделок: {result.total_trades}\n"
@@ -899,6 +969,7 @@ class TradingBot:
             CallbackQueryHandler(self.handle_pair_selection, pattern="^pair_"),
             CallbackQueryHandler(self.handle_backtest_symbol, pattern="^bt_sym_"),
             CallbackQueryHandler(self.handle_backtest_bars, pattern="^bt_bars_"),
+            CallbackQueryHandler(self.handle_backtest_deposit, pattern="^bt_dep_"),
             CallbackQueryHandler(self.handle_backtest_run, pattern="^bt_run_")
         ]
 
@@ -911,6 +982,12 @@ class TradingBot:
 
     async def handle_buttons(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработка нажатий на текстовые кнопки"""
+        # Перехват ввода объёма для бэктеста
+        if context.user_data.get('bt_awaiting_volume'):
+            handled = await self.handle_backtest_volume_text(update, context)
+            if handled:
+                return
+
         text = update.message.text
         if text == "📊 Статус":
             await self.status(update, context)
