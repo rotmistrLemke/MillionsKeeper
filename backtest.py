@@ -105,9 +105,9 @@ def get_rsi_signal(row):
     rp2 = row['rsi_prev2']
     if pd.isna(r) or pd.isna(rp) or pd.isna(rp2):
         return 'NO_SIGNAL'
-    if 70 > r > 50 and r > rp:
+    if 70 > r > 55 and rp > rp2:
         return 'BUY'
-    elif 50 > r > 30 and r < rp:
+    elif 45 > r > 30 and rp < rp2:
         return 'SELL'
     return 'NO_SIGNAL'
 
@@ -337,24 +337,33 @@ def calc_volume(balance, risk_pct, stop_loss_pips, pip_value_per_lot, symbol_inf
     return volume
 
 
-def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0, risk_pct=80, fixed_volume=0.0):
+def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0, risk_pct=80, fixed_volume=0.0,
+                 date_from=None, date_to=None):
     """
     Запускает бэктест стратегии.
 
     Параметры:
         symbol:         торговый символ (напр. 'XAUUSDrfd')
         timeframe:      таймфрейм MT5 (напр. mt5.TIMEFRAME_H1)
-        bars:           количество исторических баров
+        bars:           количество исторических баров (игнорируется если указаны даты)
         spread_points:  спред в пунктах (вычитается при входе)
         deposit:        начальный депозит в $ (0 = без расчёта денег)
         risk_pct:       процент риска от баланса на сделку (по умолч. 80, как в боте)
         fixed_volume:   фиксированный объём сделки в лотах (0 = авторасчёт по риску)
+        date_from:      дата начала (datetime), если указана — загрузка по диапазону дат
+        date_to:        дата окончания (datetime), если указана — загрузка по диапазону дат
 
     Возвращает:
         BacktestResult с полной статистикой
     """
     # Загружаем данные
-    rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, bars)
+    if date_from is not None:
+        if date_to is not None:
+            rates = mt5.copy_rates_range(symbol, timeframe, date_from, date_to)
+        else:
+            rates = mt5.copy_rates_from(symbol, timeframe, date_from, bars)
+    else:
+        rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, bars)
     if rates is None or len(rates) < 100:
         print(f"Недостаточно данных для бэктеста {symbol}")
         return None
@@ -647,7 +656,12 @@ def main():
     parser.add_argument('--volume', type=float, default=0, help='Фиксированный объём в лотах (0 = авторасчёт по риску)')
     parser.add_argument('--timeframe', default='H1', choices=['M5', 'M15', 'M30', 'H1', 'H4', 'D1'],
                         help='Таймфрейм (по умолчанию H1)')
+    parser.add_argument('--start', default=None, help='Дата начала (формат YYYY-MM-DD, напр. 2025-01-01)')
+    parser.add_argument('--end', default=None, help='Дата окончания (формат YYYY-MM-DD, напр. 2025-12-31)')
     args = parser.parse_args()
+
+    date_from = datetime.strptime(args.start, '%Y-%m-%d') if args.start else None
+    date_to = datetime.strptime(args.end, '%Y-%m-%d') if args.end else None
 
     tf_map = {
         'M5': mt5.TIMEFRAME_M5,
@@ -665,7 +679,12 @@ def main():
 
     dep_str = f", депозит={args.deposit}$" if args.deposit > 0 else ""
     vol_str = f", объём={args.volume} лот" if args.volume > 0 else ""
-    print(f"Запуск бэктеста: {args.symbol}, {args.timeframe}, {args.bars} баров, спред={args.spread}{dep_str}{vol_str}...")
+    date_str = ""
+    if date_from:
+        date_str += f", с {args.start}"
+    if date_to:
+        date_str += f" по {args.end}"
+    print(f"Запуск бэктеста: {args.symbol}, {args.timeframe}, {args.bars} баров, спред={args.spread}{dep_str}{vol_str}{date_str}...")
 
     if args.symbol == 'ALL':
         from settings import Dictionary
@@ -674,11 +693,13 @@ def main():
         for sym in symbols:
             print(f"\nБэктест {sym}...")
             res = run_backtest(sym, timeframe, bars=args.bars, spread_points=args.spread,
-                               deposit=args.deposit, risk_pct=args.risk, fixed_volume=args.volume)
+                               deposit=args.deposit, risk_pct=args.risk, fixed_volume=args.volume,
+                               date_from=date_from, date_to=date_to)
             print_report(sym, args.timeframe, args.bars, args.spread, res, deposit=args.deposit)
     else:
         result = run_backtest(args.symbol, timeframe, bars=args.bars, spread_points=args.spread,
-                              deposit=args.deposit, risk_pct=args.risk, fixed_volume=args.volume)
+                              deposit=args.deposit, risk_pct=args.risk, fixed_volume=args.volume,
+                              date_from=date_from, date_to=date_to)
         print_report(args.symbol, args.timeframe, args.bars, args.spread, result, deposit=args.deposit)
 
 

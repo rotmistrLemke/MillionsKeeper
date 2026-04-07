@@ -31,11 +31,21 @@ class BacktestAgent(BaseAgent):
         spread = p.get("spread", 0)
         timeframe = p.get("timeframe", None)
         volume = p.get("volume", 0.0)
+        date_start = p.get("start")
+        date_end = p.get("end")
 
-        await self.emit_status(AgentStatus.RUNNING, f"Бэктест {symbol} {bars} баров")
+        detail = f"Бэктест {symbol}"
+        if date_start:
+            detail += f" с {date_start}"
+            if date_end:
+                detail += f" по {date_end}"
+        else:
+            detail += f" {bars} баров"
+        await self.emit_status(AgentStatus.RUNNING, detail)
         try:
             result = await asyncio.get_event_loop().run_in_executor(
-                None, self._run_backtest, symbol, bars, deposit, spread, timeframe, volume
+                None, self._run_backtest, symbol, bars, deposit, spread, timeframe, volume,
+                date_start, date_end
             )
             self.metrics["runs"] = self.metrics.get("runs", 0) + 1
             await self.emit(EventType.BACKTEST_RESULT, {
@@ -49,12 +59,17 @@ class BacktestAgent(BaseAgent):
             self._logger.error(f"Backtest failed {symbol}: {e}")
             await self.emit_status(AgentStatus.ERROR, str(e))
 
-    def _run_backtest(self, symbol, bars, deposit, spread, timeframe, volume=0.0) -> dict:
+    def _run_backtest(self, symbol, bars, deposit, spread, timeframe, volume=0.0,
+                      date_start=None, date_end=None) -> dict:
         from backtest import run_backtest
+        from datetime import datetime
         import MetaTrader5 as mt5
 
         tf = timeframe if timeframe is not None else mt5.TIMEFRAME_H1
-        result = run_backtest(symbol, tf, bars=bars, spread_points=spread, deposit=deposit, fixed_volume=volume)
+        date_from = datetime.strptime(date_start, '%Y-%m-%d') if date_start else None
+        date_to = datetime.strptime(date_end, '%Y-%m-%d') if date_end else None
+        result = run_backtest(symbol, tf, bars=bars, spread_points=spread, deposit=deposit,
+                              fixed_volume=volume, date_from=date_from, date_to=date_to)
         if result is None:
             return {}
         return {

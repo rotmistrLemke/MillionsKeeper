@@ -256,12 +256,21 @@ function renderLog() {
 }
 
 // ─── Backtest ─────────────────────────────────────────────────────
+function toggleBarsVisibility() {
+  const start = document.getElementById('bt-start').value;
+  const end = document.getElementById('bt-end').value;
+  const barsLabel = document.getElementById('bt-bars-label');
+  barsLabel.style.display = (start || end) ? 'none' : '';
+}
+
 function runBacktest() {
   const symbol  = document.getElementById('bt-symbol').value;
   const bars    = parseInt(document.getElementById('bt-bars').value);
   const deposit = parseFloat(document.getElementById('bt-deposit').value);
   const volume  = parseFloat(document.getElementById('bt-volume').value);
-  sendCmd({ cmd: 'run_backtest', symbol, bars, deposit, spread: 0, volume });
+  const start   = document.getElementById('bt-start').value || null;
+  const end     = document.getElementById('bt-end').value || null;
+  sendCmd({ cmd: 'run_backtest', symbol, bars, deposit, spread: 0, volume, start, end });
   document.getElementById('bt-result').innerHTML = '<div style="color:var(--text-muted)">Выполняется...</div>';
 }
 
@@ -290,41 +299,85 @@ function renderBacktestResult(payload) {
     </div>
     ${renderBtTrades(r.trades)}
   `;
+  renderBtPage();
 }
+
+let btPage = 0;
+const BT_PER_PAGE = 20;
 
 function renderBtTrades(trades) {
   if (!trades || !trades.length) return '';
+  state.btTrades = trades.slice().reverse();
+  btPage = 0;
   return `
     <div class="card">
-      <div class="card-title">Последние сделки</div>
-      <table>
-        <tr>
-          <th>Тип</th><th>Вход</th><th>Выход</th><th>Цена входа</th><th>Цена выхода</th>
-          <th>P&L pts</th><th>P&L $</th><th>Выход по</th>
-          <th>EMA8</th><th>EMA21</th><th>MACD</th><th>RSI</th><th>ATR</th>
-        </tr>
-        ${trades.slice(-30).reverse().map(t => {
-          const pc = t.pnl_points >= 0 ? 'pnl-pos' : 'pnl-neg';
-          const ind = t.indicators || {};
-          return `<tr>
-            <td><span class="badge badge-${(t.type||'').toLowerCase()}">${t.type}</span></td>
-            <td>${(t.entry_time||'').toString().substring(0,16)}</td>
-            <td>${(t.exit_time||'').toString().substring(0,16)}</td>
-            <td>${(t.entry_price||0).toFixed(5)}</td>
-            <td>${(t.exit_price||0).toFixed(5)}</td>
-            <td class="${pc}">${t.pnl_points>=0?'+':''}${(t.pnl_points||0).toFixed(1)}</td>
-            <td class="${pc}">${t.pnl_money!=null?(t.pnl_money>=0?'+':'')+fmt(t.pnl_money)+'$':'—'}</td>
-            <td style="color:var(--text-muted)">${t.exit_reason||''}</td>
-            <td style="color:var(--text-muted)">${ind.ema8!=null?ind.ema8.toFixed(5):'—'}</td>
-            <td style="color:var(--text-muted)">${ind.ema21!=null?ind.ema21.toFixed(5):'—'}</td>
-            <td style="color:var(--text-muted)">${ind.macd_line!=null?ind.macd_line.toFixed(5):'—'}</td>
-            <td style="color:var(--text-muted)">${ind.rsi!=null?ind.rsi.toFixed(1):'—'}</td>
-            <td style="color:var(--text-muted)">${ind.atr!=null?ind.atr.toFixed(5):'—'}</td>
-          </tr>`;
-        }).join('')}
-      </table>
+      <div class="card-title">Сделки (${trades.length})</div>
+      <div id="bt-trades-table"></div>
+      <div id="bt-pagination" class="bt-pagination"></div>
     </div>
   `;
+}
+
+function renderBtPage() {
+  const trades = state.btTrades;
+  if (!trades) return;
+  const totalPages = Math.ceil(trades.length / BT_PER_PAGE);
+  const start = btPage * BT_PER_PAGE;
+  const page = trades.slice(start, start + BT_PER_PAGE);
+
+  document.getElementById('bt-trades-table').innerHTML = `
+    <table>
+      <tr>
+        <th>Тип</th><th>Вход</th><th>Выход</th><th>Цена входа</th><th>Цена выхода</th>
+        <th>P&L pts</th><th>P&L $</th><th>Выход по</th>
+        <th>EMA8</th><th>EMA21</th><th>MACD</th><th>RSI</th><th>ATR</th>
+      </tr>
+      ${page.map(t => {
+        const pc = t.pnl_points >= 0 ? 'pnl-pos' : 'pnl-neg';
+        const ind = t.indicators || {};
+        return `<tr>
+          <td><span class="badge badge-${(t.type||'').toLowerCase()}">${t.type}</span></td>
+          <td>${(t.entry_time||'').toString().substring(0,16)}</td>
+          <td>${(t.exit_time||'').toString().substring(0,16)}</td>
+          <td>${(t.entry_price||0).toFixed(5)}</td>
+          <td>${(t.exit_price||0).toFixed(5)}</td>
+          <td class="${pc}">${t.pnl_points>=0?'+':''}${(t.pnl_points||0).toFixed(1)}</td>
+          <td class="${pc}">${t.pnl_money!=null?(t.pnl_money>=0?'+':'')+fmt(t.pnl_money)+'$':'—'}</td>
+          <td style="color:var(--text-muted)">${t.exit_reason||''}</td>
+          <td style="color:var(--text-muted)">${ind.ema8!=null?ind.ema8.toFixed(5):'—'}</td>
+          <td style="color:var(--text-muted)">${ind.ema21!=null?ind.ema21.toFixed(5):'—'}</td>
+          <td style="color:var(--text-muted)">${ind.macd_line!=null?ind.macd_line.toFixed(5):'—'}</td>
+          <td style="color:var(--text-muted)">${ind.rsi!=null?ind.rsi.toFixed(1):'—'}</td>
+          <td style="color:var(--text-muted)">${ind.atr!=null?ind.atr.toFixed(5):'—'}</td>
+        </tr>`;
+      }).join('')}
+    </table>
+  `;
+
+  const pag = document.getElementById('bt-pagination');
+  if (totalPages <= 1) { pag.innerHTML = ''; return; }
+
+  let html = `<button onclick="btGoPage(0)" ${btPage===0?'disabled':''}>&#171;</button>`;
+  html += `<button onclick="btGoPage(${btPage-1})" ${btPage===0?'disabled':''}>&#8249;</button>`;
+
+  const range = 2;
+  let from = Math.max(0, btPage - range);
+  let to = Math.min(totalPages - 1, btPage + range);
+  if (from > 0) html += `<span class="bt-page-dots">...</span>`;
+  for (let i = from; i <= to; i++) {
+    html += `<button onclick="btGoPage(${i})" class="${i===btPage?'active':''}">${i+1}</button>`;
+  }
+  if (to < totalPages - 1) html += `<span class="bt-page-dots">...</span>`;
+
+  html += `<button onclick="btGoPage(${btPage+1})" ${btPage>=totalPages-1?'disabled':''}>&#8250;</button>`;
+  html += `<button onclick="btGoPage(${totalPages-1})" ${btPage>=totalPages-1?'disabled':''}>&#187;</button>`;
+  pag.innerHTML = html;
+}
+
+function btGoPage(p) {
+  const totalPages = Math.ceil((state.btTrades||[]).length / BT_PER_PAGE);
+  btPage = Math.max(0, Math.min(p, totalPages - 1));
+  renderBtPage();
 }
 
 // ─── Tabs ─────────────────────────────────────────────────────────
@@ -340,8 +393,10 @@ document.addEventListener('DOMContentLoaded', () => {
     t.addEventListener('click', () => switchTab(t.dataset.tab));
   });
 
-  // Backtest button
+  // Backtest
   document.getElementById('btn-run-bt')?.addEventListener('click', runBacktest);
+  document.getElementById('bt-start')?.addEventListener('change', toggleBarsVisibility);
+  document.getElementById('bt-end')?.addEventListener('change', toggleBarsVisibility);
 
   // Fetch account periodically
   setInterval(async () => {

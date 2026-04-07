@@ -87,6 +87,8 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
                 "deposit": cmd.get("deposit", 0.0),
                 "spread": cmd.get("spread", 0),
                 "volume": cmd.get("volume", 0.0),
+                "start": cmd.get("start"),
+                "end": cmd.get("end"),
             }
         ))
 

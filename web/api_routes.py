@@ -127,6 +127,8 @@ class BacktestRequest(BaseModel):
     spread: int = 0
     risk: float = 80.0
     volume: float = 0.0
+    start: Optional[str] = None
+    end: Optional[str] = None
 
 
 @router.post("/backtest")
@@ -141,6 +143,8 @@ async def run_backtest(req: BacktestRequest):
             "spread": req.spread,
             "risk": req.risk,
             "volume": req.volume,
+            "start": req.start,
+            "end": req.end,
         }
     ))
     return {"ok": True, "message": f"Бэктест {req.symbol} запущен"}

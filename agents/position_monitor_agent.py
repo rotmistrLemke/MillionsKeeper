@@ -1,5 +1,6 @@
 import asyncio
 import time
+import pandas as pd
 
 from agents.base_agent import BaseAgent, AgentStatus
 from core.event_bus import EventBus
@@ -78,10 +79,13 @@ class PositionMonitorAgent(BaseAgent):
 
         try:
             rsi_ind = RSI()
-            _, rsi_value = await asyncio.get_event_loop().run_in_executor(
-                None, rsi_ind.RSI_signal, symbol, GlobalValues.timeFrame
+            rsi_data = await asyncio.get_event_loop().run_in_executor(
+                None, rsi_ind.get_rsi_talib, symbol, GlobalValues.time_frame
             )
-            if rsi_value is None:
+            if rsi_data is None or 'RSI' not in rsi_data or len(rsi_data['RSI']) < 1:
+                return
+            rsi_value = float(rsi_data['RSI'].iloc[-1])
+            if pd.isna(rsi_value):
                 return
 
             should_close = (

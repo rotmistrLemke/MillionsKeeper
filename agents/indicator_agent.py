@@ -75,7 +75,11 @@ class IndicatorAgent(BaseAgent):
             rsi_signal = rsi_ind.RSI_signal(rsi_val, prev_rsi, prev2_rsi)
 
         # ADX
-        adx_values = adx_ind.ADX(symbol, self.timeframe)
+        from indicators import Alligator
+        df = Alligator().Df(symbol, self.timeframe)
+        adx_values, _, _ = adx_ind.ADX(
+            df['high'].values, df['low'].values, df['close'].values, 14
+        )
         adx_val = float(adx_values[-1]) if adx_values is not None and len(adx_values) > 0 else 0.0
 
         return {
@@ -85,8 +89,8 @@ class IndicatorAgent(BaseAgent):
             "macd_signal": macd_signal.get("signal", "NO_SIGNAL") if isinstance(macd_signal, dict) else "NO_SIGNAL",
             "rsi_signal": rsi_signal.get("signal", "NO_SIGNAL") if isinstance(rsi_signal, dict) else "NO_SIGNAL",
             "rsi_value": rsi_value,
-            "atr_value": atr_value,
+            "atr_value": float(atr_value.iloc[-1]) if atr_value is not None and hasattr(atr_value, 'iloc') else atr_value,
             "adx_value": adx_val,
-            "ema8": float(fast_ma) if fast_ma is not None else None,
-            "ema21": float(slow_ma) if slow_ma is not None else None,
+            "ema8": float(fast_ma.iloc[-1]) if fast_ma is not None and hasattr(fast_ma, 'iloc') else None,
+            "ema21": float(slow_ma.iloc[-1]) if slow_ma is not None and hasattr(slow_ma, 'iloc') else None,
         }
