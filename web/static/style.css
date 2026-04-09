@@ -286,6 +286,36 @@ tr:hover td { background: var(--surface2); }
 .stat-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
 .stat-value { font-size: 18px; font-weight: bold; }
 
+/* ── Strategy Description Panel ── */
+.strategy-desc {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.8;
+  display: none;
+}
+.strategy-desc:not(:empty) { display: block; }
+.strat-desc-name {
+  font-weight: bold;
+  font-size: 13px;
+  color: var(--blue);
+  margin-bottom: 6px;
+}
+.strat-desc-body { color: var(--text-muted); }
+.strat-desc-body b { color: var(--text); }
+.strat-desc-ind { margin-top: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.strat-ind-tag {
+  background: rgba(88,166,255,0.12);
+  color: var(--blue);
+  border: 1px solid rgba(88,166,255,0.25);
+  border-radius: 3px;
+  padding: 1px 7px;
+  font-size: 11px;
+}
+
 /* Backtest pagination */
 .bt-pagination { display: flex; align-items: center; justify-content: center; gap: 4px; padding: 12px 0 4px; }
 .bt-pagination button { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px 10px; cursor: pointer; font-size: 13px; }

@@ -121,6 +121,7 @@ async def get_trading_status():
 # ──────────────────────────── Backtest ────────────────────────────
 
 class BacktestRequest(BaseModel):
+    strategy: str = "default"
     symbol: str
     bars: int = 2000
     deposit: float = 0.0
@@ -137,6 +138,7 @@ async def run_backtest(req: BacktestRequest):
         type=EventType.BACKTEST_STARTED,
         source="api",
         payload={
+            "strategy": req.strategy,
             "symbol": req.symbol,
             "bars": req.bars,
             "deposit": req.deposit,

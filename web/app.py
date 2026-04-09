@@ -82,11 +82,13 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
             type=EventType.BACKTEST_STARTED,
             source="ws_client",
             payload={
+                "strategy": cmd.get("strategy", "default"),
                 "symbol": cmd.get("symbol", "XAUUSDrfd"),
                 "bars": cmd.get("bars", 2000),
                 "deposit": cmd.get("deposit", 0.0),
                 "spread": cmd.get("spread", 0),
                 "volume": cmd.get("volume", 0.0),
+                "timeframe": cmd.get("timeframe"),
                 "start": cmd.get("start"),
                 "end": cmd.get("end"),
             }
@@ -102,6 +104,14 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
                 "symbol": cmd.get("symbol", ""),
                 "reason": "manual_ws",
             }
+        ))
+
+    elif action == "set_active_strategy":
+        from core.events import Event, EventType
+        await bus.publish(Event(
+            type=EventType.TRADING_STATUS_CHANGED,
+            source="ws_client",
+            payload={"action": "set_active_strategy", "strategy": cmd.get("strategy", "default")}
         ))
 
     elif action == "set_trading_status":

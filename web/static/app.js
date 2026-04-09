@@ -1,3 +1,191 @@
+// ─── Strategy Metadata ────────────────────────────────────────────
+const STRATEGY_META = {
+  default: {
+    name: 'MA + MACD + RSI (основная)',
+    desc: [
+      '<b>Вход:</b> EMA8 и EMA21 в одном направлении + MACD подтверждает + RSI в зоне',
+      'BUY: EMA8 &gt; EMA21 + MACD &gt; 0 и растёт + RSI 55–70',
+      'SELL: EMA8 &lt; EMA21 + MACD &lt; 0 и падает + RSI 30–45',
+      '<b>Выход:</b> RSI пересекает 45 (BUY) или 55 (SELL)',
+      '<b>Таймфрейм:</b> H1',
+    ],
+    indicators: [
+      { col: 'ema8',        label: 'EMA8'     },
+      { col: 'ema21',       label: 'EMA21'    },
+      { col: 'macd_line',   label: 'MACD'     },
+      { col: 'macd_signal', label: 'Signal'   },
+      { col: 'rsi',         label: 'RSI'      },
+      { col: 'atr',         label: 'ATR'      },
+    ],
+  },
+  range_breakout: {
+    name: 'Range Breakout',
+    desc: [
+      'Пробой 8-барного диапазона консолидации с ATR-фильтром.',
+      '<b>Вход:</b>',
+      'BUY: Закрытие выше максимума 8 баров + ATR &gt; среднего',
+      'SELL: Закрытие ниже минимума 8 баров + ATR &gt; среднего',
+      '<b>SL:</b> противоположная граница диапазона',
+      '<b>TP:</b> размер диапазона от точки входа',
+      '<b>Таймфрейм:</b> H1',
+    ],
+    indicators: [
+      { col: 'range_high', label: 'Rng High' },
+      { col: 'range_low',  label: 'Rng Low'  },
+      { col: 'range_size', label: 'Rng Size' },
+      { col: 'atr',        label: 'ATR'       },
+    ],
+  },
+  ema_pullback: {
+    name: 'EMA Pullback (50/200)',
+    desc: [
+      'Откат к EMA50 в направлении тренда EMA200.',
+      '<b>Вход:</b>',
+      'BUY: Цена &gt; EMA200 + откат к EMA50 + пин-бар или поглощение',
+      'SELL: Цена &lt; EMA200 + откат к EMA50 + пин-бар или поглощение',
+      '<b>SL:</b> 1.5 × ATR &nbsp; <b>TP:</b> 2.5 × ATR',
+      '<b>Выход:</b> пересечение EMA200',
+      '<b>Таймфрейм:</b> H1',
+    ],
+    indicators: [
+      { col: 'ema50',  label: 'EMA50'  },
+      { col: 'ema200', label: 'EMA200' },
+      { col: 'atr',    label: 'ATR'    },
+    ],
+  },
+  cci_rsi: {
+    name: 'CCI + RSI (D1-фильтр)',
+    desc: [
+      'CCI(20) пересекает ±100, подтверждение RSI и EMA200 как D1-фильтр.',
+      '<b>Вход:</b>',
+      'BUY: CCI пересёк +100 снизу + RSI &gt; 50 + Цена &gt; EMA200',
+      'SELL: CCI пересёк −100 сверху + RSI &lt; 50 + Цена &lt; EMA200',
+      '<b>SL:</b> 1.5 × ATR &nbsp; <b>TP:</b> 2.5 × ATR',
+      '<b>Выход:</b> CCI возвращается к нулю',
+      '<b>Таймфрейм:</b> H1',
+    ],
+    indicators: [
+      { col: 'cci',   label: 'CCI(20)' },
+      { col: 'rsi',   label: 'RSI(14)' },
+      { col: 'ema200',label: 'EMA200'  },
+      { col: 'atr',   label: 'ATR'     },
+    ],
+  },
+  fibonacci_retracement: {
+    name: 'Fibonacci Retracement',
+    desc: [
+      'Откат к уровням Фибоначчи 38.2%–50% после импульсного движения.',
+      '<b>Вход:</b>',
+      'BUY: Бычий 5-барный импульс → откат 38.2–50% → подтверждающая свеча',
+      'SELL: Медвежий 5-барный импульс → откат 38.2–50% → подтверждающая свеча',
+      '<b>SL:</b> ниже уровня 61.8% &nbsp; <b>TP:</b> до экстремума импульса',
+      '<b>Таймфрейм:</b> H1',
+    ],
+    indicators: [
+      { col: 'imp_high',    label: 'Imp High' },
+      { col: 'imp_low',     label: 'Imp Low'  },
+      { col: 'fib_382_bull',label: 'Fib 38.2%'},
+      { col: 'fib_500_bull',label: 'Fib 50%'  },
+      { col: 'atr',         label: 'ATR'       },
+    ],
+  },
+  news_breakout: {
+    name: 'Post-News Breakout',
+    desc: [
+      'Пробой диапазона после волатильного (новостного) бара.',
+      '<b>Новостной бар:</b> ATR бара ≥ 2 × среднего ATR(50)',
+      '<b>Вход:</b> через 2 бара после шипа',
+      'BUY: Пробой максимума шипа',
+      'SELL: Пробой минимума шипа',
+      '<b>SL:</b> 1.5 × ATR &nbsp; <b>TP:</b> 3 × ATR',
+      '<b>Таймфрейм:</b> H1',
+    ],
+    indicators: [
+      { col: 'atr',             label: 'ATR'     },
+      { col: 'atr_avg',         label: 'ATR Avg' },
+      { col: 'spike_range_high',label: 'Spike H' },
+      { col: 'spike_range_low', label: 'Spike L' },
+    ],
+  },
+  candle_reversal: {
+    name: 'Candlestick Reversal',
+    desc: [
+      'Разворотные паттерны свечей после трендового движения.',
+      '<b>Условие:</b> 3+ баров тренда + ADX &lt; 35',
+      '<b>Паттерны:</b> дожи, пин-бар (молот/повешенный), поглощение',
+      '<b>Вход:</b>',
+      'BUY: Бычий дожи / пин / поглощение',
+      'SELL: Медвежий дожи / пин / поглощение',
+      '<b>SL:</b> Экстремум свечи + 0.5 × ATR &nbsp; <b>TP:</b> 2 × ATR',
+      '<b>Таймфрейм:</b> H1',
+    ],
+    indicators: [
+      { col: 'adx',         label: 'ADX'      },
+      { col: 'atr',         label: 'ATR'      },
+      { col: 'doji',        label: 'Дожи'     },
+      { col: 'pin_bull',    label: 'PinBull'  },
+      { col: 'pin_bear',    label: 'PinBear'  },
+      { col: 'engulf_bull', label: 'EngBull'  },
+    ],
+  },
+  sar_adx: {
+    name: 'Parabolic SAR + ADX',
+    desc: [
+      'Разворот Parabolic SAR с фильтром силы тренда ADX(14).',
+      '<b>Вход:</b>',
+      'BUY: SAR переключился под цену + ADX &gt; 25 + +DI &gt; −DI',
+      'SELL: SAR переключился над ценой + ADX &gt; 25 + −DI &gt; +DI',
+      '<b>SL:</b> 1.5 × ATR &nbsp; <b>TP:</b> 2.5 × ATR',
+      '<b>Выход:</b> обратное переключение SAR',
+      '<b>Таймфрейм:</b> H1',
+    ],
+    indicators: [
+      { col: 'sar',      label: 'SAR'     },
+      { col: 'adx',      label: 'ADX(14)' },
+      { col: 'plus_di',  label: '+DI'     },
+      { col: 'minus_di', label: '−DI'     },
+      { col: 'atr',      label: 'ATR'     },
+    ],
+  },
+  donchian_breakout: {
+    name: 'Donchian Breakout',
+    desc: [
+      'Пробой канала Дончиана (20 баров) с ATR-фильтром волатильности.',
+      '<b>Вход:</b>',
+      'BUY: Закрытие выше верхней границы канала + ATR &gt; среднего ATR',
+      'SELL: Закрытие ниже нижней границы канала + ATR &gt; среднего ATR',
+      '<b>SL:</b> 2 × ATR &nbsp; <b>TP:</b> 3 × ATR',
+      '<b>Выход:</b> возврат к средней линии канала',
+      '<b>Таймфрейм:</b> H1',
+    ],
+    indicators: [
+      { col: 'dc_upper',  label: 'DC Upper' },
+      { col: 'dc_lower',  label: 'DC Lower' },
+      { col: 'dc_middle', label: 'DC Mid'   },
+      { col: 'atr',       label: 'ATR'      },
+    ],
+  },
+  triple_ema: {
+    name: 'Triple EMA Momentum',
+    desc: [
+      'Тройная EMA-выравненность (8/21/50) с подтверждением MACD.',
+      '<b>Вход:</b>',
+      'BUY: EMA8 &gt; EMA21 &gt; EMA50 + MACD гистограмма растёт',
+      'SELL: EMA8 &lt; EMA21 &lt; EMA50 + MACD гистограмма падает',
+      '<b>SL:</b> 1.5 × ATR &nbsp; <b>TP:</b> 2 × ATR',
+      '<b>Выход:</b> EMA8 пересекает EMA21 или разворот MACD',
+      '<b>Таймфрейм:</b> H1',
+    ],
+    indicators: [
+      { col: 'ema8',      label: 'EMA8'      },
+      { col: 'ema21',     label: 'EMA21'     },
+      { col: 'ema50',     label: 'EMA50'     },
+      { col: 'macd_hist', label: 'MACD Hist' },
+      { col: 'atr',       label: 'ATR'       },
+    ],
+  },
+};
+
 // ─── State ────────────────────────────────────────────────────────
 const state = {
   ws: null,
@@ -8,6 +196,7 @@ const state = {
   account: {},
   history: { today: {}, week: {}, month: {} },
   backtest_result: null,
+  bt_strategy: 'default',
   log_lines: [],
   MAX_LOG: 200,
 };
@@ -255,6 +444,35 @@ function renderLog() {
   }).join('');
 }
 
+// ─── Strategy Description ─────────────────────────────────────────
+function renderStrategyDesc(stratKey, containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const meta = STRATEGY_META[stratKey] || STRATEGY_META.default;
+  el.innerHTML = `
+    <div class="strat-desc-name">${meta.name}</div>
+    <div class="strat-desc-body">${meta.desc.join('<br>')}</div>
+    ${meta.indicators.length ? `<div class="strat-desc-ind">Индикаторы: ${meta.indicators.map(i => `<span class="strat-ind-tag">${i.label}</span>`).join('')}</div>` : ''}
+  `;
+}
+
+function onBtStrategyChange() {
+  const val = document.getElementById('bt-strategy').value;
+  renderStrategyDesc(val, 'bt-strategy-desc');
+}
+
+function onActiveStrategyChange() {
+  const val = document.getElementById('active-strategy').value;
+  renderStrategyDesc(val, 'active-strategy-desc');
+}
+
+function setActiveStrategy() {
+  const strategy = document.getElementById('active-strategy').value;
+  sendCmd({ cmd: 'set_active_strategy', strategy });
+  const btn = document.getElementById('btn-set-strategy');
+  if (btn) { btn.textContent = '✓ Применено'; setTimeout(() => { btn.textContent = '✓ Применить'; }, 2000); }
+}
+
 // ─── Backtest ─────────────────────────────────────────────────────
 function toggleBarsVisibility() {
   const start = document.getElementById('bt-start').value;
@@ -264,17 +482,20 @@ function toggleBarsVisibility() {
 }
 
 function runBacktest() {
-  const symbol  = document.getElementById('bt-symbol').value;
-  const bars    = parseInt(document.getElementById('bt-bars').value);
-  const deposit = parseFloat(document.getElementById('bt-deposit').value);
-  const volume  = parseFloat(document.getElementById('bt-volume').value);
-  const start   = document.getElementById('bt-start').value || null;
-  const end     = document.getElementById('bt-end').value || null;
-  sendCmd({ cmd: 'run_backtest', symbol, bars, deposit, spread: 0, volume, start, end });
+  const strategy  = document.getElementById('bt-strategy').value;
+  const symbol    = document.getElementById('bt-symbol').value;
+  const timeframe = document.getElementById('bt-timeframe').value;
+  const bars      = parseInt(document.getElementById('bt-bars').value);
+  const deposit   = parseFloat(document.getElementById('bt-deposit').value);
+  const volume    = parseFloat(document.getElementById('bt-volume').value);
+  const start     = document.getElementById('bt-start').value || null;
+  const end       = document.getElementById('bt-end').value || null;
+  sendCmd({ cmd: 'run_backtest', strategy, symbol, timeframe, bars, deposit, spread: 0, volume, start, end });
   document.getElementById('bt-result').innerHTML = '<div style="color:var(--text-muted)">Выполняется...</div>';
 }
 
 function renderBacktestResult(payload) {
+  state.bt_strategy = payload.strategy || 'default';
   const r = payload.result;
   if (!r || !r.total_trades) {
     document.getElementById('bt-result').innerHTML = '<div style="color:var(--text-muted)">Нет сделок</div>';
@@ -307,7 +528,8 @@ const BT_PER_PAGE = 20;
 
 function renderBtTrades(trades) {
   if (!trades || !trades.length) return '';
-  state.btTrades = trades.slice().reverse();
+  // Храним в хронологическом порядке для правильной нумерации и баланса
+  state.btTrades = trades.slice();
   btPage = 0;
   return `
     <div class="card">
@@ -321,36 +543,66 @@ function renderBtTrades(trades) {
 function renderBtPage() {
   const trades = state.btTrades;
   if (!trades) return;
+
+  const stratKey  = state.bt_strategy || 'default';
+  const indCols   = (STRATEGY_META[stratKey] || STRATEGY_META.default).indicators;
+
   const totalPages = Math.ceil(trades.length / BT_PER_PAGE);
   const start = btPage * BT_PER_PAGE;
   const page = trades.slice(start, start + BT_PER_PAGE);
+  const hasBalance = trades.some(t => t.balance_after != null && t.balance_after !== 0);
+
+  // colspan for summary "Итого:" = 6 fixed cols + indicator cols + P&L pts col
+  const summaryColspan = 7 + indCols.length;
 
   document.getElementById('bt-trades-table').innerHTML = `
     <table>
       <tr>
-        <th>Тип</th><th>Вход</th><th>Выход</th><th>Цена входа</th><th>Цена выхода</th>
-        <th>P&L pts</th><th>P&L $</th><th>Выход по</th>
-        <th>EMA8</th><th>EMA21</th><th>MACD</th><th>RSI</th><th>ATR</th>
+        <th>#</th><th>Тип</th><th>Вход</th><th>Выход</th><th>Цена входа</th><th>Цена выхода</th>
+        ${indCols.map(ic => `<th>${ic.label}</th>`).join('')}
+        <th>P&L pts</th><th>P&L $</th>${hasBalance ? '<th>Баланс</th>' : ''}
+        <th>Баров</th><th>Выход по</th>
       </tr>
-      ${page.map(t => {
-        const pc = t.pnl_points >= 0 ? 'pnl-pos' : 'pnl-neg';
-        const ind = t.indicators || {};
+      ${page.map((t, i) => {
+        const globalIdx = start + i + 1;
+        const pc  = t.pnl_points >= 0 ? 'pnl-pos' : 'pnl-neg';
+        const bal = t.balance_after;
+        const prevBal = globalIdx > 1 ? (trades[start + i - 1]?.balance_after ?? bal) : bal;
+        const balClass = bal != null && bal >= prevBal ? 'pnl-pos' : 'pnl-neg';
+        const indCells = indCols.map(ic => {
+          const v = t.indicators?.[ic.col];
+          const s = v != null ? Number(v).toFixed(2) : '—';
+          return `<td style="color:var(--text-muted);font-size:11px">${s}</td>`;
+        }).join('');
         return `<tr>
+          <td style="color:var(--text-muted)">${globalIdx}</td>
           <td><span class="badge badge-${(t.type||'').toLowerCase()}">${t.type}</span></td>
           <td>${(t.entry_time||'').toString().substring(0,16)}</td>
           <td>${(t.exit_time||'').toString().substring(0,16)}</td>
           <td>${(t.entry_price||0).toFixed(5)}</td>
           <td>${(t.exit_price||0).toFixed(5)}</td>
+          ${indCells}
           <td class="${pc}">${t.pnl_points>=0?'+':''}${(t.pnl_points||0).toFixed(1)}</td>
           <td class="${pc}">${t.pnl_money!=null?(t.pnl_money>=0?'+':'')+fmt(t.pnl_money)+'$':'—'}</td>
+          ${hasBalance ? `<td class="${balClass}" style="font-weight:600">${bal!=null?fmt(bal)+'$':'—'}</td>` : ''}
+          <td style="color:var(--text-muted)">${t.bars_held??'—'}</td>
           <td style="color:var(--text-muted)">${t.exit_reason||''}</td>
-          <td style="color:var(--text-muted)">${ind.ema8!=null?ind.ema8.toFixed(5):'—'}</td>
-          <td style="color:var(--text-muted)">${ind.ema21!=null?ind.ema21.toFixed(5):'—'}</td>
-          <td style="color:var(--text-muted)">${ind.macd_line!=null?ind.macd_line.toFixed(5):'—'}</td>
-          <td style="color:var(--text-muted)">${ind.rsi!=null?ind.rsi.toFixed(1):'—'}</td>
-          <td style="color:var(--text-muted)">${ind.atr!=null?ind.atr.toFixed(5):'—'}</td>
         </tr>`;
       }).join('')}
+      ${hasBalance && btPage === totalPages - 1 ? (() => {
+        const last = trades[trades.length - 1];
+        const first = trades[0];
+        const finalBal = last?.balance_after;
+        const initBal = first?.balance_after != null ? (first.balance_after - (first.pnl_money||0)) : null;
+        const totalPnl = finalBal != null && initBal != null ? finalBal - initBal : null;
+        const balClass = totalPnl >= 0 ? 'pnl-pos' : 'pnl-neg';
+        return `<tr style="border-top:2px solid var(--border);font-weight:600">
+          <td colspan="${summaryColspan}" style="text-align:right;color:var(--text-muted)">Итого:</td>
+          <td class="${balClass}">${totalPnl!=null?(totalPnl>=0?'+':'')+fmt(totalPnl)+'$':'—'}</td>
+          <td class="${balClass}" style="font-weight:700">${finalBal!=null?fmt(finalBal)+'$':'—'}</td>
+          <td colspan="2"></td>
+        </tr>`;
+      })() : ''}
     </table>
   `;
 
@@ -397,6 +649,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-run-bt')?.addEventListener('click', runBacktest);
   document.getElementById('bt-start')?.addEventListener('change', toggleBarsVisibility);
   document.getElementById('bt-end')?.addEventListener('change', toggleBarsVisibility);
+
+  // Strategy descriptions — initial render
+  onBtStrategyChange();
 
   // Fetch account periodically
   setInterval(async () => {
