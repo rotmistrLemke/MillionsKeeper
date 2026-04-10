@@ -19,7 +19,7 @@ Telegram-код, UI и прочее — удалены.
 import pandas as pd
 import talib
 
-from strategies.base import BaseStrategy
+from app.strategies.base import BaseStrategy
 
 
 class AlligatorStrategy(BaseStrategy):

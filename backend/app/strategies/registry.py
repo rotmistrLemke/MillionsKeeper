@@ -19,16 +19,7 @@ logger = logging.getLogger("StrategyRegistry")
 
 # Маппинг имён стратегий → модули (для lazy-импорта)
 _STRATEGY_MODULES: dict[str, str] = {
-    "bollinger_scalp":       "strategies.bollinger_scalp",
-    "ema_scalp":             "strategies.ema_scalp",
-    "ema_pullback":          "strategies.ema_pullback",
-    "cci_rsi":               "strategies.cci_rsi",
-    "candle_reversal":       "strategies.candle_reversal",
-    "fibonacci_retracement": "strategies.fibonacci_retracement",
-    "range_breakout":        "strategies.range_breakout",
-    "news_breakout":         "strategies.news_breakout",
-    "stochastic_scalp":      "strategies.stochastic_scalp",
-    "alligator":             "app.strategies.alligator",
+    "alligator": "app.strategies.alligator",
 }
 
 
