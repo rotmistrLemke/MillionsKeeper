@@ -59,7 +59,7 @@ export const useTradingStore = create<TradingState>((set, get) => ({
     }),
 
   positions: [],
-  setPositions: (positions) => set({ positions }),
+  setPositions: (positions) => set({ positions: Array.isArray(positions) ? positions : [] }),
 
   events: [],
   addEvent: (event) =>
@@ -79,9 +79,11 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       case 'agent_status':
         updateAgent(msg.payload as AgentStatusInfo)
         break
-      case 'position_update':
-        setPositions(msg.payload as Position[])
+      case 'position_update': {
+        const raw = msg.payload as any
+        setPositions(Array.isArray(raw) ? raw : (raw?.positions ?? []))
         break
+      }
       case 'agent_event':
         addEvent(msg.payload as AgentEvent)
         break
