@@ -52,6 +52,20 @@ class AgentRegistry:
     def all_agents(self) -> list[AgentInfo]:
         return list(self._agents.values())
 
+    def get_all_statuses(self) -> list[dict]:
+        """Сериализует всех агентов в список dict для REST API."""
+        return [
+            {
+                "name":        a.name,
+                "status":      a.status,
+                "message":     a.detail,
+                "description": a.description,
+                "metrics":     a.metrics,
+                "last_update": a.last_updated.isoformat() if a.last_updated else None,
+            }
+            for a in self._agents.values()
+        ]
+
     def get(self, name: str) -> Optional[AgentInfo]:
         return self._agents.get(name)
 

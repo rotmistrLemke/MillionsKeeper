@@ -91,8 +91,8 @@ export default function AgentStatusGrid() {
                 </Card>
               </Grid>
             ))
-          : agents.map((agent) => (
-              <Grid key={agent.name} size={{ xs: 6, sm: 4, md: 3 }}>
+          : agents.map((agent, i) => (
+              <Grid key={agent.name ?? i} size={{ xs: 6, sm: 4, md: 3 }}>
                 <AgentCard name={agent.name} status={agent.status} message={agent.message} />
               </Grid>
             ))}

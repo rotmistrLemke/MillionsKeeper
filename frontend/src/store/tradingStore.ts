@@ -76,9 +76,17 @@ export const useTradingStore = create<TradingState>((set, get) => ({
       case 'account_update':
         setAccount(msg.payload as AccountInfo)
         break
-      case 'agent_status':
-        updateAgent(msg.payload as AgentStatusInfo)
+      case 'agent_status': {
+        const raw = msg.payload as any
+        updateAgent({
+          name:        raw.agent ?? raw.name,
+          status:      raw.status,
+          message:     raw.detail ?? raw.message ?? '',
+          metrics:     raw.metrics ?? {},
+          last_update: null,
+        } as AgentStatusInfo)
         break
+      }
       case 'position_update': {
         const raw = msg.payload as any
         setPositions(Array.isArray(raw) ? raw : (raw?.positions ?? []))
