@@ -22,11 +22,13 @@ import PlayCircleIcon from '@mui/icons-material/PlayCircle'
 import TuneIcon from '@mui/icons-material/Tune'
 import ShowChartIcon from '@mui/icons-material/ShowChart'
 import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
 
 import Dashboard from './pages/Dashboard'
 import BacktestPage from './pages/BacktestPage'
 import StrategiesPage from './pages/StrategiesPage'
 import HistoryPage from './pages/HistoryPage'
+import LoginPage from './pages/LoginPage'
 import { useWebSocket } from './hooks/useWebSocket'
 import { useTradingStore } from './store/tradingStore'
 
@@ -192,6 +194,18 @@ function WsProvider({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const [authed, setAuthed] = useState(() => !!sessionStorage.getItem('mk_token'))
+
+  const handleLogin = useCallback(() => setAuthed(true), [])
+  const handleLogout = useCallback(() => setAuthed(false), [])
+
+  useEffect(() => {
+    window.addEventListener('mk:logout', handleLogout)
+    return () => window.removeEventListener('mk:logout', handleLogout)
+  }, [handleLogout])
+
+  if (!authed) return <LoginPage onLogin={handleLogin} />
+
   return (
     <BrowserRouter>
       <WsProvider>

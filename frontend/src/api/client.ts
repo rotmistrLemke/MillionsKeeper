@@ -19,7 +19,7 @@ client.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401) {
       sessionStorage.removeItem('mk_token')
-      window.location.reload()
+      window.dispatchEvent(new CustomEvent('mk:logout'))
     }
     return Promise.reject(err)
   }
