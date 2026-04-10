@@ -41,20 +41,16 @@ def upgrade() -> None:
         sa.UniqueConstraint("name"),
     )
 
-    # Seed начальных конфигураций
-    op.bulk_insert(
-        sa.table(
-            "strategy_configs",
-            sa.column("name", sa.String),
-            sa.column("enabled", sa.Boolean),
-            sa.column("description", sa.Text),
-            sa.column("params", sa.JSON),
-        ),
-        [
-            {"name": name, "enabled": enabled, "description": desc, "params": {}}
-            for name, enabled, desc in INITIAL_STRATEGIES
-        ],
-    )
+    # Seed начальных конфигураций (op.execute совместим с SQLite и PostgreSQL)
+    conn = op.get_bind()
+    for idx, (name, enabled, desc) in enumerate(INITIAL_STRATEGIES, start=1):
+        conn.execute(
+            sa.text(
+                "INSERT INTO strategy_configs (id, name, enabled, description, params) "
+                "VALUES (:id, :name, :enabled, :desc, :params)"
+            ),
+            {"id": idx, "name": name, "enabled": int(enabled), "desc": desc, "params": "{}"},
+        )
 
 
 def downgrade() -> None:

@@ -38,8 +38,11 @@ def get_url() -> str:
     load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
 
     url = os.getenv("POSTGRES_URL", "")
-    # asyncpg URL → psycopg2 для Alembic (sync)
-    return url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+    # asyncpg → psycopg2 для Alembic (sync)
+    url = url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
+    # aiosqlite → sqlite для Alembic (sync)
+    url = url.replace("sqlite+aiosqlite://", "sqlite://")
+    return url
 
 
 def run_migrations_offline() -> None:

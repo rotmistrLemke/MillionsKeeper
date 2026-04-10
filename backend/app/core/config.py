@@ -8,16 +8,22 @@ Usage:
     from app.core.config import settings
     print(settings.mt5_login)
 """
+import os
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import MetaTrader5 as mt5
 
+# config.py живёт в backend/app/core/ → поднимаемся на 3 уровня до корня проекта
+_ROOT_ENV = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".env"))
+_ENV_FILE = _ROOT_ENV if os.path.exists(_ROOT_ENV) else ".env"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=_ENV_FILE,
         env_file_encoding="utf-8",
         case_sensitive=False,
+        extra="ignore",
     )
 
     # MT5
