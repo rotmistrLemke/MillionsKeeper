@@ -63,9 +63,10 @@ export const useTradingStore = create<TradingState>((set, get) => ({
 
   events: [],
   addEvent: (event) =>
-    set((state) => ({
-      events: [event, ...state.events].slice(0, MAX_EVENTS),
-    })),
+    set((state) => {
+      const keyed = event.id ? event : { ...event, id: Date.now() + Math.random() }
+      return { events: [keyed, ...state.events].slice(0, MAX_EVENTS) }
+    }),
 
   lastBacktestResult: null,
   setLastBacktestResult: (r) => set({ lastBacktestResult: r }),
