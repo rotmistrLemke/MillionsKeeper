@@ -1,0 +1,34 @@
+# ── Core ──────────────────────────────────────────────────────────
+MetaTrader5
+pandas
+numpy
+TA-Lib
+
+# ── Web framework ─────────────────────────────────────────────────
+fastapi>=0.111.0
+uvicorn[standard]
+websockets
+python-multipart
+
+# ── Auth ──────────────────────────────────────────────────────────
+python-jose[cryptography]
+passlib[bcrypt]
+
+# ── Config ────────────────────────────────────────────────────────
+pydantic>=2.0
+pydantic-settings>=2.0
+python-dotenv
+
+# ── Database ──────────────────────────────────────────────────────
+sqlalchemy>=2.0
+asyncpg
+alembic
+psycopg2-binary
+
+# ── Cache ─────────────────────────────────────────────────────────
+redis[hiredis]
+
+# ── Dev / Testing ─────────────────────────────────────────────────
+pytest
+pytest-asyncio
+httpx

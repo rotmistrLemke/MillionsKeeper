@@ -1,0 +1,103 @@
+# MillionsKeeper v2 — Production Docker Compose
+#
+# Запуск (из корня репозитория):
+#   docker compose -f docker/docker-compose.prod.yml up -d
+#
+# ВАЖНО: Backend (FastAPI) НЕ запускается в Docker на Windows,
+# потому что MetaTrader5 Python API работает только нативно.
+# Docker обеспечивает: PostgreSQL + Redis + Frontend (nginx) + Nginx proxy.
+# Backend запускается отдельно: cd backend && python -m app.main
+#
+# Схема:
+#   [Browser] → nginx:80 → /api/* → host.docker.internal:8080 (backend native)
+#                                 → /ws/*  → host.docker.internal:8080
+#                                 → /      → React SPA (nginx static)
+
+version: "3.9"
+
+services:
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: mk_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     ${POSTGRES_USER:-mk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mk}
+      POSTGRES_DB:       ${POSTGRES_DB:-millionskeeper}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"   # только localhost в prod
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mk} -d ${POSTGRES_DB:-millionskeeper}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - mk_net
+
+  # ── Redis ──────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: mk_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --save 300 1
+      --loglevel warning
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - mk_net
+
+  # ── Frontend (nginx + React SPA) ───────────────────────────────────
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: mk_frontend
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:80:80"
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    environment:
+      # Nginx проксирует /api и /ws на нативный backend
+      BACKEND_HOST: ${BACKEND_HOST:-host.docker.internal}
+      BACKEND_PORT: ${BACKEND_PORT:-8080}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - mk_net
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  mk_net:
+    driver: bridge

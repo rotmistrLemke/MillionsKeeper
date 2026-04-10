@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "MillionsKeeper Dev",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "millionskeeper",
+      "Username": "mk",
+      "SSLMode": "prefer",
+      "PassFile": "/pgpass"
+    }
+  }
+}

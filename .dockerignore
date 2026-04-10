@@ -1,0 +1,57 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# Secrets
+.env
+*.key
+*.pem
+
+# Tests
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Frontend (отдельный build)
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs (не нужны в образе)
+docs/
+*.md
+
+# Legacy
+alligatorBot.py
+backtest_scalp.py
+workChecker.py
+test.py

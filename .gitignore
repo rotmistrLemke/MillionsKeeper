@@ -1,7 +1,51 @@
+# ── Secrets ───────────────────────────────────────────────────────
+.env
+*.env.local
+*.env.production
 
-*.xlsx
-test*
-account*
-settings*
-# Игнорировать кэш Python
+# ── Python ────────────────────────────────────────────────────────
 __pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# ── Virtual environments ──────────────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── Node / Frontend ───────────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# ── Logs ─────────────────────────────────────────────────────────
+logs/
+*.log
+
+# ── IDE ───────────────────────────────────────────────────────────
+.vscode/
+.idea/
+
+# ── OS ────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Legacy excel files ────────────────────────────────────────────
+*.xlsx
+
+# ── Legacy v1 files (sensitive / unused) ─────────────────────────
+account*.py
+settings*.py
+test.py
+tests/
+
+# ── Claude Code session data ──────────────────────────────────────
+.claude/
