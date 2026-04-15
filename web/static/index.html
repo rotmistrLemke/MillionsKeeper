@@ -53,7 +53,32 @@
 
     <!-- Indicators -->
     <div id="tab-indicators" class="content">
-      <div class="card">
+
+      <div class="chart-toolbar">
+        <div class="toolbar-group">
+          <select id="chart-symbol" class="toolbar-select"></select>
+        </div>
+        <div class="toolbar-group tf-buttons" id="chart-tf-buttons">
+          <button class="tf-btn" data-tf="M1">1m</button>
+          <button class="tf-btn" data-tf="M5">5m</button>
+          <button class="tf-btn" data-tf="M15">15m</button>
+          <button class="tf-btn" data-tf="M30">30m</button>
+          <button class="tf-btn active" data-tf="H1">1h</button>
+          <button class="tf-btn" data-tf="H4">4h</button>
+          <button class="tf-btn" data-tf="D1">1D</button>
+        </div>
+        <div class="toolbar-group chart-legend" id="chart-legend">
+          <span class="leg-item"><span class="leg-label">O</span><span class="leg-val" id="leg-open">—</span></span>
+          <span class="leg-item"><span class="leg-label">H</span><span class="leg-val" id="leg-high">—</span></span>
+          <span class="leg-item"><span class="leg-label">L</span><span class="leg-val" id="leg-low">—</span></span>
+          <span class="leg-item"><span class="leg-label">C</span><span class="leg-val" id="leg-close">—</span></span>
+          <span class="leg-item leg-change"><span class="leg-val" id="leg-change">—</span></span>
+        </div>
+      </div>
+
+      <div id="chart-container" class="chart-container"></div>
+
+      <div class="card" style="margin-top:12px">
         <div class="card-title">Сигналы по парам (MA · MACD · RSI)</div>
         <div id="indicators-grid" class="ind-grid">
           <div style="color:var(--text-muted)">Ожидание данных...</div>
@@ -196,6 +221,7 @@
   <span id="acc-free">Free: <b>—</b></span>
 </div>
 
+<script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
 <script src="/static/app.js"></script>
 <script>
   // Часы

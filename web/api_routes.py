@@ -83,6 +83,57 @@ async def get_history(days: int = 1):
         return {"error": str(e)}
 
 
+# ──────────────────────────── Candles (OHLCV) ────────────────────
+
+@router.get("/candles")
+async def get_candles(symbol: str, timeframe: str = "H1", bars: int = 500):
+    try:
+        import MetaTrader5 as mt5
+        tf_map = {
+            "M1":  mt5.TIMEFRAME_M1,
+            "M5":  mt5.TIMEFRAME_M5,
+            "M15": mt5.TIMEFRAME_M15,
+            "M30": mt5.TIMEFRAME_M30,
+            "H1":  mt5.TIMEFRAME_H1,
+            "H4":  mt5.TIMEFRAME_H4,
+            "D1":  mt5.TIMEFRAME_D1,
+        }
+        tf = tf_map.get(timeframe.upper())
+        if tf is None:
+            raise HTTPException(status_code=400, detail=f"Unknown timeframe: {timeframe}")
+        bars = max(50, min(int(bars), 5000))
+        rates = mt5.copy_rates_from_pos(symbol, tf, 0, bars)
+        if rates is None:
+            return {"error": f"No data for {symbol}: {mt5.last_error()}"}
+        info = mt5.symbol_info(symbol)
+        digits = int(info.digits) if info else 5
+        candles = [
+            {
+                "time":   int(r["time"]),
+                "open":   float(r["open"]),
+                "high":   float(r["high"]),
+                "low":    float(r["low"]),
+                "close":  float(r["close"]),
+                "volume": float(r["tick_volume"]),
+            }
+            for r in rates
+        ]
+        return {
+            "symbol":    symbol,
+            "timeframe": timeframe.upper(),
+            "digits":    digits,
+            "candles":   candles,
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/symbols")
+async def get_symbols():
+    from settings import Dictionary
+    return {"symbols": list(Dictionary.symbolTradingStatus.keys())}
+
+
 # ──────────────────────────── Events ──────────────────────────────
 
 @router.get("/events")

@@ -632,10 +632,213 @@ function btGoPage(p) {
   renderBtPage();
 }
 
+// ─── Chart (Lightweight Charts) ───────────────────────────────────
+const chartModule = (() => {
+  let chart = null;
+  let candleSeries = null;
+  let volumeSeries = null;
+  let currentSymbol = 'XAUUSDrfd';
+  let currentTf = 'H1';
+  let digits = 5;
+  let refreshTimer = null;
+  let initialized = false;
+
+  function fmtPrice(v) {
+    return v == null ? '—' : Number(v).toFixed(digits);
+  }
+
+  function setLegend(c, prevClose) {
+    if (!c) return;
+    document.getElementById('leg-open').textContent  = fmtPrice(c.open);
+    document.getElementById('leg-high').textContent  = fmtPrice(c.high);
+    document.getElementById('leg-low').textContent   = fmtPrice(c.low);
+    document.getElementById('leg-close').textContent = fmtPrice(c.close);
+    const chEl = document.getElementById('leg-change');
+    if (prevClose != null) {
+      const diff = c.close - prevClose;
+      const pct  = (diff / prevClose) * 100;
+      const up   = diff >= 0;
+      chEl.textContent = `${up ? '+' : ''}${diff.toFixed(digits)} (${up ? '+' : ''}${pct.toFixed(2)}%)`;
+      chEl.style.color = up ? 'var(--green)' : 'var(--red)';
+      chEl.style.background = up ? 'var(--green-soft)' : 'var(--red-soft)';
+    } else {
+      chEl.textContent = '—';
+      chEl.style.background = 'transparent';
+      chEl.style.color = 'var(--text)';
+    }
+  }
+
+  function init() {
+    if (initialized) return;
+    if (!window.LightweightCharts) {
+      console.warn('LightweightCharts не загружен');
+      return;
+    }
+    const el = document.getElementById('chart-container');
+    if (!el) return;
+
+    chart = LightweightCharts.createChart(el, {
+      layout: {
+        background: { type: 'solid', color: '#17181F' },
+        textColor:  '#848E9C',
+        fontFamily: "'Inter', system-ui, sans-serif",
+        fontSize:   11,
+      },
+      grid: {
+        vertLines: { color: '#2B2F36', style: 1 },
+        horzLines: { color: '#2B2F36', style: 1 },
+      },
+      crosshair: {
+        mode: LightweightCharts.CrosshairMode.Normal,
+        vertLine: { color: '#5E6673', labelBackgroundColor: '#F7A600' },
+        horzLine: { color: '#5E6673', labelBackgroundColor: '#F7A600' },
+      },
+      rightPriceScale: {
+        borderColor: '#2B2F36',
+        scaleMargins: { top: 0.08, bottom: 0.25 },
+      },
+      timeScale: {
+        borderColor: '#2B2F36',
+        timeVisible: true,
+        secondsVisible: false,
+      },
+      handleScroll: { vertTouchDrag: false },
+    });
+
+    candleSeries = chart.addCandlestickSeries({
+      upColor:       '#20B26C',
+      downColor:     '#EF454A',
+      borderUpColor: '#20B26C',
+      borderDownColor: '#EF454A',
+      wickUpColor:   '#20B26C',
+      wickDownColor: '#EF454A',
+      priceFormat:   { type: 'price', precision: digits, minMove: Math.pow(10, -digits) },
+    });
+
+    volumeSeries = chart.addHistogramSeries({
+      priceFormat: { type: 'volume' },
+      priceScaleId: '',
+      color: 'rgba(132,142,156,0.35)',
+    });
+    volumeSeries.priceScale().applyOptions({
+      scaleMargins: { top: 0.82, bottom: 0 },
+    });
+
+    chart.subscribeCrosshairMove(param => {
+      if (!param || !param.time || !param.seriesData.size) return;
+      const c = param.seriesData.get(candleSeries);
+      if (!c) return;
+      const all = candleSeries.data();
+      const idx = all.findIndex(x => x.time === c.time);
+      const prev = idx > 0 ? all[idx - 1].close : null;
+      setLegend(c, prev);
+    });
+
+    const ro = new ResizeObserver(entries => {
+      if (!chart) return;
+      for (const e of entries) {
+        chart.applyOptions({ width: e.contentRect.width, height: e.contentRect.height });
+      }
+    });
+    ro.observe(el);
+
+    initialized = true;
+  }
+
+  async function populateSymbols() {
+    const sel = document.getElementById('chart-symbol');
+    if (!sel || sel.options.length) return;
+    try {
+      const r = await fetch('/api/symbols');
+      const d = await r.json();
+      const symbols = d.symbols || [currentSymbol];
+      sel.innerHTML = symbols.map(s =>
+        `<option value="${s}" ${s === currentSymbol ? 'selected' : ''}>${s}</option>`
+      ).join('');
+    } catch {
+      sel.innerHTML = `<option value="${currentSymbol}">${currentSymbol}</option>`;
+    }
+  }
+
+  async function load() {
+    if (!initialized) return;
+    const url = `/api/candles?symbol=${encodeURIComponent(currentSymbol)}&timeframe=${currentTf}&bars=500`;
+    try {
+      const r = await fetch(url);
+      const d = await r.json();
+      if (d.error || !d.candles) {
+        console.warn('candles error:', d.error);
+        return;
+      }
+      digits = d.digits ?? 5;
+      candleSeries.applyOptions({
+        priceFormat: { type: 'price', precision: digits, minMove: Math.pow(10, -digits) },
+      });
+      const candles = d.candles.map(c => ({
+        time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
+      }));
+      const volumes = d.candles.map(c => ({
+        time: c.time,
+        value: c.volume,
+        color: c.close >= c.open ? 'rgba(32,178,108,0.35)' : 'rgba(239,69,74,0.35)',
+      }));
+      candleSeries.setData(candles);
+      volumeSeries.setData(volumes);
+      if (candles.length) {
+        const last = candles[candles.length - 1];
+        const prev = candles.length > 1 ? candles[candles.length - 2].close : null;
+        setLegend(last, prev);
+      }
+    } catch (e) {
+      console.warn('candles fetch failed:', e);
+    }
+  }
+
+  function setSymbol(s) {
+    currentSymbol = s;
+    load();
+  }
+
+  function setTimeframe(tf) {
+    currentTf = tf;
+    document.querySelectorAll('#chart-tf-buttons .tf-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.tf === tf)
+    );
+    load();
+  }
+
+  function startAutoRefresh() {
+    stopAutoRefresh();
+    refreshTimer = setInterval(() => load(), 15000);
+  }
+  function stopAutoRefresh() {
+    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  }
+
+  async function activate() {
+    init();
+    await populateSymbols();
+    if (!candleSeries?.data().length) await load();
+    startAutoRefresh();
+  }
+  function deactivate() { stopAutoRefresh(); }
+
+  function bind() {
+    document.getElementById('chart-symbol')?.addEventListener('change', e => setSymbol(e.target.value));
+    document.querySelectorAll('#chart-tf-buttons .tf-btn').forEach(b =>
+      b.addEventListener('click', () => setTimeframe(b.dataset.tf))
+    );
+  }
+
+  return { activate, deactivate, bind };
+})();
+
 // ─── Tabs ─────────────────────────────────────────────────────────
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   document.querySelectorAll('.content').forEach(c => c.classList.toggle('active', c.id === `tab-${name}`));
+  if (name === 'indicators') chartModule.activate();
+  else chartModule.deactivate();
 }
 
 // ─── Init ─────────────────────────────────────────────────────────
@@ -652,6 +855,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Strategy descriptions — initial render
   onBtStrategyChange();
+
+  // Chart toolbar bindings
+  chartModule.bind();
 
   // Fetch account periodically
   setInterval(async () => {
