@@ -8,6 +8,7 @@ from pathlib import Path
 
 from web.ws_manager import ws_manager, event_to_ws_bridge
 from web.api_routes import router as api_router
+from web.chart_streamer import chart_streamer
 from core.event_bus import bus
 
 logger = logging.getLogger("WebApp")
@@ -26,7 +27,13 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 async def startup():
     # Подписываем WS-мост на все события шины
     bus.subscribe("*", event_to_ws_bridge)
+    await chart_streamer.start()
     logger.info("Web dashboard started")
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    await chart_streamer.stop()
 
 
 @app.get("/")
@@ -47,9 +54,11 @@ async def websocket_endpoint(ws: WebSocket):
                 # Пинг для поддержания соединения
                 await ws.send_text(json.dumps({"msg_type": "ping"}))
     except WebSocketDisconnect:
+        chart_streamer.unsubscribe(ws)
         ws_manager.disconnect(ws)
     except Exception as e:
         logger.error(f"WS error: {e}")
+        chart_streamer.unsubscribe(ws)
         ws_manager.disconnect(ws)
 
 
@@ -113,6 +122,15 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
             source="ws_client",
             payload={"action": "set_active_strategy", "strategy": cmd.get("strategy", "default")}
         ))
+
+    elif action == "chart_subscribe":
+        symbol = cmd.get("symbol")
+        timeframe = cmd.get("timeframe", "H1")
+        if symbol:
+            chart_streamer.subscribe(ws, symbol, timeframe)
+
+    elif action == "chart_unsubscribe":
+        chart_streamer.unsubscribe(ws)
 
     elif action == "set_trading_status":
         from settings import Dictionary

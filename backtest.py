@@ -7,7 +7,7 @@
 
 Запуск:
   python backtest.py                                         — default, XAUUSDrfd, 2000 баров H1
-  python backtest.py --strategy range_breakout               — модульная стратегия
+  python backtest.py --strategy sr_bounce                    — модульная стратегия
   python backtest.py --strategy all                          — все модульные стратегии
   python backtest.py --symbol EURUSDrfd --deposit 10000      — с депозитом
   python backtest.py --start 2025-01-01 --end 2025-12-31     — по датам
@@ -467,6 +467,7 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
             cumulative_pnl  += pnl_points
             result.trades.append(_make_strategy_trade(position, row, i, pnl_points, pnl_money, current_balance, 'WEEKEND'))
             result.equity_curve.append(cumulative_pnl)
+            strategy.on_trade_closed(position, 'WEEKEND')
             position = None
             continue
 
@@ -476,12 +477,14 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
 
         if position is not None:
             hit_sl = hit_tp = False
+            sl = position.get('sl')
+            tp = position.get('tp')
             if position['type'] == 'BUY':
-                if row['low']  <= position['sl']: hit_sl = True
-                if row['high'] >= position['tp']: hit_tp = True
+                if sl is not None and row['low']  <= sl: hit_sl = True
+                if tp is not None and row['high'] >= tp: hit_tp = True
             else:
-                if row['high'] >= position['sl']: hit_sl = True
-                if row['low']  <= position['tp']: hit_tp = True
+                if sl is not None and row['high'] >= sl: hit_sl = True
+                if tp is not None and row['low']  <= tp: hit_tp = True
 
             if hit_sl:
                 exit_price      = position['sl']
@@ -491,6 +494,7 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
                 cumulative_pnl  += pnl_points
                 result.trades.append(_make_strategy_trade(position, row, i, pnl_points, pnl_money, current_balance, 'SL', exit_price))
                 result.equity_curve.append(cumulative_pnl)
+                strategy.on_trade_closed(position, 'SL')
                 position = None
                 continue
 
@@ -502,6 +506,7 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
                 cumulative_pnl  += pnl_points
                 result.trades.append(_make_strategy_trade(position, row, i, pnl_points, pnl_money, current_balance, 'TP', exit_price))
                 result.equity_curve.append(cumulative_pnl)
+                strategy.on_trade_closed(position, 'TP')
                 position = None
                 continue
 
@@ -513,6 +518,7 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
                 cumulative_pnl  += pnl_points
                 result.trades.append(_make_strategy_trade(position, row, i, pnl_points, pnl_money, current_balance, 'SIGNAL'))
                 result.equity_curve.append(cumulative_pnl)
+                strategy.on_trade_closed(position, 'SIGNAL')
                 position = None
                 continue
 
@@ -529,7 +535,7 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
 
                 if fixed_volume > 0:
                     volume = fixed_volume
-                elif deposit > 0 and current_balance > 0:
+                elif deposit > 0 and current_balance > 0 and sl is not None:
                     sl_pips    = abs(entry_price - sl) / point
                     order_type = mt5.ORDER_TYPE_BUY if signal == 'BUY' else mt5.ORDER_TYPE_SELL
                     volume = calc_volume(current_balance, risk_pct, sl_pips, pip_value_per_lot,
@@ -564,6 +570,7 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
         cumulative_pnl  += pnl_points
         result.trades.append(_make_strategy_trade(position, row, len(df) - 1, pnl_points, pnl_money, current_balance, 'END_OF_DATA'))
         result.equity_curve.append(cumulative_pnl)
+        strategy.on_trade_closed(position, 'END_OF_DATA')
 
     return result
 
@@ -668,15 +675,16 @@ def main():
     parser.add_argument('--risk',      type=float, default=80)
     parser.add_argument('--volume',    type=float, default=0)
     parser.add_argument('--timeframe', default=None,
-                        choices=['M5', 'M15', 'M30', 'H1', 'H4', 'D1'])
+                        choices=['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1'])
     parser.add_argument('--start',     default=None, help='YYYY-MM-DD')
     parser.add_argument('--end',       default=None, help='YYYY-MM-DD')
     args = parser.parse_args()
 
     tf_map = {
-        'M5': mt5.TIMEFRAME_M5,   'M15': mt5.TIMEFRAME_M15,
-        'M30': mt5.TIMEFRAME_M30, 'H1': mt5.TIMEFRAME_H1,
-        'H4': mt5.TIMEFRAME_H4,   'D1': mt5.TIMEFRAME_D1,
+        'M1':  mt5.TIMEFRAME_M1,  'M5':  mt5.TIMEFRAME_M5,
+        'M15': mt5.TIMEFRAME_M15, 'M30': mt5.TIMEFRAME_M30,
+        'H1':  mt5.TIMEFRAME_H1,  'H4':  mt5.TIMEFRAME_H4,
+        'D1':  mt5.TIMEFRAME_D1,
     }
 
     date_from = datetime.strptime(args.start, '%Y-%m-%d') if args.start else None

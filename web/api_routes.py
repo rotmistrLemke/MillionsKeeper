@@ -134,6 +134,153 @@ async def get_symbols():
     return {"symbols": list(Dictionary.symbolTradingStatus.keys())}
 
 
+# ──────────────────────────── Indicators ──────────────────────────
+
+_DEFAULT_INDICATORS = [
+    {"col": "ema8",        "label": "EMA8"},
+    {"col": "ema21",       "label": "EMA21"},
+    {"col": "macd_line",   "label": "MACD"},
+    {"col": "macd_signal", "label": "Signal"},
+    {"col": "macd_hist",   "label": "Hist"},
+    {"col": "rsi",         "label": "RSI"},
+    {"col": "atr",         "label": "ATR"},
+]
+
+
+def _compute_default_indicators(df):
+    import talib
+    close = df['close'].values.astype(float)
+    high  = df['high'].values.astype(float)
+    low   = df['low'].values.astype(float)
+    df['ema8']  = talib.EMA(close, 8)
+    df['ema21'] = talib.EMA(close, 21)
+    macd, sig, hist = talib.MACD(close)
+    df['macd_line']   = macd
+    df['macd_signal'] = sig
+    df['macd_hist']   = hist
+    df['rsi'] = talib.RSI(close, 14)
+    df['atr'] = talib.ATR(high, low, close, 14)
+    return df
+
+
+def _default_signal(row):
+    """Лёгкий сигнал для default: EMA кросс + MACD знак + RSI зоны."""
+    import math
+    req = ['ema8', 'ema21', 'macd_line', 'macd_signal', 'rsi']
+    for c in req:
+        v = row.get(c)
+        if v is None or (isinstance(v, float) and math.isnan(v)):
+            return None
+    if row['ema8'] > row['ema21'] and row['macd_line'] > row['macd_signal'] and 55 <= row['rsi'] <= 70:
+        return "BUY"
+    if row['ema8'] < row['ema21'] and row['macd_line'] < row['macd_signal'] and 30 <= row['rsi'] <= 45:
+        return "SELL"
+    return None
+
+
+@router.get("/indicators")
+async def get_indicators(symbol: str, timeframe: str = "H1", strategy: str = "default", bars: int = 500):
+    try:
+        import math
+        import MetaTrader5 as mt5
+        import pandas as pd
+
+        tf_map = {
+            "M1":  mt5.TIMEFRAME_M1,  "M5":  mt5.TIMEFRAME_M5,
+            "M15": mt5.TIMEFRAME_M15, "M30": mt5.TIMEFRAME_M30,
+            "H1":  mt5.TIMEFRAME_H1,  "H4":  mt5.TIMEFRAME_H4,
+            "D1":  mt5.TIMEFRAME_D1,
+        }
+        tf = tf_map.get(timeframe.upper())
+        if tf is None:
+            raise HTTPException(status_code=400, detail=f"Unknown timeframe: {timeframe}")
+
+        bars = max(100, min(int(bars), 2000))
+        rates = mt5.copy_rates_from_pos(symbol, tf, 0, bars)
+        if rates is None or len(rates) == 0:
+            return {"error": f"No data for {symbol}: {mt5.last_error()}"}
+
+        df = pd.DataFrame(rates)
+        df['time'] = pd.to_datetime(df['time'], unit='s')
+
+        indicators = []
+        signal_val = None
+        is_flat = None
+        strategy_lc = strategy.lower()
+
+        if strategy_lc == "default":
+            df = _compute_default_indicators(df)
+            indicators = _DEFAULT_INDICATORS
+            signal_val = _default_signal(df.iloc[-1])
+        else:
+            from strategies import STRATEGIES
+            cls = STRATEGIES.get(strategy_lc)
+            if cls is None:
+                return {"error": f"Unknown strategy: {strategy}"}
+            s = cls()
+            df = s.compute_indicators(df)
+            try:
+                df = s.compute_flat_indicators(df)
+            except Exception:
+                pass
+            cols = s.indicator_columns() or []
+            indicators = [{"col": c, "label": c} for c in cols]
+            try:
+                signal_val = s.get_entry_signal(df.iloc[-1])
+            except Exception:
+                signal_val = None
+            try:
+                is_flat = bool(s.is_flat(df.iloc[-1]))
+            except Exception:
+                is_flat = None
+
+        def _to_num(v):
+            try:
+                fv = float(v)
+                if math.isnan(fv) or math.isinf(fv):
+                    return None
+                return fv
+            except (TypeError, ValueError):
+                return None
+
+        last = df.iloc[-1]
+        values = {}
+        series = {}
+        series_len = len(df)
+        tail = df.tail(series_len)
+        for ind in indicators:
+            col = ind["col"]
+            if col in df.columns:
+                values[col] = _to_num(last[col])
+                series[col] = [_to_num(v) for v in tail[col].tolist()]
+            else:
+                values[col] = None
+                series[col] = []
+
+        price = _to_num(last.get("close"))
+        price_series = [_to_num(v) for v in tail["close"].tolist()]
+        time_series = [int(t.timestamp()) for t in tail["time"].tolist()]
+
+        return {
+            "symbol":       symbol,
+            "timeframe":    timeframe.upper(),
+            "strategy":     strategy_lc,
+            "indicators":   indicators,
+            "values":       values,
+            "series":       series,
+            "price":        price,
+            "price_series": price_series,
+            "time_series":  time_series,
+            "signal":       signal_val,
+            "is_flat":      is_flat,
+            "time":         int(df['time'].iloc[-1].timestamp()),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {"error": str(e)}
+
+
 # ──────────────────────────── Events ──────────────────────────────
 
 @router.get("/events")

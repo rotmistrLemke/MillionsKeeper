@@ -98,6 +98,14 @@ class BaseStrategy(ABC):
         """Возвращает (sl_price, tp_price)."""
         pass
 
+    def on_trade_closed(self, position: dict, reason: str) -> None:
+        """Хук — вызывается движком после закрытия позиции.
+        reason: 'SL' | 'TP' | 'SIGNAL' | 'WEEKEND' | 'END_OF_DATA'.
+        По умолчанию — no-op. Стратегии могут использовать для внутреннего состояния
+        (например, блокировка входа в определённую сторону).
+        """
+        pass
+
     def indicator_columns(self) -> list:
         """Список колонок индикаторов для сохранения в результатах."""
         return []

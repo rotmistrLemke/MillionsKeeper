@@ -58,6 +58,20 @@
         <div class="toolbar-group">
           <select id="chart-symbol" class="toolbar-select"></select>
         </div>
+        <div class="toolbar-group">
+          <select id="chart-strategy" class="toolbar-select" style="min-width:220px">
+            <option value="default">MA + MACD + RSI (основная)</option>
+            <option value="sr_bounce">S/R Bounce</option>
+            <option value="ema_pullback">EMA Pullback (50/200)</option>
+            <option value="cci_rsi">CCI + RSI</option>
+            <option value="fibonacci_retracement">Fibonacci Retracement</option>
+            <option value="macd_hist">MACD Histogram</option>
+            <option value="candle_reversal">Candle Reversal</option>
+            <option value="sar_adx">SAR + ADX</option>
+            <option value="donchian_breakout">Donchian Breakout</option>
+            <option value="triple_ema">Triple EMA</option>
+          </select>
+        </div>
         <div class="toolbar-group tf-buttons" id="chart-tf-buttons">
           <button class="tf-btn" data-tf="M1">1m</button>
           <button class="tf-btn" data-tf="M5">5m</button>
@@ -78,12 +92,30 @@
 
       <div id="chart-container" class="chart-container"></div>
 
-      <div class="card" style="margin-top:12px">
-        <div class="card-title">Сигналы по парам (MA · MACD · RSI)</div>
-        <div id="indicators-grid" class="ind-grid">
-          <div style="color:var(--text-muted)">Ожидание данных...</div>
+      <div id="macd-wrap" class="chart-macd-wrap" style="display:none">
+        <div class="macd-head">
+          <span class="macd-title">MACD (12,26,9)</span>
+          <span class="macd-vals">
+            <span class="macd-badge macd-line"><span>MACD</span><b id="macd-val-line">—</b></span>
+            <span class="macd-badge macd-signal"><span>Signal</span><b id="macd-val-signal">—</b></span>
+            <span class="macd-badge macd-hist"><span>Hist</span><b id="macd-val-hist">—</b></span>
+          </span>
+        </div>
+        <div id="macd-container" class="chart-macd-container"></div>
+      </div>
+
+      <div id="indicator-strip" class="indicator-strip">
+        <div class="ind-strip-head">
+          <span class="ind-strip-title" id="ind-strip-title">Индикаторы</span>
+          <span class="ind-strip-signal" id="ind-strip-signal"></span>
+          <span class="ind-strip-flat" id="ind-strip-flat"></span>
+          <span class="ind-strip-ts" id="ind-strip-ts"></span>
+        </div>
+        <div class="ind-strip-body" id="ind-strip-body">
+          <div style="color:var(--text-dim);font-size:12px">Ожидание данных...</div>
         </div>
       </div>
+
     </div>
 
     <!-- History -->
@@ -115,11 +147,11 @@
             Стратегия
             <select id="active-strategy" onchange="onActiveStrategyChange()">
               <option value="default">MA + MACD + RSI (основная)</option>
-              <option value="range_breakout">Range Breakout</option>
+              <option value="sr_bounce">S/R Bounce</option>
               <option value="ema_pullback">EMA Pullback (50/200)</option>
               <option value="cci_rsi">CCI + RSI (D1-фильтр)</option>
               <option value="fibonacci_retracement">Fibonacci Retracement</option>
-              <option value="news_breakout">Post-News Breakout</option>
+              <option value="macd_hist">MACD Histogram</option>
               <option value="candle_reversal">Candlestick Reversal</option>
               <option value="sar_adx">Parabolic SAR + ADX</option>
               <option value="donchian_breakout">Donchian Breakout</option>
@@ -138,11 +170,11 @@
             Стратегия
             <select id="bt-strategy" onchange="onBtStrategyChange()">
               <option value="default">MA + MACD + RSI (основная)</option>
-              <option value="range_breakout">Range Breakout</option>
+              <option value="sr_bounce">S/R Bounce</option>
               <option value="ema_pullback">EMA Pullback (50/200)</option>
               <option value="cci_rsi">CCI + RSI (D1-фильтр)</option>
               <option value="fibonacci_retracement">Fibonacci Retracement</option>
-              <option value="news_breakout">Post-News Breakout</option>
+              <option value="macd_hist">MACD Histogram</option>
               <option value="candle_reversal">Candlestick Reversal</option>
               <option value="sar_adx">Parabolic SAR + ADX</option>
               <option value="donchian_breakout">Donchian Breakout</option>
@@ -151,11 +183,14 @@
           </label>
           <label>
             Символ
-            <input id="bt-symbol" type="text" value="XAUUSDrfd" style="width:130px">
+            <select id="bt-symbol" style="min-width:130px">
+              <option value="XAUUSDrfd" selected>XAUUSDrfd</option>
+            </select>
           </label>
           <label>
             Таймфрейм
             <select id="bt-timeframe">
+              <option value="M1">M1</option>
               <option value="M5">M5</option>
               <option value="M15">M15</option>
               <option value="M30">M30</option>

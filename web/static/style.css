@@ -461,9 +461,59 @@ tr:hover td { background: var(--surface2); }
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 0 0 8px 8px;
-  height: 520px;
+  height: 460px;
   width: 100%;
   overflow: hidden;
+  position: relative;
+}
+.chart-container.has-sub { border-radius: 0; border-bottom: none; }
+
+/* ── MACD sub-chart (TradingView-style pane) ── */
+.chart-macd-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+}
+.macd-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+.macd-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.macd-vals {
+  display: flex;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.macd-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.macd-badge span { color: var(--text-dim); font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; }
+.macd-badge b { font-variant-numeric: tabular-nums; font-weight: 600; }
+.macd-badge.macd-line b   { color: #4A90E2; }
+.macd-badge.macd-signal b { color: var(--accent); }
+.macd-badge.macd-hist   b { color: var(--text); }
+.chart-macd-container {
+  height: 160px;
+  width: 100%;
   position: relative;
 }
 .chart-loading {
@@ -475,6 +525,235 @@ tr:hover td { background: var(--surface2); }
   color: var(--text-muted);
   font-size: 12px;
   pointer-events: none;
+}
+
+/* ── Indicator strip (live values for selected strategy) ── */
+.indicator-strip {
+  margin-top: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.ind-strip-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+.ind-strip-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.ind-strip-signal {
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: 0.4px;
+}
+.ind-strip-signal.buy  { background: var(--green-soft); color: var(--green); }
+.ind-strip-signal.sell { background: var(--red-soft);   color: var(--red); }
+.ind-strip-signal.none { background: var(--surface3);   color: var(--text-dim); }
+.ind-strip-flat {
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: none;
+}
+.ind-strip-flat.active { display: inline-block; }
+.ind-strip-ts {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.ind-strip-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  padding: 0;
+}
+.ind-cell {
+  background: var(--surface);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 96px;
+}
+.ind-cell-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ind-cell-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.ind-cell-value {
+  font-size: 15px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.ind-cell-value.pnl-pos { color: var(--green); }
+.ind-cell-value.pnl-neg { color: var(--red); }
+.ind-cell-value.muted { color: var(--text-dim); }
+.ind-cell-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ind-cell-sub .tag {
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.tag-bull { background: var(--green-soft); color: var(--green); }
+.tag-bear { background: var(--red-soft);   color: var(--red); }
+.tag-neut { background: var(--surface3);   color: var(--text-dim); }
+.tag-warn { background: var(--accent-soft); color: var(--accent); }
+
+/* ── Gauge (RSI / ADX / Stoch 0-100) ── */
+.ind-gauge {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg,
+    var(--green-soft) 0%, var(--green-soft) 30%,
+    var(--surface3) 30%, var(--surface3) 70%,
+    var(--red-soft) 70%, var(--red-soft) 100%);
+  overflow: visible;
+}
+.ind-gauge-mid {
+  background: linear-gradient(90deg,
+    var(--red-soft) 0%, var(--red-soft) 20%,
+    var(--surface3) 20%, var(--surface3) 40%,
+    var(--accent-soft) 40%, var(--accent-soft) 100%);
+}
+.gauge-marker {
+  position: absolute;
+  top: -4px;
+  width: 2px;
+  height: 14px;
+  background: var(--text);
+  transform: translateX(-50%);
+  box-shadow: 0 0 0 1px var(--bg);
+  border-radius: 1px;
+}
+.gauge-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--text-dim);
+  margin-top: 2px;
+  font-family: var(--font-mono);
+}
+
+/* ── Histogram (MACD hist / CCI sparkline) ── */
+.ind-hist {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  height: 28px;
+  position: relative;
+  padding: 2px 0;
+}
+.ind-hist::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: 50%;
+  height: 1px;
+  background: var(--border-strong);
+}
+.hist-bar {
+  flex: 1;
+  min-width: 1px;
+  border-radius: 1px;
+  transform-origin: center;
+}
+.hist-bar.pos { background: var(--green); }
+.hist-bar.neg { background: var(--red); }
+
+/* ── Sparkline SVG ── */
+.ind-spark {
+  width: 100%;
+  height: 30px;
+  display: block;
+}
+.spark-line { fill: none; stroke-width: 1.5; }
+.spark-line.up   { stroke: var(--green); }
+.spark-line.down { stroke: var(--red); }
+.spark-line.neut { stroke: var(--blue); }
+.spark-area { opacity: 0.12; }
+
+/* ── Price-relative (EMA, SAR, channel edges) ── */
+.ind-price-rel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.ind-arrow {
+  display: inline-block;
+  width: 0; height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+}
+.ind-arrow.up   { border-bottom: 6px solid var(--green); margin-bottom: 2px; }
+.ind-arrow.down { border-top: 6px solid var(--red); margin-top: 2px; }
+
+/* ── Bool badge ── */
+.ind-bool {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bool-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.bool-dot.on-bull { background: var(--green-soft); color: var(--green); }
+.bool-dot.on-bear { background: var(--red-soft);   color: var(--red); }
+.bool-dot.off     { background: var(--surface3);   color: var(--text-dim); }
+
+/* ── MACD combined widget ── */
+.ind-cell.wide { grid-column: span 2; }
+@media (max-width: 720px) {
+  .ind-cell.wide { grid-column: span 1; }
 }
 
 /* ── Indicators grid ── */

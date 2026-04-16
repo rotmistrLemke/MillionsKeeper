@@ -18,22 +18,22 @@ const STRATEGY_META = {
       { col: 'atr',         label: 'ATR'      },
     ],
   },
-  range_breakout: {
-    name: 'Range Breakout',
+  sr_bounce: {
+    name: 'S/R Bounce',
     desc: [
-      'Пробой 8-барного диапазона консолидации с ATR-фильтром.',
+      'Отскок от уровней поддержки/сопротивления по подтверждённым свинг-пивотам.',
+      '<b>Уровни:</b> swing high/low в окне ±5 баров',
       '<b>Вход:</b>',
-      'BUY: Закрытие выше максимума 8 баров + ATR &gt; среднего',
-      'SELL: Закрытие ниже минимума 8 баров + ATR &gt; среднего',
-      '<b>SL:</b> противоположная граница диапазона',
-      '<b>TP:</b> размер диапазона от точки входа',
-      '<b>Таймфрейм:</b> H1',
+      'BUY: Касание поддержки (в пределах 0.3×ATR) + бычье закрытие',
+      'SELL: Касание сопротивления (в пределах 0.3×ATR) + медвежье закрытие',
+      '<b>SL:</b> за уровнем (1×ATR) &nbsp; <b>TP:</b> противоположный уровень (мин. 1.5×ATR)',
+      '<b>Выход:</b> закрытие по другую сторону уровня (пробой)',
+      '<b>Таймфрейм:</b> любой',
     ],
     indicators: [
-      { col: 'range_high', label: 'Rng High' },
-      { col: 'range_low',  label: 'Rng Low'  },
-      { col: 'range_size', label: 'Rng Size' },
-      { col: 'atr',        label: 'ATR'       },
+      { col: 'support',    label: 'Support' },
+      { col: 'resistance', label: 'Resist'  },
+      { col: 'atr',        label: 'ATR'     },
     ],
   },
   ema_pullback: {
@@ -89,22 +89,24 @@ const STRATEGY_META = {
       { col: 'atr',         label: 'ATR'       },
     ],
   },
-  news_breakout: {
-    name: 'Post-News Breakout',
+  macd_hist: {
+    name: 'MACD Histogram',
     desc: [
-      'Пробой диапазона после волатильного (новостного) бара.',
-      '<b>Новостной бар:</b> ATR бара ≥ 2 × среднего ATR(50)',
-      '<b>Вход:</b> через 2 бара после шипа',
-      'BUY: Пробой максимума шипа',
-      'SELL: Пробой минимума шипа',
-      '<b>SL:</b> 1.5 × ATR &nbsp; <b>TP:</b> 3 × ATR',
-      '<b>Таймфрейм:</b> H1',
+      'Вход и выход по знаку гистограммы MACD(12, 26, 9).',
+      '<b>Вход:</b>',
+      'BUY: MACD_hist &gt; 0',
+      'SELL: MACD_hist &lt; 0',
+      '<b>Выход (переворот):</b>',
+      'BUY закрывается при MACD_hist &lt; 0',
+      'SELL закрывается при MACD_hist &gt; 0',
+      '<b>SL:</b> 0.5 × ATR &nbsp; <b>TP:</b> 1 × ATR',
+      '<b>Таймфрейм:</b> любой (по выбору в бэктесте)',
     ],
     indicators: [
-      { col: 'atr',             label: 'ATR'     },
-      { col: 'atr_avg',         label: 'ATR Avg' },
-      { col: 'spike_range_high',label: 'Spike H' },
-      { col: 'spike_range_low', label: 'Spike L' },
+      { col: 'macd_line',   label: 'MACD'   },
+      { col: 'macd_signal', label: 'Signal' },
+      { col: 'macd_hist',   label: 'Hist'   },
+      { col: 'atr',         label: 'ATR'    },
     ],
   },
   candle_reversal: {
@@ -209,6 +211,7 @@ function connect() {
   state.ws.onopen = () => {
     state.connected = true;
     setConnStatus(true);
+    if (typeof chartModule !== 'undefined') chartModule.onWsReconnect();
   };
 
   state.ws.onclose = () => {
@@ -259,6 +262,11 @@ function handleMessage(msg) {
     const ev = data;
     addLogLine(ev);
     routeEvent(ev);
+    return;
+  }
+
+  if (msg_type === 'candle_update') {
+    chartModule.onCandleUpdate(data);
     return;
   }
 }
@@ -378,6 +386,7 @@ function closePosition(ticket, symbol) {
 // ─── Render: Indicators ───────────────────────────────────────────
 function renderIndicators() {
   const container = document.getElementById('indicators-grid');
+  if (!container) return;
   const entries = Object.entries(state.indicators);
   if (!entries.length) {
     container.innerHTML = '<div style="color:var(--text-muted)">Нет данных</div>';
@@ -474,6 +483,23 @@ function setActiveStrategy() {
 }
 
 // ─── Backtest ─────────────────────────────────────────────────────
+async function populateBtSymbols() {
+  const sel = document.getElementById('bt-symbol');
+  if (!sel) return;
+  const preferred = sel.value || 'XAUUSDrfd';
+  try {
+    const r = await fetch('/api/symbols');
+    const d = await r.json();
+    const symbols = d.symbols || [];
+    if (!symbols.length) return;
+    const has = symbols.includes(preferred);
+    sel.innerHTML = symbols.map(s =>
+      `<option value="${s}" ${s === preferred ? 'selected' : ''}>${s}</option>`
+    ).join('');
+    if (!has) sel.value = symbols[0];
+  } catch {}
+}
+
 function toggleBarsVisibility() {
   const start = document.getElementById('bt-start').value;
   const end = document.getElementById('bt-end').value;
@@ -637,11 +663,38 @@ const chartModule = (() => {
   let chart = null;
   let candleSeries = null;
   let volumeSeries = null;
+  let macdChart = null;
+  let macdLineSeries = null;
+  let macdSignalSeries = null;
+  let macdHistSeries = null;
+  let syncingRange = false;
+  let syncingCrosshair = false;
+  const overlaySeries = {}; // col -> lineSeries
   let currentSymbol = 'XAUUSDrfd';
   let currentTf = 'H1';
+  let currentStrategy = 'default';
   let digits = 5;
-  let refreshTimer = null;
+  let indicatorTimer = null;
+  let lastCandleTime = 0;
   let initialized = false;
+  let active = false;
+
+  const OVERLAY_STYLE = {
+    ema8:    { color: '#F7A600', lineWidth: 2, title: 'EMA 8' },
+    ema21:   { color: '#4A90E2', lineWidth: 2, title: 'EMA 21' },
+    ema50:   { color: '#A37CF0', lineWidth: 2, title: 'EMA 50' },
+    ema200:  { color: '#EB7531', lineWidth: 2, title: 'EMA 200' },
+    sar:     { color: '#848E9C', lineWidth: 1, lineStyle: 2, title: 'SAR' },
+    dc_upper:  { color: '#20B26C', lineWidth: 1, lineStyle: 2, title: 'DC Upper' },
+    dc_lower:  { color: '#EF454A', lineWidth: 1, lineStyle: 2, title: 'DC Lower' },
+    dc_middle: { color: '#4A90E2', lineWidth: 1, lineStyle: 3, title: 'DC Mid' },
+    support:    { color: '#20B26C', lineWidth: 2, lineStyle: 2, title: 'Support' },
+    resistance: { color: '#EF454A', lineWidth: 2, lineStyle: 2, title: 'Resistance' },
+    fib_382_bull: { color: '#A37CF0', lineWidth: 1, lineStyle: 3, title: 'Fib 38.2%' },
+    fib_500_bull: { color: '#A37CF0', lineWidth: 1, lineStyle: 2, title: 'Fib 50%' },
+    imp_high: { color: '#848E9C', lineWidth: 1, lineStyle: 3, title: 'Imp High' },
+    imp_low:  { color: '#848E9C', lineWidth: 1, lineStyle: 3, title: 'Imp Low' },
+  };
 
   function fmtPrice(v) {
     return v == null ? '—' : Number(v).toFixed(digits);
@@ -696,11 +749,13 @@ const chartModule = (() => {
       rightPriceScale: {
         borderColor: '#2B2F36',
         scaleMargins: { top: 0.08, bottom: 0.25 },
+        minimumWidth: 72,
       },
       timeScale: {
         borderColor: '#2B2F36',
         timeVisible: true,
         secondsVisible: false,
+        rightOffset: 8,
       },
       handleScroll: { vertTouchDrag: false },
     });
@@ -725,6 +780,21 @@ const chartModule = (() => {
     });
 
     chart.subscribeCrosshairMove(param => {
+      // Mirror crosshair to MACD pane
+      if (macdChart && !syncingCrosshair) {
+        syncingCrosshair = true;
+        try {
+          if (param && param.time && macdLineSeries) {
+            const md = param.seriesData.get(macdLineSeries);
+            const price = (md && md.value != null)
+              ? md.value
+              : (macdLineSeries.dataByIndex && macdLineSeries.data()[0]?.value) || 0;
+            macdChart.setCrosshairPosition(price, param.time, macdLineSeries);
+          } else {
+            macdChart.clearCrosshairPosition();
+          }
+        } finally { syncingCrosshair = false; }
+      }
       if (!param || !param.time || !param.seriesData.size) return;
       const c = param.seriesData.get(candleSeries);
       if (!c) return;
@@ -787,50 +857,688 @@ const chartModule = (() => {
       if (candles.length) {
         const last = candles[candles.length - 1];
         const prev = candles.length > 1 ? candles[candles.length - 2].close : null;
+        lastCandleTime = last.time;
         setLegend(last, prev);
       }
+      scheduleSync();
     } catch (e) {
       console.warn('candles fetch failed:', e);
     }
   }
 
-  function setSymbol(s) {
-    currentSymbol = s;
-    load();
+  /** Обработка live-обновления свечи из WS. */
+  function onCandleUpdate(msg) {
+    if (!initialized || !candleSeries) return;
+    if (!msg || msg.symbol !== currentSymbol || msg.timeframe !== currentTf) return;
+    const c = msg.candle;
+    if (!c) return;
+    // Если пришла новая свеча — фиксируем прошлую и добавим (lightweight-charts делает это сам через update с большим временем)
+    try {
+      candleSeries.update({
+        time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
+      });
+      volumeSeries.update({
+        time: c.time,
+        value: c.volume,
+        color: c.close >= c.open ? 'rgba(32,178,108,0.35)' : 'rgba(239,69,74,0.35)',
+      });
+      // Пересчитываем легенду: prev.close — либо предыдущий бар из series, либо open текущего
+      const prevClose = c.time > lastCandleTime ? null
+        : (candleSeries.dataByIndex && candleSeries.data().length > 1
+            ? candleSeries.data()[candleSeries.data().length - 2].close
+            : c.open);
+      setLegend(c, prevClose ?? c.open);
+      lastCandleTime = c.time;
+    } catch (e) {
+      console.warn('candle update failed:', e);
+    }
   }
 
+  // ── WS subscription ──────────────────────────────────────────
+  function subscribeWS() {
+    sendCmd({ cmd: 'chart_subscribe', symbol: currentSymbol, timeframe: currentTf });
+  }
+  function unsubscribeWS() {
+    sendCmd({ cmd: 'chart_unsubscribe' });
+  }
+
+  // ── Indicators strip ─────────────────────────────────────────
+  function fmtIndVal(v, col) {
+    if (v == null) return '—';
+    if (typeof v === 'boolean') return v ? '✓' : '—';
+    if (typeof v !== 'number') return String(v);
+    if (col && (col.toLowerCase().includes('rsi') || col.toLowerCase() === 'cci' || col.toLowerCase().includes('adx'))) {
+      return v.toFixed(2);
+    }
+    if (Math.abs(v) >= 100) return v.toFixed(2);
+    if (Math.abs(v) >= 1) return v.toFixed(Math.min(digits, 5));
+    return v.toFixed(digits);
+  }
+
+  function labelFor(col) {
+    // Используем STRATEGY_META для человекочитаемых подписей, иначе col.
+    const meta = (typeof STRATEGY_META !== 'undefined') ? STRATEGY_META[currentStrategy] : null;
+    if (meta && Array.isArray(meta.indicators)) {
+      const hit = meta.indicators.find(i => i.col === col);
+      if (hit) return hit.label;
+    }
+    return col.replace(/_/g, ' ').toUpperCase();
+  }
+
+  function classifyValue(col, v) {
+    if (v == null) return 'muted';
+    const c = col.toLowerCase();
+    if (c === 'rsi') {
+      if (v >= 70) return 'pnl-neg';
+      if (v <= 30) return 'pnl-pos';
+    }
+    if (c.startsWith('macd') || c === 'cci') {
+      if (v > 0) return 'pnl-pos';
+      if (v < 0) return 'pnl-neg';
+    }
+    return '';
+  }
+
+  // ── Indicator visualization helpers ──────────────────────────
+  function sparklinePath(series) {
+    const clean = series.map(v => (typeof v === 'number' && isFinite(v)) ? v : null);
+    const valid = clean.filter(v => v !== null);
+    if (valid.length < 2) return null;
+    const min = Math.min(...valid);
+    const max = Math.max(...valid);
+    const range = (max - min) || 1;
+    const W = 120, H = 30;
+    const pts = [];
+    clean.forEach((v, i) => {
+      if (v === null) return;
+      const x = (i / (clean.length - 1)) * W;
+      const y = H - ((v - min) / range) * (H - 2) - 1;
+      pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+    });
+    return { pts: pts.join(' '), W, H, first: valid[0], last: valid[valid.length - 1] };
+  }
+
+  function svgSparkline(series) {
+    const p = sparklinePath(series);
+    if (!p) return '';
+    const trend = p.last > p.first ? 'up' : p.last < p.first ? 'down' : 'neut';
+    return `<svg class="ind-spark" viewBox="0 0 ${p.W} ${p.H}" preserveAspectRatio="none">
+      <polyline class="spark-line ${trend}" points="${p.pts}"/>
+    </svg>`;
+  }
+
+  function svgZeroHist(series) {
+    const vals = (series || []).map(v => (typeof v === 'number' && isFinite(v)) ? v : 0);
+    if (!vals.length) return '';
+    const maxAbs = Math.max(...vals.map(Math.abs), 1e-9);
+    const W = 120, H = 30, mid = H / 2;
+    const bw = W / vals.length;
+    const rects = vals.map((v, i) => {
+      const x = i * bw;
+      const barH = (Math.abs(v) / maxAbs) * (H / 2 - 1);
+      const y = v >= 0 ? mid - barH : mid;
+      const fill = v >= 0 ? 'var(--green)' : 'var(--red)';
+      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(bw - 0.5).toFixed(1)}" height="${barH.toFixed(1)}" fill="${fill}"/>`;
+    }).join('');
+    return `<svg class="ind-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      <line x1="0" y1="${mid}" x2="${W}" y2="${mid}" stroke="var(--border-strong)" stroke-width="0.5"/>
+      ${rects}
+    </svg>`;
+  }
+
+  function gaugeLinear(value, { min = 0, max = 100, lo, hi, colors = ['green', 'surface3', 'red'] }) {
+    if (value == null || !isFinite(value)) return '';
+    const pct = Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+    const loPct = ((lo - min) / (max - min)) * 100;
+    const hiPct = ((hi - min) / (max - min)) * 100;
+    const c0 = `var(--${colors[0]}-soft)`;
+    const c1 = colors[1] === 'surface3' ? 'var(--surface3)' : `var(--${colors[1]}-soft)`;
+    const c2 = `var(--${colors[2]}-soft)`;
+    const bg = `linear-gradient(90deg, ${c0} 0%, ${c0} ${loPct}%, ${c1} ${loPct}%, ${c1} ${hiPct}%, ${c2} ${hiPct}%, ${c2} 100%)`;
+    return `
+      <div class="ind-gauge" style="background:${bg}">
+        <div class="gauge-marker" style="left:${pct}%"></div>
+      </div>
+      <div class="gauge-labels"><span>${min}</span><span>${lo}</span><span>${hi}</span><span>${max}</span></div>`;
+  }
+
+  function gaugeCentered(value, { range = 200, zone = 100 }) {
+    if (value == null || !isFinite(value)) return '';
+    const clamped = Math.max(-range, Math.min(range, value));
+    const pct = ((clamped + range) / (2 * range)) * 100;
+    const z1 = ((range - zone) / (2 * range)) * 100;
+    const z2 = ((range + zone) / (2 * range)) * 100;
+    const bg = `linear-gradient(90deg,
+      var(--green-soft) 0%, var(--green-soft) ${z1}%,
+      var(--surface3) ${z1}%, var(--surface3) ${z2}%,
+      var(--red-soft) ${z2}%, var(--red-soft) 100%)`;
+    return `
+      <div class="ind-gauge" style="background:${bg}">
+        <div class="gauge-marker" style="left:${pct}%"></div>
+      </div>
+      <div class="gauge-labels"><span>-${range}</span><span>-${zone}</span><span>0</span><span>+${zone}</span><span>+${range}</span></div>`;
+  }
+
+  function priceRel(value, price) {
+    if (value == null || price == null || !price) {
+      return `<div class="ind-price-rel"><span class="muted">—</span></div>`;
+    }
+    const pct = ((price - value) / value) * 100;
+    const above = pct >= 0;
+    return `
+      <div class="ind-price-rel">
+        <span class="ind-arrow ${above ? 'up' : 'down'}"></span>
+        <span class="${above ? 'pnl-pos' : 'pnl-neg'}">${above ? '+' : ''}${pct.toFixed(2)}%</span>
+        <span class="muted">price ${above ? 'above' : 'below'}</span>
+      </div>`;
+  }
+
+  function classifyCol(col) {
+    const c = col.toLowerCase();
+    if (['doji','pin_bull','pin_bear','engulf_bull','engulf_bear'].includes(c)) return 'bool';
+    if (c === 'rsi') return 'rsi';
+    if (c === 'adx' || c === 'flat_adx') return 'adx';
+    if (c === 'plus_di' || c === 'minus_di') return 'di';
+    if (c === 'cci') return 'cci';
+    if (c.startsWith('macd')) return 'macd';
+    if (c.startsWith('ema') || c === 'sar') return 'ema';
+    if (c.startsWith('dc_') || c.startsWith('fib_') || c.startsWith('imp_') ||
+        c === 'support' || c === 'resistance') return 'price_rel';
+    return 'plain';
+  }
+
+  function subTag(col, value) {
+    if (value == null) return '';
+    const c = col.toLowerCase();
+    if (c === 'rsi') {
+      if (value >= 70) return '<span class="tag tag-bear">overbought</span>';
+      if (value <= 30) return '<span class="tag tag-bull">oversold</span>';
+      return '<span class="tag tag-neut">neutral</span>';
+    }
+    if (c === 'adx' || c === 'flat_adx') {
+      if (value < 20) return '<span class="tag tag-neut">weak</span>';
+      if (value < 40) return '<span class="tag tag-warn">moderate</span>';
+      return '<span class="tag tag-bull">strong</span>';
+    }
+    if (c === 'cci') {
+      if (value >= 100)  return '<span class="tag tag-bear">overbought</span>';
+      if (value <= -100) return '<span class="tag tag-bull">oversold</span>';
+      return '<span class="tag tag-neut">range</span>';
+    }
+    if (c.startsWith('macd')) {
+      return value >= 0
+        ? '<span class="tag tag-bull">bullish</span>'
+        : '<span class="tag tag-bear">bearish</span>';
+    }
+    return '';
+  }
+
+  function renderCell(col, data) {
+    const label = labelFor(col);
+    const value = data.values?.[col];
+    const series = data.series?.[col] || [];
+    const price = data.price;
+    const kind = classifyCol(col);
+    const fmtVal = fmtIndVal(value, col);
+    const tag = subTag(col, value);
+
+    if (kind === 'bool') {
+      const on = value != null && value > 0.5;
+      const isBear = col.includes('bear');
+      const cls = !on ? 'off' : (isBear ? 'on-bear' : 'on-bull');
+      const icon = on ? '✓' : '—';
+      const txt = on ? (isBear ? 'bearish' : 'bullish') : 'нет';
+      return `
+        <div class="ind-cell">
+          <div class="ind-cell-head"><span class="ind-cell-label">${label}</span></div>
+          <div class="ind-bool">
+            <div class="bool-dot ${cls}">${icon}</div>
+            <span class="ind-cell-value">${txt}</span>
+          </div>
+        </div>`;
+    }
+
+    if (kind === 'rsi') {
+      const viz = gaugeLinear(value, { min: 0, max: 100, lo: 30, hi: 70, colors: ['green','surface3','red'] });
+      return `
+        <div class="ind-cell">
+          <div class="ind-cell-head">
+            <span class="ind-cell-label">${label}</span>
+            <span class="ind-cell-value">${fmtVal}</span>
+          </div>
+          ${viz}
+          <div class="ind-cell-sub">${tag}<span>${svgSparkline(series) ? '' : ''}</span></div>
+        </div>`;
+    }
+
+    if (kind === 'adx' || kind === 'di') {
+      const viz = gaugeLinear(value, { min: 0, max: 100, lo: 20, hi: 40, colors: ['surface3','accent','green'] });
+      return `
+        <div class="ind-cell">
+          <div class="ind-cell-head">
+            <span class="ind-cell-label">${label}</span>
+            <span class="ind-cell-value">${fmtVal}</span>
+          </div>
+          ${viz}
+          <div class="ind-cell-sub">${tag}</div>
+        </div>`;
+    }
+
+    if (kind === 'cci') {
+      const viz = gaugeCentered(value, { range: 200, zone: 100 });
+      return `
+        <div class="ind-cell">
+          <div class="ind-cell-head">
+            <span class="ind-cell-label">${label}</span>
+            <span class="ind-cell-value">${fmtVal}</span>
+          </div>
+          ${viz}
+          <div class="ind-cell-sub">${tag}</div>
+        </div>`;
+    }
+
+    if (kind === 'macd') {
+      const viz = svgZeroHist(series);
+      return `
+        <div class="ind-cell">
+          <div class="ind-cell-head">
+            <span class="ind-cell-label">${label}</span>
+            <span class="ind-cell-value ${value > 0 ? 'pnl-pos' : value < 0 ? 'pnl-neg' : 'muted'}">${fmtVal}</span>
+          </div>
+          ${viz}
+          <div class="ind-cell-sub">${tag}</div>
+        </div>`;
+    }
+
+    if (kind === 'ema' || kind === 'price_rel') {
+      return `
+        <div class="ind-cell">
+          <div class="ind-cell-head">
+            <span class="ind-cell-label">${label}</span>
+            <span class="ind-cell-value">${fmtVal}</span>
+          </div>
+          ${priceRel(value, price)}
+          ${svgSparkline(series)}
+        </div>`;
+    }
+
+    // plain (atr, range_size, flat_bb_width и т.п.)
+    return `
+      <div class="ind-cell">
+        <div class="ind-cell-head">
+          <span class="ind-cell-label">${label}</span>
+          <span class="ind-cell-value">${fmtVal}</span>
+        </div>
+        ${svgSparkline(series)}
+        <div class="ind-cell-sub">${tag}</div>
+      </div>`;
+  }
+
+  function renderIndicatorStrip(d) {
+    const body = document.getElementById('ind-strip-body');
+    const sigEl = document.getElementById('ind-strip-signal');
+    const flatEl = document.getElementById('ind-strip-flat');
+    const tsEl = document.getElementById('ind-strip-ts');
+    const titleEl = document.getElementById('ind-strip-title');
+    if (!body) return;
+
+    const priceTxt = d.price != null ? ` · ${d.price.toFixed(digits)}` : '';
+    titleEl.textContent = `${d.symbol} · ${d.timeframe}${priceTxt}`;
+
+    if (d.error) {
+      body.innerHTML = `<div style="color:var(--red);font-size:12px;padding:12px">Ошибка: ${d.error}</div>`;
+      sigEl.textContent = '';
+      sigEl.className = 'ind-strip-signal';
+      flatEl.classList.remove('active');
+      return;
+    }
+
+    const sig = d.signal || 'NO_SIGNAL';
+    const sigCls = sig === 'BUY' ? 'buy' : sig === 'SELL' ? 'sell' : 'none';
+    sigEl.textContent = sig;
+    sigEl.className = `ind-strip-signal ${sigCls}`;
+
+    if (d.is_flat === true) {
+      flatEl.textContent = 'FLAT · не торгуем';
+      flatEl.classList.add('active');
+    } else {
+      flatEl.classList.remove('active');
+    }
+
+    tsEl.textContent = d.time ? new Date(d.time * 1000).toLocaleTimeString('ru-RU') : '';
+
+    const inds = d.indicators || [];
+    if (!inds.length) {
+      body.innerHTML = `<div style="padding:12px;color:var(--text-dim);font-size:12px">Нет индикаторов для стратегии</div>`;
+      return;
+    }
+    body.innerHTML = inds.map(i => renderCell(i.col, d)).join('');
+  }
+
+  // ── Pane width synchronisation ───────────────────────────────
+  function syncPaneWidths() {
+    if (!chart || !macdChart) return;
+    try {
+      const w1 = chart.priceScale('right').width();
+      const w2 = macdChart.priceScale('right').width();
+      const w  = Math.max(w1, w2);
+      if (!w) return;
+      chart.applyOptions({ rightPriceScale: { minimumWidth: w } });
+      macdChart.applyOptions({ rightPriceScale: { minimumWidth: w } });
+    } catch {}
+  }
+  function scheduleSync() {
+    requestAnimationFrame(() => requestAnimationFrame(syncPaneWidths));
+  }
+
+  function syncTimeRange() {
+    if (!chart || !macdChart) return;
+    try {
+      const range = chart.timeScale().getVisibleLogicalRange();
+      if (range) macdChart.timeScale().setVisibleLogicalRange(range);
+    } catch {}
+  }
+
+  // ── Overlay indicators on main chart ─────────────────────────
+  function clearOverlays(keepCols = new Set()) {
+    Object.keys(overlaySeries).forEach(col => {
+      if (!keepCols.has(col)) {
+        try { chart.removeSeries(overlaySeries[col]); } catch {}
+        delete overlaySeries[col];
+      }
+    });
+  }
+
+  function applyOverlay(col, times, values) {
+    const style = OVERLAY_STYLE[col] || { color: '#848E9C', lineWidth: 1, title: col };
+    if (!overlaySeries[col]) {
+      overlaySeries[col] = chart.addLineSeries({
+        color: style.color,
+        lineWidth: style.lineWidth,
+        lineStyle: style.lineStyle || 0,
+        title: style.title,
+        priceLineVisible: false,
+        lastValueVisible: true,
+        crosshairMarkerVisible: false,
+      });
+    }
+    const data = [];
+    for (let i = 0; i < times.length; i++) {
+      const v = values[i];
+      if (v == null || !isFinite(v)) continue;
+      data.push({ time: times[i], value: v });
+    }
+    overlaySeries[col].setData(data);
+  }
+
+  // ── MACD sub-chart ───────────────────────────────────────────
+  function ensureMacdChart() {
+    if (macdChart) return;
+    const el = document.getElementById('macd-container');
+    if (!el || !window.LightweightCharts) return;
+
+    macdChart = LightweightCharts.createChart(el, {
+      layout: {
+        background: { type: 'solid', color: '#17181F' },
+        textColor:  '#848E9C',
+        fontFamily: "'Inter', system-ui, sans-serif",
+        fontSize:   11,
+      },
+      grid: {
+        vertLines: { color: '#2B2F36', style: 1 },
+        horzLines: { color: '#2B2F36', style: 1 },
+      },
+      crosshair: {
+        mode: LightweightCharts.CrosshairMode.Normal,
+        vertLine: { color: '#5E6673', labelBackgroundColor: '#F7A600' },
+        horzLine: { color: '#5E6673', labelBackgroundColor: '#F7A600' },
+      },
+      rightPriceScale: {
+        borderColor: '#2B2F36',
+        scaleMargins: { top: 0.15, bottom: 0.15 },
+        minimumWidth: 72,
+      },
+      timeScale: {
+        borderColor: '#2B2F36',
+        timeVisible: true,
+        secondsVisible: false,
+        rightOffset: 8,
+      },
+      handleScroll: { vertTouchDrag: false },
+    });
+
+    macdHistSeries = macdChart.addHistogramSeries({
+      priceFormat: { type: 'price', precision: 5, minMove: 0.00001 },
+      priceLineVisible: false,
+      lastValueVisible: false,
+      base: 0,
+    });
+    macdLineSeries = macdChart.addLineSeries({
+      color: '#4A90E2',
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: true,
+      title: 'MACD',
+    });
+    macdSignalSeries = macdChart.addLineSeries({
+      color: '#F7A600',
+      lineWidth: 2,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: true,
+      title: 'Signal',
+    });
+
+    // Mirror crosshair from MACD pane back to the main chart
+    macdChart.subscribeCrosshairMove(param => {
+      if (syncingCrosshair || !chart || !candleSeries) return;
+      syncingCrosshair = true;
+      try {
+        if (param && param.time) {
+          const c = param.seriesData.get(candleSeries);
+          const all = candleSeries.data();
+          const price = (c && c.close != null)
+            ? c.close
+            : (all[all.length - 1]?.close ?? 0);
+          chart.setCrosshairPosition(price, param.time, candleSeries);
+        } else {
+          chart.clearCrosshairPosition();
+        }
+      } finally { syncingCrosshair = false; }
+    });
+
+    // Sync time scales bidirectionally
+    chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+      if (syncingRange || !macdChart || range == null) return;
+      syncingRange = true;
+      try { macdChart.timeScale().setVisibleLogicalRange(range); } finally { syncingRange = false; }
+    });
+    macdChart.timeScale().subscribeVisibleLogicalRangeChange(range => {
+      if (syncingRange || range == null) return;
+      syncingRange = true;
+      try { chart.timeScale().setVisibleLogicalRange(range); } finally { syncingRange = false; }
+    });
+
+    const ro = new ResizeObserver(entries => {
+      if (!macdChart) return;
+      for (const e of entries) {
+        macdChart.applyOptions({ width: e.contentRect.width, height: e.contentRect.height });
+      }
+    });
+    ro.observe(el);
+  }
+
+  function showMacdPane(show) {
+    const wrap = document.getElementById('macd-wrap');
+    const mainEl = document.getElementById('chart-container');
+    if (!wrap || !mainEl) return;
+    if (show) {
+      wrap.style.display = '';
+      mainEl.classList.add('has-sub');
+      ensureMacdChart();
+    } else {
+      wrap.style.display = 'none';
+      mainEl.classList.remove('has-sub');
+    }
+  }
+
+  function macdHistColor(hist, prev) {
+    if (hist == null) return 'rgba(132,142,156,0.35)';
+    if (hist >= 0) {
+      return (prev == null || hist >= prev) ? '#20B26C' : 'rgba(32,178,108,0.45)';
+    }
+    return (prev == null || hist <= prev) ? '#EF454A' : 'rgba(239,69,74,0.45)';
+  }
+
+  function applyMacd(times, line, signal, hist) {
+    if (!macdChart) return;
+    const lineData = [], signalData = [], histData = [];
+    let prev = null;
+    for (let i = 0; i < times.length; i++) {
+      const t = times[i];
+      const vl = line?.[i], vs = signal?.[i], vh = hist?.[i];
+      // Push whitespace points for null/NaN so logical indices stay aligned with the main chart
+      lineData.push(vl != null && isFinite(vl) ? { time: t, value: vl } : { time: t });
+      signalData.push(vs != null && isFinite(vs) ? { time: t, value: vs } : { time: t });
+      if (vh != null && isFinite(vh)) {
+        histData.push({ time: t, value: vh, color: macdHistColor(vh, prev) });
+        prev = vh;
+      } else {
+        histData.push({ time: t });
+        prev = null;
+      }
+    }
+    macdHistSeries.setData(histData);
+    macdLineSeries.setData(lineData);
+    macdSignalSeries.setData(signalData);
+
+    // Align time range and price-scale widths with main chart
+    syncTimeRange();
+    scheduleSync();
+
+    // Header values (last point with a real value — skip whitespace tail)
+    const last = (arr) => {
+      for (let i = arr.length - 1; i >= 0; i--) {
+        const v = arr[i].value;
+        if (v != null && isFinite(v)) return v;
+      }
+      return null;
+    };
+    const fmt = v => v == null ? '—' : v.toFixed(Math.max(4, digits));
+    document.getElementById('macd-val-line').textContent   = fmt(last(lineData));
+    document.getElementById('macd-val-signal').textContent = fmt(last(signalData));
+    const h = last(histData);
+    const histEl = document.getElementById('macd-val-hist');
+    histEl.textContent = fmt(h);
+    histEl.style.color = h == null ? 'var(--text)' : (h >= 0 ? 'var(--green)' : 'var(--red)');
+  }
+
+  function applyChartIndicators(d) {
+    if (!chart || !d || !d.series || !d.time_series) return;
+    const cols = (d.indicators || []).map(i => i.col);
+    const times = d.time_series;
+
+    // Overlays: keep only those present in current strategy
+    const overlayCols = new Set(cols.filter(c => OVERLAY_STYLE[c]));
+    clearOverlays(overlayCols);
+    overlayCols.forEach(col => {
+      const series = d.series[col];
+      if (series && series.length === times.length) applyOverlay(col, times, series);
+    });
+
+    // MACD pane: visible only if strategy has macd cols
+    const hasMacd = cols.some(c => c.startsWith('macd'));
+    showMacdPane(hasMacd);
+    if (hasMacd) {
+      applyMacd(
+        times,
+        d.series['macd_line'],
+        d.series['macd_signal'],
+        d.series['macd_hist'],
+      );
+    }
+  }
+
+  async function loadIndicators() {
+    const url = `/api/indicators?symbol=${encodeURIComponent(currentSymbol)}&timeframe=${currentTf}&strategy=${encodeURIComponent(currentStrategy)}&bars=500`;
+    try {
+      const r = await fetch(url);
+      const d = await r.json();
+      renderIndicatorStrip(d);
+      applyChartIndicators(d);
+    } catch (e) {
+      console.warn('indicators fetch failed:', e);
+    }
+  }
+
+  function startIndicatorRefresh() {
+    stopIndicatorRefresh();
+    indicatorTimer = setInterval(loadIndicators, 3000);
+  }
+  function stopIndicatorRefresh() {
+    if (indicatorTimer) { clearInterval(indicatorTimer); indicatorTimer = null; }
+  }
+
+  // ── Symbol/TF/Strategy changes ───────────────────────────────
+  function setSymbol(s) {
+    currentSymbol = s;
+    lastCandleTime = 0;
+    clearOverlays();
+    showMacdPane(false);
+    load();
+    if (active) { subscribeWS(); loadIndicators(); }
+  }
   function setTimeframe(tf) {
     currentTf = tf;
     document.querySelectorAll('#chart-tf-buttons .tf-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.tf === tf)
     );
+    lastCandleTime = 0;
+    clearOverlays();
+    showMacdPane(false);
     load();
+    if (active) { subscribeWS(); loadIndicators(); }
   }
-
-  function startAutoRefresh() {
-    stopAutoRefresh();
-    refreshTimer = setInterval(() => load(), 15000);
-  }
-  function stopAutoRefresh() {
-    if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+  function setStrategy(s) {
+    currentStrategy = s;
+    clearOverlays();
+    showMacdPane(false);
+    if (active) loadIndicators();
   }
 
   async function activate() {
     init();
     await populateSymbols();
     if (!candleSeries?.data().length) await load();
-    startAutoRefresh();
+    active = true;
+    subscribeWS();
+    loadIndicators();
+    startIndicatorRefresh();
   }
-  function deactivate() { stopAutoRefresh(); }
+  function deactivate() {
+    active = false;
+    unsubscribeWS();
+    stopIndicatorRefresh();
+  }
+
+  /** Вызывается из ws.onopen — восстановить подписку при реконнекте. */
+  function onWsReconnect() {
+    if (active) {
+      subscribeWS();
+      loadIndicators();
+    }
+  }
 
   function bind() {
     document.getElementById('chart-symbol')?.addEventListener('change', e => setSymbol(e.target.value));
+    document.getElementById('chart-strategy')?.addEventListener('change', e => setStrategy(e.target.value));
     document.querySelectorAll('#chart-tf-buttons .tf-btn').forEach(b =>
       b.addEventListener('click', () => setTimeframe(b.dataset.tf))
     );
   }
 
-  return { activate, deactivate, bind };
+  return { activate, deactivate, bind, onCandleUpdate, onWsReconnect };
 })();
 
 // ─── Tabs ─────────────────────────────────────────────────────────
@@ -852,6 +1560,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-run-bt')?.addEventListener('click', runBacktest);
   document.getElementById('bt-start')?.addEventListener('change', toggleBarsVisibility);
   document.getElementById('bt-end')?.addEventListener('change', toggleBarsVisibility);
+  populateBtSymbols();
 
   // Strategy descriptions — initial render
   onBtStrategyChange();
