@@ -48,6 +48,10 @@ async def main():
     from trading import Trading
     trading = Trading()
 
+    # ── Восстановление последней выбранной стратегии ─────────────
+    import active_state
+    active_state.load()
+
     # ── Список активных символов ──────────────────────────────────
     symbols = _get_active_symbols()
     timeframe = GlobalValues.time_frame

@@ -59,11 +59,18 @@ class WebSocketManager:
     async def _send_snapshot(self, ws: WebSocket):
         from core.agent_registry import registry
         from core.event_bus import bus
+        from settings import GlobalValues, TF_REVERSE
 
         recent = [e.to_dict() for e in bus.get_recent_events(limit=50)]
         await self.send_to(ws, "agents_snapshot", {
             "agents": registry.get_all_statuses(),
             "recent_events": recent,
+            "active_strategy": {
+                "strategy":  GlobalValues.active_strategy,
+                "symbol":    GlobalValues.active_symbol,
+                "timeframe": TF_REVERSE.get(GlobalValues.time_frame, "H1"),
+                "volume":    GlobalValues.active_volume,
+            },
         })
 
     @property

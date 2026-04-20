@@ -30,22 +30,32 @@ class SignalAgent(BaseAgent):
         p = event.payload
         symbol = p["symbol"]
 
-        signal_ma = p.get("signal_ma", "NO_SIGNAL")
+        # Legacy-сигналы всегда читаем из payload (могут отсутствовать — тогда NO_SIGNAL).
+        signal_ma       = p.get("signal_ma", "NO_SIGNAL")
         signal_critical = p.get("signal_critical_angle", "NO_SIGNAL")
-        macd_signal = p.get("macd_signal", "NO_SIGNAL")
-        rsi_signal = p.get("rsi_signal", "NO_SIGNAL")
+        macd_signal     = p.get("macd_signal", "NO_SIGNAL")
+        rsi_signal      = p.get("rsi_signal", "NO_SIGNAL")
 
-        # Та же логика, что и в alligatorBot.checkOpen
-        if (signal_ma == "BUY" and signal_critical == "BUY"
-                and macd_signal == "BUY" and rsi_signal == "BUY"):
-            combined = "BUY"
-            self.metrics["buy_signals"] = self.metrics.get("buy_signals", 0) + 1
-        elif (signal_ma == "SELL" and signal_critical == "SELL"
-              and macd_signal == "SELL" and rsi_signal == "SELL"):
-            combined = "SELL"
-            self.metrics["sell_signals"] = self.metrics.get("sell_signals", 0) + 1
+        # Если IndicatorAgent уже посчитал сигнал выбранной стратегии — используем его.
+        entry_signal = p.get("entry_signal")
+        if entry_signal in ("BUY", "SELL", "NO_SIGNAL"):
+            combined = entry_signal
+            if combined == "BUY":
+                self.metrics["buy_signals"] = self.metrics.get("buy_signals", 0) + 1
+            elif combined == "SELL":
+                self.metrics["sell_signals"] = self.metrics.get("sell_signals", 0) + 1
         else:
-            combined = "NO_SIGNAL"
+            # Та же логика, что и в alligatorBot.checkOpen
+            if (signal_ma == "BUY" and signal_critical == "BUY"
+                    and macd_signal == "BUY" and rsi_signal == "BUY"):
+                combined = "BUY"
+                self.metrics["buy_signals"] = self.metrics.get("buy_signals", 0) + 1
+            elif (signal_ma == "SELL" and signal_critical == "SELL"
+                  and macd_signal == "SELL" and rsi_signal == "SELL"):
+                combined = "SELL"
+                self.metrics["sell_signals"] = self.metrics.get("sell_signals", 0) + 1
+            else:
+                combined = "NO_SIGNAL"
 
         await self.emit_status(AgentStatus.RUNNING, f"{symbol} → {combined}")
         await self.emit(EventType.SIGNAL_GENERATED, {

@@ -15,12 +15,39 @@ class MarketDataAgent(BaseAgent):
 
     def __init__(self, name: str, bus: EventBus, symbols: list, timeframe, poll_interval: float = 10.0):
         super().__init__(name, bus)
-        self.symbols = symbols
-        self.timeframe = timeframe
+        self._initial_symbols = list(symbols)
         self.poll_interval = poll_interval
         self._last_bar_times: dict = {}
-        self.metrics["symbols"] = len(symbols)
+        self._last_seen_tf = None
+        self._last_seen_symbols: tuple = ()
         self.metrics["poll_interval_sec"] = poll_interval
+
+    @property
+    def symbols(self):
+        """Динамический список: все символы с trading_status != 3."""
+        from settings import Dictionary
+        syms = [s for s, v in Dictionary.symbolTradingStatus.items() if v != 3]
+        current = tuple(sorted(syms))
+        if self._last_seen_symbols and current != self._last_seen_symbols:
+            # Состав символов сменился — обнуляем «последние свечи» по удалённым,
+            # иначе при возврате символа первая новая свеча не детектируется.
+            removed = set(self._last_seen_symbols) - set(current)
+            for r in removed:
+                self._last_bar_times.pop(r, None)
+        self._last_seen_symbols = current
+        self.metrics["symbols"] = len(syms)
+        return syms
+
+    @property
+    def timeframe(self):
+        from settings import GlobalValues
+        tf = GlobalValues.time_frame
+        if self._last_seen_tf is not None and tf != self._last_seen_tf:
+            # TF сменился — сбросим кэш «последних свечей», чтобы корректно
+            # определить первую новую свечу на новом TF
+            self._last_bar_times.clear()
+        self._last_seen_tf = tf
+        return tf
 
     async def run(self):
         from market_data_cache import cache

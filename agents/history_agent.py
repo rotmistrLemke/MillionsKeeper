@@ -33,14 +33,31 @@ class HistoryAgent(BaseAgent):
         await asyncio.sleep(self.poll_interval)
 
     def _load_history(self) -> dict:
+        from datetime import datetime
         from history import History
         h = History()
+
+        def serialize_deals(deals):
+            out = []
+            for d in deals or []:
+                t = d.get("time")
+                if isinstance(t, datetime):
+                    t = t.strftime("%Y-%m-%d %H:%M:%S")
+                out.append({
+                    "ticket": d.get("ticket"),
+                    "symbol": d.get("symbol"),
+                    "type":   d.get("type"),
+                    "profit": d.get("profit"),
+                    "volume": d.get("volume"),
+                    "time":   t,
+                })
+            return out
 
         def extract_profit(result):
             # get_closed_profit_period возвращает (float, list) или просто 0
             if isinstance(result, tuple):
-                return {"profit": result[0], "deals": result[1]}
-            return {"profit": result if result else 0.0}
+                return {"profit": result[0], "deals": serialize_deals(result[1])}
+            return {"profit": result if result else 0.0, "deals": []}
 
         return {
             "today": extract_profit(h.get_profit_today()),

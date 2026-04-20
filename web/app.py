@@ -117,11 +117,63 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
 
     elif action == "set_active_strategy":
         from core.events import Event, EventType
+        from settings import GlobalValues, Dictionary, TF_MAP
+        from strategies.runtime import reset_all as reset_strategy_cache
+        strategy = cmd.get("strategy", "default")
+        tf_str   = cmd.get("timeframe", "H1")
+        tf_enum  = TF_MAP.get(tf_str, GlobalValues.time_frame)
+        symbol   = cmd.get("symbol") or GlobalValues.active_symbol
+        try:
+            volume = float(cmd.get("volume", 0) or 0)
+        except (TypeError, ValueError):
+            volume = 0.0
+        if volume < 0:
+            volume = 0.0
+
+        if symbol not in Dictionary.symbolTradingStatus:
+            await ws_manager.send_to(ws, "active_strategy_changed", {
+                "error": f"Unknown symbol: {symbol}",
+            })
+            return
+
+        # Сброс кэша экземпляров — чтобы внутреннее состояние (напр. _blocked_side)
+        # не переносилось между применениями стратегии.
+        reset_strategy_cache()
+
+        GlobalValues.active_strategy = strategy
+        GlobalValues.time_frame      = tf_enum
+        GlobalValues.active_symbol   = symbol
+        GlobalValues.active_volume   = volume
+
+        # Активируем только выбранный символ (0 = разрешено, 3 = выключено).
+        # Позиции с активным ордером (статус 1) не трогаем — PositionMonitor
+        # сбросит их в 0 при закрытии.
+        for s, st in list(Dictionary.symbolTradingStatus.items()):
+            if st == 1:
+                continue
+            Dictionary.symbolTradingStatus[s] = 0 if s == symbol else 3
+
+        # Персистим выбор — чтобы сохранялся между перезапусками.
+        import active_state
+        active_state.save()
+
         await bus.publish(Event(
             type=EventType.TRADING_STATUS_CHANGED,
             source="ws_client",
-            payload={"action": "set_active_strategy", "strategy": cmd.get("strategy", "default")}
+            payload={
+                "action":    "set_active_strategy",
+                "strategy":  strategy,
+                "timeframe": tf_str,
+                "symbol":    symbol,
+                "volume":    volume,
+            }
         ))
+        await ws_manager.broadcast("active_strategy_changed", {
+            "strategy":  strategy,
+            "timeframe": tf_str,
+            "symbol":    symbol,
+            "volume":    volume,
+        })
 
     elif action == "chart_subscribe":
         symbol = cmd.get("symbol")

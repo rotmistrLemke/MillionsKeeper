@@ -43,7 +43,14 @@ class ExecutionAgent(BaseAgent):
         signal = p["signal"]
         trading_status = Dictionary.symbolTradingStatus.get(symbol, 3)
 
-        if signal == "NO_SIGNAL" or trading_status != 0:
+        if signal == "NO_SIGNAL":
+            await self.emit_status(AgentStatus.IDLE, f"{symbol}: NO_SIGNAL")
+            return
+        if trading_status != 0:
+            await self.emit_status(
+                AgentStatus.IDLE,
+                f"{symbol}: сигнал {signal} отброшен (trading_status={trading_status})"
+            )
             return
 
         await self.emit_status(AgentStatus.RUNNING, f"Открытие {signal} {symbol}")
@@ -74,6 +81,7 @@ class ExecutionAgent(BaseAgent):
     def _open_order(self, symbol: str, signal: str, indicators: dict) -> dict:
         import MetaTrader5 as mt5
         from market_data_cache import cache
+        from settings import GlobalValues
 
         atr = indicators.get("atr_value", 0)
         symbol_info = cache.get_symbol_info(symbol)
@@ -83,18 +91,24 @@ class ExecutionAgent(BaseAgent):
         order_type = mt5.ORDER_TYPE_BUY if signal == "BUY" else mt5.ORDER_TYPE_SELL
         stop_loss_pips = 2 * atr / symbol_info.point if atr > 0 else 100
 
-        volume = self.trading.calculateSafeTradeWithMargin(
-            symbol, 80 if signal == "BUY" else 90, stop_loss_pips, order_type
-        )
+        fixed_volume = getattr(GlobalValues, 'active_volume', 0.0) or 0.0
+        if fixed_volume > 0:
+            volume = fixed_volume
+        else:
+            volume = self.trading.calculateSafeTradeWithMargin(
+                symbol, 80 if signal == "BUY" else 90, stop_loss_pips, order_type
+            )
         if not volume or volume <= 0:
             return None
 
         result = self.trading.orderOpen(symbol, order_type, volume, "sum_signal")
-        if result and result.retcode == mt5.TRADE_RETCODE_DONE:
+        # trading.orderOpen возвращает dict {"order":..., "price":..., ...} при успехе.
+        # На ошибке — либо dict с order=None, либо дергает исключение.
+        if isinstance(result, dict) and result.get("order"):
             return {
-                "ticket": result.order,
+                "ticket": result["order"],
                 "volume": volume,
-                "price": result.price,
+                "price": result.get("price"),
             }
         return None
 
@@ -106,7 +120,7 @@ class ExecutionAgent(BaseAgent):
         await self.emit_status(AgentStatus.RUNNING, f"Закрытие позиции {symbol}")
         try:
             ok = await asyncio.get_event_loop().run_in_executor(
-                None, self.trading.orderClose, ticket
+                None, self.trading.orderClose, ticket, symbol
             )
             if ok:
                 self.metrics["closed_today"] = self.metrics.get("closed_today", 0) + 1

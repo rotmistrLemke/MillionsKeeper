@@ -460,12 +460,27 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
         is_monday_early = weekday == 0 and hour < 2
         weekend_block   = is_friday_close or is_weekend or is_monday_early
 
+        def _close_hedge(ref_row, ref_i, reason):
+            nonlocal current_balance, cumulative_pnl
+            if position is None:
+                return
+            h = position.get('hedge')
+            if not h:
+                return
+            h_pnl_points = _calc_pnl_points(h, ref_row['close'], point, spread_points)
+            h_pnl_money  = h_pnl_points * pip_value_per_lot * h['volume'] if (deposit > 0 or fixed_volume > 0) else 0.0
+            current_balance += h_pnl_money
+            cumulative_pnl  += h_pnl_points
+            result.trades.append(_make_strategy_trade(h, ref_row, ref_i, h_pnl_points, h_pnl_money, current_balance, reason))
+            position['hedge'] = None
+
         if weekend_block and position is not None:
             pnl_points      = _calc_pnl_points(position, row['close'], point, spread_points)
             pnl_money       = pnl_points * pip_value_per_lot * position['volume'] if (deposit > 0 or fixed_volume > 0) else 0.0
             current_balance += pnl_money
             cumulative_pnl  += pnl_points
             result.trades.append(_make_strategy_trade(position, row, i, pnl_points, pnl_money, current_balance, 'WEEKEND'))
+            _close_hedge(row, i, 'WEEKEND')
             result.equity_curve.append(cumulative_pnl)
             strategy.on_trade_closed(position, 'WEEKEND')
             position = None
@@ -493,6 +508,7 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
                 current_balance += pnl_money
                 cumulative_pnl  += pnl_points
                 result.trades.append(_make_strategy_trade(position, row, i, pnl_points, pnl_money, current_balance, 'SL', exit_price))
+                _close_hedge(row, i, 'SL')
                 result.equity_curve.append(cumulative_pnl)
                 strategy.on_trade_closed(position, 'SL')
                 position = None
@@ -505,10 +521,16 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
                 current_balance += pnl_money
                 cumulative_pnl  += pnl_points
                 result.trades.append(_make_strategy_trade(position, row, i, pnl_points, pnl_money, current_balance, 'TP', exit_price))
+                _close_hedge(row, i, 'TP')
                 result.equity_curve.append(cumulative_pnl)
                 strategy.on_trade_closed(position, 'TP')
                 position = None
                 continue
+
+        # Хедж-выход (закрывает только хедж, основная продолжает работать)
+        if position is not None and position.get('hedge') is not None:
+            if strategy.get_hedge_exit_signal(row, position['hedge']):
+                _close_hedge(row, i, 'HEDGE_SIGNAL')
 
         if position is not None:
             if strategy.get_exit_signal(row, position):
@@ -517,6 +539,7 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
                 current_balance += pnl_money
                 cumulative_pnl  += pnl_points
                 result.trades.append(_make_strategy_trade(position, row, i, pnl_points, pnl_money, current_balance, 'SIGNAL'))
+                _close_hedge(row, i, 'SIGNAL')
                 result.equity_curve.append(cumulative_pnl)
                 strategy.on_trade_closed(position, 'SIGNAL')
                 position = None
@@ -560,6 +583,24 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
                     'indicators':  indicators,
                 }
 
+                if strategy.wants_hedge():
+                    hedge_side  = 'SELL' if signal == 'BUY' else 'BUY'
+                    hedge_entry = row['close']
+                    if hedge_side == 'BUY':
+                        hedge_entry += spread_points * point
+                    else:
+                        hedge_entry -= spread_points * point
+                    position['hedge'] = {
+                        'type':        hedge_side,
+                        'entry_price': hedge_entry,
+                        'entry_bar':   i,
+                        'entry_time':  row['time'],
+                        'volume':      volume,
+                        'sl':          None,
+                        'tp':          None,
+                        'indicators':  dict(indicators),
+                    }
+
         result.equity_curve.append(cumulative_pnl)
 
     if position is not None:
@@ -569,6 +610,13 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
         current_balance += pnl_money
         cumulative_pnl  += pnl_points
         result.trades.append(_make_strategy_trade(position, row, len(df) - 1, pnl_points, pnl_money, current_balance, 'END_OF_DATA'))
+        h = position.get('hedge')
+        if h:
+            h_pnl_points = _calc_pnl_points(h, row['close'], point, spread_points)
+            h_pnl_money  = h_pnl_points * pip_value_per_lot * h['volume'] if (deposit > 0 or fixed_volume > 0) else 0.0
+            current_balance += h_pnl_money
+            cumulative_pnl  += h_pnl_points
+            result.trades.append(_make_strategy_trade(h, row, len(df) - 1, h_pnl_points, h_pnl_money, current_balance, 'END_OF_DATA'))
         result.equity_curve.append(cumulative_pnl)
         strategy.on_trade_closed(position, 'END_OF_DATA')
 

@@ -98,6 +98,15 @@ class BaseStrategy(ABC):
         """Возвращает (sl_price, tp_price)."""
         pass
 
+    def wants_hedge(self) -> bool:
+        """Если True — движок открывает парную противоположную (хедж) позицию
+        одновременно с основной."""
+        return False
+
+    def get_hedge_exit_signal(self, row, hedge_position: dict) -> bool:
+        """True если нужно закрыть только хедж (основная продолжает работать)."""
+        return False
+
     def on_trade_closed(self, position: dict, reason: str) -> None:
         """Хук — вызывается движком после закрытия позиции.
         reason: 'SL' | 'TP' | 'SIGNAL' | 'WEEKEND' | 'END_OF_DATA'.

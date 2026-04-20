@@ -316,6 +316,19 @@ async def get_trading_status():
     return {"status": Dictionary.symbolTradingStatus}
 
 
+# ──────────────────────────── Active strategy ────────────────────
+
+@router.get("/active_strategy")
+async def get_active_strategy():
+    from settings import GlobalValues, TF_REVERSE
+    return {
+        "strategy":  GlobalValues.active_strategy,
+        "symbol":    GlobalValues.active_symbol,
+        "timeframe": TF_REVERSE.get(GlobalValues.time_frame, "H1"),
+        "volume":    GlobalValues.active_volume,
+    }
+
+
 # ──────────────────────────── Backtest ────────────────────────────
 
 class BacktestRequest(BaseModel):

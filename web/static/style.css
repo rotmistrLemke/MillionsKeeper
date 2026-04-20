@@ -300,25 +300,112 @@ tr:hover td { background: var(--surface2); }
 .pnl-neg { color: var(--red); }
 
 /* ── Event log ── */
-#event-log {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 1.7;
-  max-height: 460px;
-  overflow-y: auto;
-}
-.log-line {
+.events-toolbar {
   display: flex;
-  gap: 12px;
-  padding: 4px 8px;
-  border-bottom: 1px solid var(--border);
-  border-radius: 2px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
+.autoscroll-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.agent-log-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 12px;
+}
+
+.agent-log-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.agent-log-header {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+.agent-log-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.agent-log-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.agent-log-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  flex-shrink: 0;
+}
+.agent-log-status-dot.running { background: var(--blue); box-shadow: 0 0 6px var(--blue); }
+.agent-log-status-dot.idle    { background: var(--green); }
+.agent-log-status-dot.error   { background: var(--red); }
+.agent-log-status-dot.stopped { background: var(--text-dim); }
+.agent-log-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+.agent-log-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.agent-log-body {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 6px 0;
+}
+.agent-log-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 11px;
+  font-family: var(--font-sans);
+}
+
+.log-line {
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--border);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+.log-line:last-child { border-bottom: none; }
 .log-line:hover { background: var(--surface2); }
-.log-time  { color: var(--text-dim); flex-shrink: 0; width: 80px; font-variant-numeric: tabular-nums; }
-.log-source { color: var(--accent); flex-shrink: 0; width: 130px; overflow: hidden; text-overflow: ellipsis; }
-.log-type  { color: var(--blue); flex-shrink: 0; width: 200px; overflow: hidden; text-overflow: ellipsis; }
-.log-payload { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log-line-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 2px;
+}
+.log-time    { color: var(--text-dim); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.log-type    { color: var(--blue); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log-payload { color: var(--text-muted); font-size: 10.5px; opacity: 0.85; }
 
 /* ── Positions ── */
 .pos-card {
@@ -941,6 +1028,92 @@ tr:hover td { background: var(--surface2); }
 }
 .bt-pagination button:disabled { opacity: 0.35; cursor: default; }
 .bt-page-dots { color: var(--text-dim); font-size: 13px; padding: 0 4px; }
+
+/* ── Active strategy panel ── */
+.active-strategy-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin: 14px 16px 0;
+}
+.asp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.asp-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  letter-spacing: 1.2px;
+  font-weight: 600;
+}
+.asp-strategy {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.asp-row {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+.asp-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.asp-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  letter-spacing: 0.6px;
+}
+.asp-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── History deals ── */
+.hist-deals-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.hist-period-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px;
+}
+.hist-period-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.hist-period-btn:hover { color: var(--text); }
+.hist-period-btn.active {
+  background: var(--accent);
+  color: #0B0E11;
+  font-weight: 600;
+}
 
 /* ── Auto-scroll checkbox ── */
 input[type="checkbox"] {

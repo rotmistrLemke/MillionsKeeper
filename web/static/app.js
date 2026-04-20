@@ -53,6 +53,42 @@ const STRATEGY_META = {
       { col: 'atr',    label: 'ATR'    },
     ],
   },
+  ema_cross: {
+    name: 'EMA 8/21 Cross',
+    desc: [
+      'Пересечение быстрой и медленной EMA. Без SL/TP и без фильтра флэта.',
+      '<b>Вход:</b>',
+      'BUY: EMA8 пересекает EMA21 снизу вверх',
+      'SELL: EMA8 пересекает EMA21 сверху вниз',
+      '<b>Выход:</b>',
+      'BUY: EMA8 пересекает EMA21 сверху вниз',
+      'SELL: EMA8 пересекает EMA21 снизу вверх',
+      '<b>Таймфрейм:</b> любой',
+    ],
+    indicators: [
+      { col: 'ema8',  label: 'EMA8'  },
+      { col: 'ema21', label: 'EMA21' },
+    ],
+  },
+  ema_cross_inverse: {
+    name: 'EMA 8/21 Cross Inverse',
+    desc: [
+      'Инверсия EMA Cross — сделки открываются в противоположную сторону.',
+      '<b>Вход:</b>',
+      'SELL: EMA8 пересекает EMA21 снизу вверх',
+      'BUY: EMA8 пересекает EMA21 сверху вниз',
+      '<b>Выход:</b>',
+      'SELL: EMA8 пересекает EMA21 сверху вниз',
+      'BUY: EMA8 пересекает EMA21 снизу вверх',
+      '<b>SL:</b> 3 × ATR &nbsp; <b>TP:</b> выключен',
+      '<b>Таймфрейм:</b> любой',
+    ],
+    indicators: [
+      { col: 'ema8',  label: 'EMA8'  },
+      { col: 'ema21', label: 'EMA21' },
+      { col: 'atr',   label: 'ATR'   },
+    ],
+  },
   cci_rsi: {
     name: 'CCI + RSI (D1-фильтр)',
     desc: [
@@ -106,6 +142,31 @@ const STRATEGY_META = {
       { col: 'macd_line',   label: 'MACD'   },
       { col: 'macd_signal', label: 'Signal' },
       { col: 'macd_hist',   label: 'Hist'   },
+      { col: 'atr',         label: 'ATR'    },
+    ],
+  },
+  default_hedge: {
+    name: 'Default + Hedge',
+    desc: [
+      'Основная (MA + MACD + RSI). При входе открываются ОБЕ стороны (хедж).',
+      '<b>Вход как у default:</b>',
+      'BUY: EMA8 &gt; EMA21 + MACD бычий + RSI 55..70, растёт',
+      'SELL: EMA8 &lt; EMA21 + MACD медвежий + RSI 30..45, падает',
+      '<b>Выход основной (закрывает обе):</b>',
+      'BUY: RSI был ≥ 70, стал &lt; 70',
+      'SELL: RSI был ≤ 30, стал &gt; 30',
+      '<b>Выход хеджа (только хедж):</b>',
+      'SELL-хедж при BUY: RSI &gt; 60',
+      'BUY-хедж при SELL: RSI &lt; 40',
+      '<b>SL/TP:</b> нет, управление только по RSI',
+      '<b>Таймфрейм:</b> любой',
+    ],
+    indicators: [
+      { col: 'ema8',        label: 'EMA8'   },
+      { col: 'ema21',       label: 'EMA21'  },
+      { col: 'macd_line',   label: 'MACD'   },
+      { col: 'macd_signal', label: 'Signal' },
+      { col: 'rsi',         label: 'RSI'    },
       { col: 'atr',         label: 'ATR'    },
     ],
   },
@@ -199,6 +260,7 @@ const state = {
   history: { today: {}, week: {}, month: {} },
   backtest_result: null,
   bt_strategy: 'default',
+  active_strategy: null,
   log_lines: [],
   MAX_LOG: 200,
 };
@@ -255,6 +317,21 @@ function handleMessage(msg) {
     (data.agents || []).forEach(a => { state.agents[a.name] = a; });
     renderAgents();
     (data.recent_events || []).reverse().forEach(addLogLine);
+    renderLog();
+    if (data.active_strategy) {
+      state.active_strategy = data.active_strategy;
+      renderActiveStrategy();
+      syncActiveStrategyForm();
+    }
+    return;
+  }
+
+  if (msg_type === 'active_strategy_changed') {
+    if (data && !data.error) {
+      state.active_strategy = data;
+      renderActiveStrategy();
+      syncActiveStrategyForm();
+    }
     return;
   }
 
@@ -322,6 +399,7 @@ function routeEvent(ev) {
 // ─── Render: Agents sidebar ───────────────────────────────────────
 function renderAgents() {
   const container = document.getElementById('agents-list');
+  if (!container) return;
   container.innerHTML = '';
   Object.values(state.agents).forEach(a => {
     const div = document.createElement('div');
@@ -421,36 +499,201 @@ function badge(val) {
 }
 
 // ─── Render: History ─────────────────────────────────────────────
+let histPeriod = 'today';
+let histPage = 0;
+const HIST_PER_PAGE = 20;
+
 function renderHistory() {
-  const h = state.history;
+  const h = state.history || {};
   const todayP = h.today?.profit ?? 0;
   const weekP  = h.week?.profit ?? 0;
   const monthP = h.month?.profit ?? 0;
-  document.getElementById('hist-today').innerHTML = `<div class="stat-label">Сегодня</div><div class="stat-value ${todayP>=0?'pnl-pos':'pnl-neg'}">${todayP>=0?'+':''}${fmt(todayP)}$</div>`;
-  document.getElementById('hist-week').innerHTML  = `<div class="stat-label">Неделя</div><div class="stat-value ${weekP>=0?'pnl-pos':'pnl-neg'}">${weekP>=0?'+':''}${fmt(weekP)}$</div>`;
-  document.getElementById('hist-month').innerHTML = `<div class="stat-label">Месяц</div><div class="stat-value ${monthP>=0?'pnl-pos':'pnl-neg'}">${monthP>=0?'+':''}${fmt(monthP)}$</div>`;
+  const todayN = h.today?.deals?.length ?? 0;
+  const weekN  = h.week?.deals?.length ?? 0;
+  const monthN = h.month?.deals?.length ?? 0;
+  document.getElementById('hist-today').innerHTML = `<div class="stat-label">Сегодня · ${todayN}</div><div class="stat-value ${todayP>=0?'pnl-pos':'pnl-neg'}">${todayP>=0?'+':''}${fmt(todayP)}$</div>`;
+  document.getElementById('hist-week').innerHTML  = `<div class="stat-label">Неделя · ${weekN}</div><div class="stat-value ${weekP>=0?'pnl-pos':'pnl-neg'}">${weekP>=0?'+':''}${fmt(weekP)}$</div>`;
+  document.getElementById('hist-month').innerHTML = `<div class="stat-label">Месяц · ${monthN}</div><div class="stat-value ${monthP>=0?'pnl-pos':'pnl-neg'}">${monthP>=0?'+':''}${fmt(monthP)}$</div>`;
+  renderHistDeals();
+}
+
+function renderHistDeals() {
+  const h = state.history || {};
+  const deals = (h[histPeriod]?.deals) || [];
+  const table = document.getElementById('hist-deals-table');
+  const pag   = document.getElementById('hist-pagination');
+  if (!table) return;
+
+  if (!deals.length) {
+    table.innerHTML = '<div style="color:var(--text-muted);padding:12px">Нет сделок</div>';
+    if (pag) pag.innerHTML = '';
+    return;
+  }
+
+  // Сортируем по времени убывающе (свежие вверху)
+  const sorted = deals.slice().sort((a, b) => (b.time || '').localeCompare(a.time || ''));
+  const totalPages = Math.ceil(sorted.length / HIST_PER_PAGE);
+  if (histPage >= totalPages) histPage = 0;
+  const start = histPage * HIST_PER_PAGE;
+  const page  = sorted.slice(start, start + HIST_PER_PAGE);
+
+  const totalProfit = sorted.reduce((s, d) => s + (d.profit || 0), 0);
+  const totalClass  = totalProfit >= 0 ? 'pnl-pos' : 'pnl-neg';
+
+  table.innerHTML = `
+    <table>
+      <tr>
+        <th>#</th><th>Время</th><th>Тип</th><th>Символ</th><th>Объём</th><th>Тикет</th><th>P&L $</th>
+      </tr>
+      ${page.map((d, i) => {
+        const globalIdx = start + i + 1;
+        const pc = (d.profit || 0) >= 0 ? 'pnl-pos' : 'pnl-neg';
+        const time = (d.time || '').toString().substring(0, 16);
+        const type = d.type || '';
+        const sign = (d.profit || 0) >= 0 ? '+' : '';
+        return `<tr>
+          <td style="color:var(--text-muted)">${globalIdx}</td>
+          <td>${time}</td>
+          <td><span class="badge badge-${type.toLowerCase()}">${type}</span></td>
+          <td>${d.symbol || ''}</td>
+          <td>${d.volume != null ? d.volume : ''}</td>
+          <td style="color:var(--text-muted)">${d.ticket || ''}</td>
+          <td class="${pc}">${sign}${fmt(d.profit || 0)}$</td>
+        </tr>`;
+      }).join('')}
+      <tr style="border-top:2px solid var(--border);font-weight:600">
+        <td colspan="6" style="text-align:right;color:var(--text-muted)">Итого:</td>
+        <td class="${totalClass}">${totalProfit>=0?'+':''}${fmt(totalProfit)}$</td>
+      </tr>
+    </table>
+  `;
+
+  if (!pag) return;
+  if (totalPages <= 1) { pag.innerHTML = ''; return; }
+
+  let html = `<button onclick="histGoPage(0)" ${histPage===0?'disabled':''}>&#171;</button>`;
+  html += `<button onclick="histGoPage(${histPage-1})" ${histPage===0?'disabled':''}>&#8249;</button>`;
+  const range = 2;
+  const from = Math.max(0, histPage - range);
+  const to   = Math.min(totalPages - 1, histPage + range);
+  if (from > 0) html += `<span class="bt-page-dots">...</span>`;
+  for (let i = from; i <= to; i++) {
+    html += `<button onclick="histGoPage(${i})" class="${i===histPage?'active':''}">${i+1}</button>`;
+  }
+  if (to < totalPages - 1) html += `<span class="bt-page-dots">...</span>`;
+  html += `<button onclick="histGoPage(${histPage+1})" ${histPage>=totalPages-1?'disabled':''}>&#8250;</button>`;
+  html += `<button onclick="histGoPage(${totalPages-1})" ${histPage>=totalPages-1?'disabled':''}>&#187;</button>`;
+  pag.innerHTML = html;
+}
+
+function histGoPage(p) {
+  const deals = (state.history?.[histPeriod]?.deals) || [];
+  const totalPages = Math.ceil(deals.length / HIST_PER_PAGE);
+  histPage = Math.max(0, Math.min(p, totalPages - 1));
+  renderHistDeals();
+}
+
+function histSetPeriod(period) {
+  histPeriod = period;
+  histPage = 0;
+  document.querySelectorAll('#hist-period-tabs .hist-period-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.period === period);
+  });
+  renderHistDeals();
 }
 
 // ─── Render: Event Log ────────────────────────────────────────────
+const PER_AGENT_LOG_LIMIT = 80;
+
 function addLogLine(ev) {
   state.log_lines.unshift(ev);
   if (state.log_lines.length > state.MAX_LOG) state.log_lines.pop();
+
+  const src = ev.source || 'System';
+  if (!state.agent_logs) state.agent_logs = {};
+  if (!state.agent_logs[src]) state.agent_logs[src] = [];
+  state.agent_logs[src].unshift(ev);
+  if (state.agent_logs[src].length > PER_AGENT_LOG_LIMIT) state.agent_logs[src].pop();
+
   renderLog();
 }
 
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
 function renderLog() {
-  const container = document.getElementById('event-log');
+  const container = document.getElementById('agent-log-panels');
+  if (!container) return;
   const autoScroll = document.getElementById('auto-scroll')?.checked !== false;
-  container.innerHTML = state.log_lines.slice(0, 100).map(ev => {
-    const t = ev.timestamp ? ev.timestamp.substring(11, 19) : '';
-    const payload = JSON.stringify(ev.payload || {}).substring(0, 120);
-    return `<div class="log-line">
-      <span class="log-time">${t}</span>
-      <span class="log-source">${ev.source || ''}</span>
-      <span class="log-type">${ev.type || ''}</span>
-      <span class="log-payload">${payload}</span>
-    </div>`;
-  }).join('');
+
+  // Источник списка агентов: статусный реестр + любые источники событий, которые там не числятся.
+  const agentNames = new Set(Object.keys(state.agents || {}));
+  Object.keys(state.agent_logs || {}).forEach(n => agentNames.add(n));
+  const ordered = Array.from(agentNames).sort();
+
+  // Убираем панели агентов, которых больше нет в списке.
+  Array.from(container.children).forEach(panel => {
+    if (!agentNames.has(panel.dataset.agent)) panel.remove();
+  });
+
+  ordered.forEach(name => {
+    const info    = state.agents[name] || { name, description: '', status: 'idle' };
+    const lines   = state.agent_logs?.[name] || [];
+    let panel     = container.querySelector(`.agent-log-panel[data-agent="${CSS.escape(name)}"]`);
+    const exists  = !!panel;
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.className = 'agent-log-panel';
+      panel.dataset.agent = name;
+      panel.innerHTML = `
+        <div class="agent-log-header">
+          <div class="agent-log-title-row">
+            <span class="agent-log-status-dot"></span>
+            <span class="agent-log-name"></span>
+            <span class="agent-log-count"></span>
+          </div>
+          <div class="agent-log-desc"></div>
+        </div>
+        <div class="agent-log-body"></div>`;
+      container.appendChild(panel);
+    }
+
+    panel.querySelector('.agent-log-status-dot').className =
+      'agent-log-status-dot ' + (info.status || 'idle');
+    panel.querySelector('.agent-log-name').textContent  = name;
+    panel.querySelector('.agent-log-count').textContent = `${lines.length} событий`;
+    panel.querySelector('.agent-log-desc').textContent  = info.description || '';
+
+    const body = panel.querySelector('.agent-log-body');
+    const prevScrollTop    = body.scrollTop;
+    const prevScrollHeight = body.scrollHeight;
+
+    if (!lines.length) {
+      body.innerHTML = `<div class="agent-log-empty">Нет событий</div>`;
+    } else {
+      body.innerHTML = lines.map(ev => {
+        const t = ev.timestamp ? ev.timestamp.substring(11, 19) : '';
+        const payload = JSON.stringify(ev.payload || {});
+        return `<div class="log-line">
+          <div class="log-line-head">
+            <span class="log-time">${escapeHtml(t)}</span>
+            <span class="log-type">${escapeHtml(ev.type || '')}</span>
+          </div>
+          <div class="log-payload">${escapeHtml(payload)}</div>
+        </div>`;
+      }).join('');
+    }
+
+    if (autoScroll) {
+      body.scrollTop = 0;
+    } else if (exists) {
+      const heightDiff = body.scrollHeight - prevScrollHeight;
+      body.scrollTop = prevScrollTop + heightDiff;
+    }
+  });
 }
 
 // ─── Strategy Description ─────────────────────────────────────────
@@ -476,10 +719,61 @@ function onActiveStrategyChange() {
 }
 
 function setActiveStrategy() {
-  const strategy = document.getElementById('active-strategy').value;
-  sendCmd({ cmd: 'set_active_strategy', strategy });
+  const strategy  = document.getElementById('active-strategy').value;
+  const timeframe = document.getElementById('active-timeframe')?.value || 'H1';
+  const symbol    = document.getElementById('active-symbol')?.value || 'XAUUSDrfd';
+  const volume    = parseFloat(document.getElementById('active-volume')?.value || '0') || 0;
+  sendCmd({ cmd: 'set_active_strategy', strategy, timeframe, symbol, volume });
   const btn = document.getElementById('btn-set-strategy');
   if (btn) { btn.textContent = '✓ Применено'; setTimeout(() => { btn.textContent = '✓ Применить'; }, 2000); }
+}
+
+function renderActiveStrategy() {
+  const s = state.active_strategy;
+  if (!s) return;
+  const meta = STRATEGY_META[s.strategy] || { name: s.strategy };
+  const labelEl = document.getElementById('asp-strategy');
+  const symEl   = document.getElementById('asp-symbol');
+  const tfEl    = document.getElementById('asp-timeframe');
+  const volEl   = document.getElementById('asp-volume');
+  if (labelEl) labelEl.textContent = meta.name || s.strategy || '—';
+  if (symEl)   symEl.textContent   = s.symbol || '—';
+  if (tfEl)    tfEl.textContent    = s.timeframe || '—';
+  if (volEl) {
+    const v = Number(s.volume || 0);
+    volEl.textContent = v > 0 ? `${v.toFixed(2)} лот` : 'Авто';
+  }
+}
+
+function syncActiveStrategyForm() {
+  const s = state.active_strategy;
+  if (!s) return;
+  const stratSel = document.getElementById('active-strategy');
+  const tfSel    = document.getElementById('active-timeframe');
+  const symSel   = document.getElementById('active-symbol');
+  const volInp   = document.getElementById('active-volume');
+  if (stratSel && s.strategy) stratSel.value = s.strategy;
+  if (tfSel && s.timeframe)   tfSel.value    = s.timeframe;
+  if (symSel && s.symbol) {
+    const has = Array.from(symSel.options).some(o => o.value === s.symbol);
+    if (has) symSel.value = s.symbol;
+  }
+  if (volInp && s.volume != null) volInp.value = s.volume;
+}
+
+async function populateActiveSymbols() {
+  const sel = document.getElementById('active-symbol');
+  if (!sel) return;
+  try {
+    const r = await fetch('/api/symbols');
+    const d = await r.json();
+    const symbols = d.symbols || [];
+    if (!symbols.length) return;
+    const current = state.active_strategy?.symbol || 'XAUUSDrfd';
+    sel.innerHTML = symbols.map(s =>
+      `<option value="${s}" ${s === current ? 'selected' : ''}>${s}</option>`
+    ).join('');
+  } catch {}
 }
 
 // ─── Backtest ─────────────────────────────────────────────────────
@@ -1561,6 +1855,25 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('bt-start')?.addEventListener('change', toggleBarsVisibility);
   document.getElementById('bt-end')?.addEventListener('change', toggleBarsVisibility);
   populateBtSymbols();
+
+  // Active strategy: символы + текущее состояние
+  (async () => {
+    await populateActiveSymbols();
+    try {
+      const r = await fetch('/api/active_strategy');
+      const d = await r.json();
+      if (!d.error) {
+        state.active_strategy = d;
+        renderActiveStrategy();
+        syncActiveStrategyForm();
+      }
+    } catch {}
+  })();
+
+  // History period tabs
+  document.querySelectorAll('#hist-period-tabs .hist-period-btn').forEach(b => {
+    b.addEventListener('click', () => histSetPeriod(b.dataset.period));
+  });
 
   // Strategy descriptions — initial render
   onBtStrategyChange();

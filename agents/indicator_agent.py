@@ -1,4 +1,5 @@
 import asyncio
+import pandas as pd
 
 from agents.base_agent import BaseAgent, AgentStatus
 from core.event_bus import EventBus
@@ -7,17 +8,26 @@ from core.events import EventType, Event
 
 class IndicatorAgent(BaseAgent):
     """
-    Подписывается на NEW_BAR и рассчитывает все индикаторы для символа.
-    Публикует INDICATORS_READY с результатами.
+    Подписывается на NEW_BAR и рассчитывает индикаторы для символа.
+    Диспетчеризует:
+      - GlobalValues.active_strategy == 'default' или неизвестно → legacy
+        MA+MACD+RSI пайплайн (используется SignalAgent'ом для комбинации).
+      - иначе → вычисляется выбранная стратегия из strategies/, её entry-сигнал
+        сразу кладётся в payload['entry_signal'].
+    Публикует INDICATORS_READY.
     """
-    description = "Расчёт MA, MACD, RSI, ATR, ADX"
+    description = "Расчёт индикаторов активной стратегии"
 
     def __init__(self, name: str, bus: EventBus, timeframe):
         super().__init__(name, bus)
-        self.timeframe = timeframe
         self._queue: asyncio.Queue = asyncio.Queue()
         self.metrics["calculated"] = 0
         bus.subscribe(EventType.NEW_BAR, self._on_new_bar)
+
+    @property
+    def timeframe(self):
+        from settings import GlobalValues
+        return GlobalValues.time_frame
 
     async def _on_new_bar(self, event: Event):
         await self._queue.put(event)
@@ -27,17 +37,91 @@ class IndicatorAgent(BaseAgent):
         event = await self._queue.get()
         symbol = event.payload["symbol"]
 
-        await self.emit_status(AgentStatus.RUNNING, f"Расчёт индикаторов {symbol}")
+        from settings import GlobalValues
+        from strategies import STRATEGIES
+        active = GlobalValues.active_strategy
+        use_strategy = active in STRATEGIES
+
+        await self.emit_status(
+            AgentStatus.RUNNING,
+            f"Индикаторы {symbol} ({active if use_strategy else 'default'})"
+        )
         try:
-            result = await asyncio.get_event_loop().run_in_executor(
-                None, self._calc_indicators, symbol
-            )
+            if use_strategy:
+                result = await asyncio.get_event_loop().run_in_executor(
+                    None, self._calc_strategy, symbol, active
+                )
+            else:
+                result = await asyncio.get_event_loop().run_in_executor(
+                    None, self._calc_indicators, symbol
+                )
             self.metrics["calculated"] = self.metrics.get("calculated", 0) + 1
             await self.emit(EventType.INDICATORS_READY, result, correlation_id=event.correlation_id)
             await self.emit_status(AgentStatus.IDLE, f"Готово: {symbol}")
         except Exception as e:
             self._logger.error(f"Indicator calc failed for {symbol}: {e}")
             await self.emit_status(AgentStatus.ERROR, str(e))
+
+    def _calc_strategy(self, symbol: str, strategy_name: str) -> dict:
+        from market_data_cache import cache
+        from strategies.runtime import get_runtime_strategy
+
+        strategy = get_runtime_strategy(strategy_name, symbol)
+        df = cache.get_rates(symbol, self.timeframe, bars=500)
+        if df is None or len(df) < 50:
+            return {
+                "symbol": symbol,
+                "strategy": strategy_name,
+                "entry_signal": "NO_SIGNAL",
+                "is_flat": True,
+            }
+
+        df = strategy.compute_indicators(df)
+        df = strategy.compute_flat_indicators(df)
+        row = df.iloc[-1]
+
+        flat = bool(strategy.is_flat(row))
+        signal = None if flat else strategy.get_entry_signal(row)
+
+        # Собираем значения индикаторов последнего бара для UI
+        ind_cols = list(strategy.indicator_columns()) + list(strategy.flat_indicator_columns())
+        ind_vals = {}
+        for col in ind_cols:
+            if col in df.columns:
+                v = df[col].iloc[-1]
+                if pd.notna(v):
+                    try:
+                        ind_vals[col] = float(v)
+                    except (TypeError, ValueError):
+                        pass
+
+        def _get_float(col):
+            if col in df.columns:
+                v = df[col].iloc[-1]
+                if pd.notna(v):
+                    try:
+                        return float(v)
+                    except (TypeError, ValueError):
+                        return None
+            return None
+
+        return {
+            "symbol": symbol,
+            "strategy": strategy_name,
+            "entry_signal": signal or "NO_SIGNAL",
+            "is_flat": flat,
+            "indicators_raw": ind_vals,
+            # legacy-совместимые поля для UI / SignalAgent
+            "signal_ma": "NO_SIGNAL",
+            "signal_critical_angle": "NO_SIGNAL",
+            "macd_signal": "NO_SIGNAL",
+            "rsi_signal": "NO_SIGNAL",
+            "rsi_value":  _get_float('rsi'),
+            "atr_value":  _get_float('atr') or _get_float('flat_atr'),
+            "adx_value":  _get_float('flat_adx') or 0.0,
+            "ema8":       _get_float('ema8'),
+            "ema21":      _get_float('ema21'),
+        }
 
     def _calc_indicators(self, symbol: str) -> dict:
         from indicators import MovingAverage, MACD, RSI, ATR, ADX

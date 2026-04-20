@@ -58,8 +58,9 @@ class Trading:
         result = mt5.Close(symbol=symbol, ticket=orderTicket)
         if not result:
             print(mt5.last_error())
-        else:
-            print(f"Пара {symbol} Ордер {orderTicket} успешно снят")
+            return False
+        print(f"Пара {symbol} Ордер {orderTicket} успешно снят")
+        return True
 
     def getPositions(self):
         """Использует кэш вместо прямого вызова MT5."""

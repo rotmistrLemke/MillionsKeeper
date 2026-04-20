@@ -3,5 +3,6 @@
 test*
 account*
 settings*
+active_state.json
 # Игнорировать кэш Python
 __pycache__/
