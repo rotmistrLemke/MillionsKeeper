@@ -11,9 +11,10 @@ class PositionMonitorAgent(BaseAgent):
     """
     Периодически опрашивает открытые позиции.
     Публикует POSITION_UPDATE с live P&L.
-    Проверяет RSI-выход и публикует ORDER_CLOSE_REQUEST.
+    Проверяет сигнал выхода и публикует ORDER_CLOSE_REQUEST — ТОЛЬКО
+    при открытии новой свечи (событие NEW_BAR).
     """
-    description = "Мониторинг открытых позиций, RSI-выход"
+    description = "Мониторинг открытых позиций, выход по свече"
 
     def __init__(self, name: str, bus: EventBus, trading, poll_interval: float = 5.0):
         super().__init__(name, bus)
@@ -22,6 +23,14 @@ class PositionMonitorAgent(BaseAgent):
         self.metrics["open_positions"] = 0
         # Словарь {ticket: pos_dict} с прошлого цикла — для детекта закрытий
         self._prev_positions: dict = {}
+        # Символы, по которым пришла новая свеча — на них проверяем exit в ближайшем тике.
+        self._pending_exit_symbols: set = set()
+        bus.subscribe(EventType.NEW_BAR, self._on_new_bar)
+
+    async def _on_new_bar(self, event):
+        sym = event.payload.get("symbol")
+        if sym:
+            self._pending_exit_symbols.add(sym)
 
     async def run(self):
         await self.emit_status(AgentStatus.RUNNING, "Проверка позиций")
@@ -39,9 +48,13 @@ class PositionMonitorAgent(BaseAgent):
                     await self._on_position_disappeared(prev_pos)
             self._prev_positions = {p["ticket"]: p for p in positions}
 
-            # Проверяем сигнал выхода
-            for pos in positions:
-                await self._check_rsi_exit(pos)
+            # Проверяем сигнал выхода ТОЛЬКО для символов с новой свечой.
+            if self._pending_exit_symbols:
+                targets = self._pending_exit_symbols.copy()
+                self._pending_exit_symbols.clear()
+                for pos in positions:
+                    if pos["symbol"] in targets:
+                        await self._check_rsi_exit(pos)
 
         except Exception as e:
             self._logger.error(f"Position monitor error: {e}")
