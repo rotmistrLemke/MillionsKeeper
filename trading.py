@@ -10,7 +10,7 @@ atr = ATR()
 
 class Trading:
 
-    def orderOpen(self, symbol, type, maxVolume, comment):
+    def orderOpen(self, symbol, type, maxVolume, comment, sl=0.0, tp=0.0):
         symbol_info = cache.get_symbol_info(symbol)
         if not symbol_info.visible:
             if not mt5.symbol_select(symbol, True):
@@ -20,7 +20,7 @@ class Trading:
         price = mt5.symbol_info_tick(symbol).bid
         result = None
         if type == TargetType.LONG:
-            result = mt5.order_send({
+            request = {
                 "action": mt5.TRADE_ACTION_DEAL,
                 "symbol": symbol,
                 "volume": volume,
@@ -30,9 +30,14 @@ class Trading:
                 "comment": str(comment),
                 "type_time": mt5.ORDER_TIME_GTC,
                 "type_filling": mt5.ORDER_FILLING_FOK,
-            })
+            }
+            if sl and sl > 0:
+                request["sl"] = float(sl)
+            if tp and tp > 0:
+                request["tp"] = float(tp)
+            result = mt5.order_send(request)
         if type == TargetType.SHORT:
-            result = mt5.order_send({
+            request = {
                 "action": mt5.TRADE_ACTION_DEAL,
                 "symbol": symbol,
                 "volume": volume,
@@ -42,7 +47,12 @@ class Trading:
                 "comment": str(comment),
                 "type_time": mt5.ORDER_TIME_GTC,
                 "type_filling": mt5.ORDER_FILLING_FOK,
-            })
+            }
+            if sl and sl > 0:
+                request["sl"] = float(sl)
+            if tp and tp > 0:
+                request["tp"] = float(tp)
+            result = mt5.order_send(request)
         if not result:
             print(mt5.last_error())
         elif result.retcode != mt5.TRADE_RETCODE_DONE:

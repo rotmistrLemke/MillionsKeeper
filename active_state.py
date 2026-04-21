@@ -27,6 +27,8 @@ def load() -> None:
     symbol   = data.get("symbol")
     tf_str   = data.get("timeframe")
     volume   = data.get("volume")
+    sl_atr   = data.get("sl_atr")
+    tp_atr   = data.get("tp_atr")
 
     if isinstance(strategy, str):
         GlobalValues.active_strategy = strategy
@@ -36,6 +38,10 @@ def load() -> None:
         GlobalValues.time_frame = TF_MAP[tf_str]
     if isinstance(volume, (int, float)) and volume >= 0:
         GlobalValues.active_volume = float(volume)
+    if isinstance(sl_atr, (int, float)) and sl_atr >= 0:
+        GlobalValues.active_sl_atr = float(sl_atr)
+    if isinstance(tp_atr, (int, float)) and tp_atr >= 0:
+        GlobalValues.active_tp_atr = float(tp_atr)
 
     # Активируем только сохранённую пару, остальные — выключены.
     active_symbol = GlobalValues.active_symbol
@@ -56,6 +62,8 @@ def save() -> None:
         "symbol":    GlobalValues.active_symbol,
         "timeframe": TF_REVERSE.get(GlobalValues.time_frame, "H1"),
         "volume":    GlobalValues.active_volume,
+        "sl_atr":    GlobalValues.active_sl_atr,
+        "tp_atr":    GlobalValues.active_tp_atr,
     }
     try:
         _STATE_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")

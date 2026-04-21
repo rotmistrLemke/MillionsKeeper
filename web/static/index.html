@@ -58,6 +58,14 @@
             <div class="asp-label">Объём</div>
             <div class="asp-value" id="asp-volume">—</div>
           </div>
+          <div class="asp-item">
+            <div class="asp-label">SL (×ATR)</div>
+            <div class="asp-value" id="asp-sl">—</div>
+          </div>
+          <div class="asp-item">
+            <div class="asp-label">TP (×ATR)</div>
+            <div class="asp-value" id="asp-tp">—</div>
+          </div>
         </div>
       </div>
       <div id="positions-list">
@@ -81,6 +89,7 @@
             <option value="fibonacci_retracement">Fibonacci Retracement</option>
             <option value="macd_hist">MACD Histogram</option>
             <option value="default_hedge">Default + Hedge</option>
+            <option value="default_inverse">Default Inverse</option>
             <option value="candle_reversal">Candle Reversal</option>
             <option value="sar_adx">SAR + ADX</option>
             <option value="donchian_breakout">Donchian Breakout</option>
@@ -183,6 +192,7 @@
               <option value="fibonacci_retracement">Fibonacci Retracement</option>
               <option value="macd_hist">MACD Histogram</option>
               <option value="default_hedge">Default + Hedge</option>
+              <option value="default_inverse">Default Inverse (MA+MACD+RSI reverse)</option>
               <option value="candle_reversal">Candlestick Reversal</option>
               <option value="sar_adx">Parabolic SAR + ADX</option>
               <option value="donchian_breakout">Donchian Breakout</option>
@@ -209,6 +219,14 @@
             Объём (лот, 0 = авто)
             <input id="active-volume" type="number" value="0" min="0" step="0.01" style="width:100px">
           </label>
+          <label>
+            SL (×ATR, 0 = выкл)
+            <input id="active-sl-atr" type="number" value="0" min="0" step="0.1" style="width:90px">
+          </label>
+          <label>
+            TP (×ATR, 0 = выкл)
+            <input id="active-tp-atr" type="number" value="0" min="0" step="0.1" style="width:90px">
+          </label>
           <button class="btn-primary" id="btn-set-strategy" onclick="setActiveStrategy()">✓ Применить</button>
         </div>
       </div>
@@ -229,6 +247,7 @@
               <option value="fibonacci_retracement">Fibonacci Retracement</option>
               <option value="macd_hist">MACD Histogram</option>
               <option value="default_hedge">Default + Hedge</option>
+              <option value="default_inverse">Default Inverse (MA+MACD+RSI reverse)</option>
               <option value="candle_reversal">Candlestick Reversal</option>
               <option value="sar_adx">Parabolic SAR + ADX</option>
               <option value="donchian_breakout">Donchian Breakout</option>
@@ -277,6 +296,14 @@
           <label>
             Объём (лот, 0 = авто)
             <input id="bt-volume" type="number" value="0" min="0" step="0.01" style="width:100px">
+          </label>
+          <label>
+            SL (×ATR, 0 = выкл)
+            <input id="bt-sl-atr" type="number" value="0" min="0" step="0.1" style="width:90px">
+          </label>
+          <label>
+            TP (×ATR, 0 = выкл)
+            <input id="bt-tp-atr" type="number" value="0" min="0" step="0.1" style="width:90px">
           </label>
           <button class="btn-primary" id="btn-run-bt">▶ Запустить</button>
         </div>

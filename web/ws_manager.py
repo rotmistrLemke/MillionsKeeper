@@ -70,6 +70,8 @@ class WebSocketManager:
                 "symbol":    GlobalValues.active_symbol,
                 "timeframe": TF_REVERSE.get(GlobalValues.time_frame, "H1"),
                 "volume":    GlobalValues.active_volume,
+                "sl_atr":    GlobalValues.active_sl_atr,
+                "tp_atr":    GlobalValues.active_tp_atr,
             },
         })
 

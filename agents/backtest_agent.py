@@ -32,6 +32,8 @@ class BacktestAgent(BaseAgent):
         spread = p.get("spread", 0)
         timeframe = p.get("timeframe", None)
         volume = p.get("volume", 0.0)
+        sl_atr = float(p.get("sl_atr", 0.0) or 0.0)
+        tp_atr = float(p.get("tp_atr", 0.0) or 0.0)
         date_start = p.get("start")
         date_end = p.get("end")
 
@@ -48,7 +50,7 @@ class BacktestAgent(BaseAgent):
         try:
             result = await asyncio.get_event_loop().run_in_executor(
                 None, self._run_backtest, strategy_name, symbol, bars, deposit, spread,
-                timeframe, volume, date_start, date_end
+                timeframe, volume, date_start, date_end, sl_atr, tp_atr
             )
             self.metrics["runs"] = self.metrics.get("runs", 0) + 1
             await self.emit(EventType.BACKTEST_RESULT, {
@@ -64,7 +66,8 @@ class BacktestAgent(BaseAgent):
             await self.emit_status(AgentStatus.ERROR, str(e))
 
     def _run_backtest(self, strategy_name, symbol, bars, deposit, spread, timeframe,
-                      volume=0.0, date_start=None, date_end=None) -> dict:
+                      volume=0.0, date_start=None, date_end=None,
+                      sl_atr=0.0, tp_atr=0.0) -> dict:
         from datetime import datetime
         import MetaTrader5 as mt5
         from backtest import run_backtest, run_strategy_backtest
@@ -93,7 +96,8 @@ class BacktestAgent(BaseAgent):
             result = run_strategy_backtest(
                 strat, symbol, tf, bars=bars, spread_points=spread,
                 deposit=deposit, fixed_volume=volume,
-                date_from=date_from, date_to=date_to
+                date_from=date_from, date_to=date_to,
+                sl_atr_mult=sl_atr, tp_atr_mult=tp_atr,
             )
 
         if result is None:

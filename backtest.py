@@ -285,8 +285,27 @@ def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0,
     position        = None
     cumulative_pnl  = 0.0
     current_balance = deposit if deposit > 0 else 0.0
+    peak_balance    = current_balance
+    dd_block_until  = None
     trade_status    = 0
     warmup          = 50
+
+    def _next_monday(ts: pd.Timestamp) -> pd.Timestamp:
+        days = 7 - ts.weekday() if ts.weekday() > 0 else 7
+        return (ts + pd.Timedelta(days=days)).normalize()
+
+    def _update_dd_block(ts: pd.Timestamp):
+        nonlocal peak_balance, dd_block_until
+        if peak_balance <= 0:
+            return
+        if current_balance > peak_balance:
+            peak_balance = current_balance
+            return
+        if dd_block_until is not None:
+            return
+        dd_pct = (peak_balance - current_balance) / peak_balance
+        if dd_pct > 0.35:
+            dd_block_until = _next_monday(ts)
 
     for i in range(warmup, len(df)):
         row = df.iloc[i]
@@ -298,6 +317,9 @@ def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0,
             bar_time = pd.Timestamp(bar_time, unit='s')
         weekday = bar_time.weekday()
         hour    = bar_time.hour
+
+        if dd_block_until is not None and bar_time >= dd_block_until:
+            dd_block_until = None
 
         is_friday_close = weekday == 4 and hour >= 23
         is_weekend      = weekday in (5, 6)
@@ -314,6 +336,7 @@ def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0,
             current_balance += pnl_money
             cumulative_pnl  += pnl_points
             result.trades.append(_make_default_trade(position, row, i, pnl_points, pnl_money, current_balance, 'WEEKEND'))
+            _update_dd_block(bar_time)
             result.equity_curve.append(cumulative_pnl)
             trade_status = 0
             position = None
@@ -340,6 +363,7 @@ def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0,
                 current_balance += pnl_money
                 cumulative_pnl  += pnl_points
                 result.trades.append(_make_default_trade(position, row, i, pnl_points, pnl_money, current_balance, 'RSI'))
+                _update_dd_block(bar_time)
                 result.equity_curve.append(cumulative_pnl)
                 trade_status = 1
                 position = None
@@ -351,7 +375,7 @@ def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0,
             if get_macd_signal(row) == 'NO_SIGNAL':
                 trade_status = 0
 
-        if position is None and trade_status == 0 and combined != 'NO_SIGNAL':
+        if position is None and trade_status == 0 and combined != 'NO_SIGNAL' and dd_block_until is None:
             entry_price = row['close']
             if combined == 'BUY':
                 entry_price += spread_points * point
@@ -426,7 +450,8 @@ def _make_default_trade(position, row, i, pnl_points, pnl_money, balance, reason
 
 def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=0,
                           deposit=0.0, risk_pct=80, fixed_volume=0.0,
-                          date_from=None, date_to=None):
+                          date_from=None, date_to=None,
+                          sl_atr_mult=0.0, tp_atr_mult=0.0):
     rates = load_rates(symbol, timeframe, bars, date_from, date_to)
     if rates is None or len(rates) < 100:
         print(f"  Недостаточно данных для {symbol}")
@@ -436,6 +461,16 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
     df['time'] = pd.to_datetime(df['time'], unit='s')
     df = strategy.compute_indicators(df)
 
+    # Для пользовательских множителей SL/TP нужен ATR — считаем, если стратегия его не предоставила.
+    if (sl_atr_mult > 0 or tp_atr_mult > 0) and 'atr' not in df.columns:
+        import talib
+        df['atr'] = talib.ATR(
+            df['high'].values.astype(float),
+            df['low'].values.astype(float),
+            df['close'].values.astype(float),
+            timeperiod=14,
+        )
+
     symbol_info       = mt5.symbol_info(symbol)
     point             = symbol_info.point if symbol_info else 0.0001
     pip_value_per_lot = 1
@@ -444,7 +479,26 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
     position        = None
     cumulative_pnl  = 0.0
     current_balance = deposit if deposit > 0 else 0.0
+    peak_balance    = current_balance
+    dd_block_until  = None  # pd.Timestamp; запрет входов до начала следующей недели
     warmup          = 60
+
+    def _next_monday(ts: pd.Timestamp) -> pd.Timestamp:
+        days = 7 - ts.weekday() if ts.weekday() > 0 else 7
+        return (ts + pd.Timedelta(days=days)).normalize()
+
+    def _update_dd_block(ts: pd.Timestamp):
+        nonlocal peak_balance, dd_block_until
+        if peak_balance <= 0:
+            return
+        if current_balance > peak_balance:
+            peak_balance = current_balance
+            return
+        if dd_block_until is not None:
+            return
+        dd_pct = (peak_balance - current_balance) / peak_balance
+        if dd_pct > 0.35:
+            dd_block_until = _next_monday(ts)
 
     for i in range(warmup, len(df)):
         row = df.iloc[i]
@@ -454,6 +508,10 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
             bar_time = pd.Timestamp(bar_time, unit='s')
         weekday = bar_time.weekday()
         hour    = bar_time.hour
+
+        # Снимаем блокировку по просадке с началом новой недели.
+        if dd_block_until is not None and bar_time >= dd_block_until:
+            dd_block_until = None
 
         is_friday_close = weekday == 4 and hour >= 23
         is_weekend      = weekday in (5, 6)
@@ -481,6 +539,7 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
             cumulative_pnl  += pnl_points
             result.trades.append(_make_strategy_trade(position, row, i, pnl_points, pnl_money, current_balance, 'WEEKEND'))
             _close_hedge(row, i, 'WEEKEND')
+            _update_dd_block(bar_time)
             result.equity_curve.append(cumulative_pnl)
             strategy.on_trade_closed(position, 'WEEKEND')
             position = None
@@ -509,6 +568,7 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
                 cumulative_pnl  += pnl_points
                 result.trades.append(_make_strategy_trade(position, row, i, pnl_points, pnl_money, current_balance, 'SL', exit_price))
                 _close_hedge(row, i, 'SL')
+                _update_dd_block(bar_time)
                 result.equity_curve.append(cumulative_pnl)
                 strategy.on_trade_closed(position, 'SL')
                 position = None
@@ -522,6 +582,7 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
                 cumulative_pnl  += pnl_points
                 result.trades.append(_make_strategy_trade(position, row, i, pnl_points, pnl_money, current_balance, 'TP', exit_price))
                 _close_hedge(row, i, 'TP')
+                _update_dd_block(bar_time)
                 result.equity_curve.append(cumulative_pnl)
                 strategy.on_trade_closed(position, 'TP')
                 position = None
@@ -540,12 +601,13 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
                 cumulative_pnl  += pnl_points
                 result.trades.append(_make_strategy_trade(position, row, i, pnl_points, pnl_money, current_balance, 'SIGNAL'))
                 _close_hedge(row, i, 'SIGNAL')
+                _update_dd_block(bar_time)
                 result.equity_curve.append(cumulative_pnl)
                 strategy.on_trade_closed(position, 'SIGNAL')
                 position = None
                 continue
 
-        if position is None:
+        if position is None and dd_block_until is None:
             signal = strategy.get_entry_signal(row)
             if signal:
                 entry_price = row['close']
@@ -555,6 +617,22 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
                     entry_price -= spread_points * point
 
                 sl, tp = strategy.get_sl_tp(row, signal, point)
+
+                # Пользовательские множители SL/TP переопределяют значения стратегии.
+                # 0 = не использовать соответствующий уровень.
+                if sl_atr_mult > 0 or tp_atr_mult > 0:
+                    atr_val = row.get('atr') if 'atr' in row.index else None
+                    if atr_val is not None and not pd.isna(atr_val) and atr_val > 0:
+                        if sl_atr_mult > 0:
+                            sl = (entry_price - sl_atr_mult * atr_val) if signal == 'BUY' \
+                                 else (entry_price + sl_atr_mult * atr_val)
+                        else:
+                            sl = None
+                        if tp_atr_mult > 0:
+                            tp = (entry_price + tp_atr_mult * atr_val) if signal == 'BUY' \
+                                 else (entry_price - tp_atr_mult * atr_val)
+                        else:
+                            tp = None
 
                 if fixed_volume > 0:
                     volume = fixed_volume

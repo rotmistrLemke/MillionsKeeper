@@ -97,6 +97,8 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
                 "deposit": cmd.get("deposit", 0.0),
                 "spread": cmd.get("spread", 0),
                 "volume": cmd.get("volume", 0.0),
+                "sl_atr": cmd.get("sl_atr", 0.0),
+                "tp_atr": cmd.get("tp_atr", 0.0),
                 "timeframe": cmd.get("timeframe"),
                 "start": cmd.get("start"),
                 "end": cmd.get("end"),
@@ -130,6 +132,16 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
         if volume < 0:
             volume = 0.0
 
+        def _parse_mult(key):
+            try:
+                v = float(cmd.get(key, 0) or 0)
+            except (TypeError, ValueError):
+                v = 0.0
+            return max(0.0, v)
+
+        sl_atr = _parse_mult("sl_atr")
+        tp_atr = _parse_mult("tp_atr")
+
         if symbol not in Dictionary.symbolTradingStatus:
             await ws_manager.send_to(ws, "active_strategy_changed", {
                 "error": f"Unknown symbol: {symbol}",
@@ -144,6 +156,8 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
         GlobalValues.time_frame      = tf_enum
         GlobalValues.active_symbol   = symbol
         GlobalValues.active_volume   = volume
+        GlobalValues.active_sl_atr   = sl_atr
+        GlobalValues.active_tp_atr   = tp_atr
 
         # Активируем только выбранный символ (0 = разрешено, 3 = выключено).
         # Позиции с активным ордером (статус 1) не трогаем — PositionMonitor
@@ -166,6 +180,8 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
                 "timeframe": tf_str,
                 "symbol":    symbol,
                 "volume":    volume,
+                "sl_atr":    sl_atr,
+                "tp_atr":    tp_atr,
             }
         ))
         await ws_manager.broadcast("active_strategy_changed", {
@@ -173,6 +189,8 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
             "timeframe": tf_str,
             "symbol":    symbol,
             "volume":    volume,
+            "sl_atr":    sl_atr,
+            "tp_atr":    tp_atr,
         })
 
     elif action == "chart_subscribe":

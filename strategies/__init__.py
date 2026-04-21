@@ -11,6 +11,7 @@ from strategies.fibonacci_retracement import FibonacciRetracementStrategy
 from strategies.macd_hist import MacdHistStrategy
 from strategies.candle_reversal import CandleReversalStrategy
 from strategies.default_hedge import DefaultHedgeStrategy
+from strategies.default_inverse import DefaultInverseStrategy
 
 STRATEGIES = {
     # H1 внутридневные/среднесрочные
@@ -23,6 +24,7 @@ STRATEGIES = {
     'macd_hist':             MacdHistStrategy,
     'candle_reversal':       CandleReversalStrategy,
     'default_hedge':         DefaultHedgeStrategy,
+    'default_inverse':       DefaultInverseStrategy,
     # Скальпинговые (предыдущие)
     'sar_adx':               EmaScalpStrategy,
     'donchian_breakout':     BollingerScalpStrategy,

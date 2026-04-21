@@ -170,6 +170,31 @@ const STRATEGY_META = {
       { col: 'atr',         label: 'ATR'    },
     ],
   },
+  default_inverse: {
+    name: 'Default Inverse (MA+MACD+RSI reverse)',
+    desc: [
+      'Инверсия основной стратегии: когда фильтры MA + MACD + RSI согласованы,',
+      'открываем позицию в противоположную сторону.',
+      '<b>Вход:</b>',
+      'SELL: EMA8 &gt; EMA21 + MACD бычий + RSI 55..70, растёт',
+      'BUY:  EMA8 &lt; EMA21 + MACD медвежий + RSI 30..45, падает',
+      '<b>Выход (инверсия RSI-выхода default):</b>',
+      'BUY закрывается при RSI &gt; 50',
+      'SELL закрывается при RSI &lt; 50',
+      '<b>Флэт-фильтр (инвертирован):</b> торгуем ТОЛЬКО во флэте.',
+      'Флэт = 2 из 3: ADX &lt; 20, BB-ширина ниже средней, ATR ниже среднего.',
+      '<b>SL/TP:</b> не заданы стратегией — управляются множителями SL/TP (×ATR).',
+      '<b>Таймфрейм:</b> H1 (рекомендуется)',
+    ],
+    indicators: [
+      { col: 'ema8',        label: 'EMA8'   },
+      { col: 'ema21',       label: 'EMA21'  },
+      { col: 'macd_line',   label: 'MACD'   },
+      { col: 'macd_signal', label: 'Signal' },
+      { col: 'rsi',         label: 'RSI'    },
+      { col: 'atr',         label: 'ATR'    },
+    ],
+  },
   candle_reversal: {
     name: 'Candlestick Reversal',
     desc: [
@@ -723,7 +748,9 @@ function setActiveStrategy() {
   const timeframe = document.getElementById('active-timeframe')?.value || 'H1';
   const symbol    = document.getElementById('active-symbol')?.value || 'XAUUSDrfd';
   const volume    = parseFloat(document.getElementById('active-volume')?.value || '0') || 0;
-  sendCmd({ cmd: 'set_active_strategy', strategy, timeframe, symbol, volume });
+  const sl_atr    = parseFloat(document.getElementById('active-sl-atr')?.value || '0') || 0;
+  const tp_atr    = parseFloat(document.getElementById('active-tp-atr')?.value || '0') || 0;
+  sendCmd({ cmd: 'set_active_strategy', strategy, timeframe, symbol, volume, sl_atr, tp_atr });
   const btn = document.getElementById('btn-set-strategy');
   if (btn) { btn.textContent = '✓ Применено'; setTimeout(() => { btn.textContent = '✓ Применить'; }, 2000); }
 }
@@ -736,6 +763,8 @@ function renderActiveStrategy() {
   const symEl   = document.getElementById('asp-symbol');
   const tfEl    = document.getElementById('asp-timeframe');
   const volEl   = document.getElementById('asp-volume');
+  const slEl    = document.getElementById('asp-sl');
+  const tpEl    = document.getElementById('asp-tp');
   if (labelEl) labelEl.textContent = meta.name || s.strategy || '—';
   if (symEl)   symEl.textContent   = s.symbol || '—';
   if (tfEl)    tfEl.textContent    = s.timeframe || '—';
@@ -743,6 +772,12 @@ function renderActiveStrategy() {
     const v = Number(s.volume || 0);
     volEl.textContent = v > 0 ? `${v.toFixed(2)} лот` : 'Авто';
   }
+  const fmtAtr = (v) => {
+    const n = Number(v || 0);
+    return n > 0 ? `${n}×ATR` : 'выкл';
+  };
+  if (slEl) slEl.textContent = fmtAtr(s.sl_atr);
+  if (tpEl) tpEl.textContent = fmtAtr(s.tp_atr);
 }
 
 function syncActiveStrategyForm() {
@@ -752,6 +787,8 @@ function syncActiveStrategyForm() {
   const tfSel    = document.getElementById('active-timeframe');
   const symSel   = document.getElementById('active-symbol');
   const volInp   = document.getElementById('active-volume');
+  const slInp    = document.getElementById('active-sl-atr');
+  const tpInp    = document.getElementById('active-tp-atr');
   if (stratSel && s.strategy) stratSel.value = s.strategy;
   if (tfSel && s.timeframe)   tfSel.value    = s.timeframe;
   if (symSel && s.symbol) {
@@ -759,6 +796,8 @@ function syncActiveStrategyForm() {
     if (has) symSel.value = s.symbol;
   }
   if (volInp && s.volume != null) volInp.value = s.volume;
+  if (slInp  && s.sl_atr != null) slInp.value  = s.sl_atr;
+  if (tpInp  && s.tp_atr != null) tpInp.value  = s.tp_atr;
 }
 
 async function populateActiveSymbols() {
@@ -808,9 +847,11 @@ function runBacktest() {
   const bars      = parseInt(document.getElementById('bt-bars').value);
   const deposit   = parseFloat(document.getElementById('bt-deposit').value);
   const volume    = parseFloat(document.getElementById('bt-volume').value);
+  const sl_atr    = parseFloat(document.getElementById('bt-sl-atr')?.value || '0') || 0;
+  const tp_atr    = parseFloat(document.getElementById('bt-tp-atr')?.value || '0') || 0;
   const start     = document.getElementById('bt-start').value || null;
   const end       = document.getElementById('bt-end').value || null;
-  sendCmd({ cmd: 'run_backtest', strategy, symbol, timeframe, bars, deposit, spread: 0, volume, start, end });
+  sendCmd({ cmd: 'run_backtest', strategy, symbol, timeframe, bars, deposit, spread: 0, volume, sl_atr, tp_atr, start, end });
   document.getElementById('bt-result').innerHTML = '<div style="color:var(--text-muted)">Выполняется...</div>';
 }
 
@@ -1272,7 +1313,8 @@ const chartModule = (() => {
       const barH = (Math.abs(v) / maxAbs) * (H / 2 - 1);
       const y = v >= 0 ? mid - barH : mid;
       const fill = v >= 0 ? 'var(--green)' : 'var(--red)';
-      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${(bw - 0.5).toFixed(1)}" height="${barH.toFixed(1)}" fill="${fill}"/>`;
+      const barW = Math.max(0.1, bw > 1 ? bw - 0.5 : bw * 0.9);
+      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(2)}" height="${barH.toFixed(1)}" fill="${fill}"/>`;
     }).join('');
     return `<svg class="ind-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
       <line x1="0" y1="${mid}" x2="${W}" y2="${mid}" stroke="var(--border-strong)" stroke-width="0.5"/>
