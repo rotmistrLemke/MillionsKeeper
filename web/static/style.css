@@ -1081,6 +1081,36 @@ tr:hover td { background: var(--surface2); }
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Trading tab row (compact active-strategy + positions) ── */
+.trading-row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin: 14px 16px 0;
+}
+.active-strategy-panel.compact {
+  flex: 0 0 33%;
+  max-width: 33%;
+  margin: 0;
+  padding: 12px 14px;
+}
+.active-strategy-panel.compact .asp-row {
+  flex-direction: column;
+  gap: 10px;
+}
+.active-strategy-panel.compact .asp-item {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+.active-strategy-panel.compact .asp-label { font-size: 10px; }
+.active-strategy-panel.compact .asp-value { font-size: 13px; }
+.trading-positions {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 /* ── History deals ── */
 .hist-deals-head {
   display: flex;
