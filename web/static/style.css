@@ -1081,34 +1081,130 @@ tr:hover td { background: var(--surface2); }
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Trading tab row (compact active-strategy + positions) ── */
-.trading-row {
+/* ── Streams table (мульти-поточная торговля) ── */
+.card-title-row {
   display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  margin: 14px 16px 0;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
-.active-strategy-panel.compact {
-  flex: 0 0 33%;
-  max-width: 33%;
-  margin: 0;
+.streams-count-badge {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.streams-empty {
+  color: var(--text-muted);
+  padding: 20px 4px;
+  font-size: 13px;
+}
+.streams-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.streams-grid th {
+  text-align: left;
+  padding: 8px 10px;
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+.streams-grid td {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+.streams-grid tr:last-child td { border-bottom: none; }
+.streams-grid tr:hover td { background: rgba(255,255,255,0.02); }
+.streams-grid .st-name { font-weight: 600; color: var(--text); }
+.streams-grid .st-sym  { font-weight: 500; color: var(--accent); }
+.streams-grid .st-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+.streams-grid .st-actions button { margin-left: 4px; }
+.st-state {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.st-state.is-on  { background: rgba(16,185,129,0.15); color: #10b981; }
+.st-state.is-off { background: rgba(148,163,184,0.15); color: var(--text-muted); }
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 4px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.btn-ghost:hover {
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  border-color: var(--accent);
+}
+.btn-ghost.btn-danger:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+}
+.btn-ghost:disabled { opacity: 0.4; cursor: default; }
+.stream-form-wrap { margin-top: 12px; }
+.stream-form {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
   padding: 12px 14px;
 }
-.active-strategy-panel.compact .asp-row {
-  flex-direction: column;
-  gap: 10px;
+.stream-form-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
 }
-.active-strategy-panel.compact .asp-item {
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 10px;
+.sf-enabled-label {
+  display: inline-flex;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px !important;
+  color: var(--text) !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
 }
-.active-strategy-panel.compact .asp-label { font-size: 10px; }
-.active-strategy-panel.compact .asp-value { font-size: 13px; }
-.trading-positions {
-  flex: 1 1 auto;
-  min-width: 0;
+.sf-error {
+  color: #ef4444;
+  font-size: 12px;
+  margin-left: 8px;
+  align-self: center;
+}
+
+/* Stream tag on position cards */
+.pos-stream-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(59,130,246,0.15);
+  color: #60a5fa;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  vertical-align: middle;
+}
+.pos-stream-tag.pos-stream-manual {
+  background: rgba(148,163,184,0.15);
+  color: var(--text-muted);
 }
 
 /* ── History deals ── */

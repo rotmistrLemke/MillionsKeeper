@@ -67,11 +67,15 @@ class PositionMonitorAgent(BaseAgent):
         """Позиция исчезла из списка открытых — закрыта SL/TP или вручную извне.
         Пытаемся определить причину по истории MT5 и вызвать strategy.on_trade_closed.
         """
-        from settings import GlobalValues, Dictionary
+        import streams as streams_mod
+        from settings import Dictionary
         from strategies import STRATEGIES
         from strategies.runtime import get_runtime_strategy
 
         symbol = prev_pos["symbol"]
+        stream = streams_mod.registry.by_magic(prev_pos.get("magic"))
+        if stream is None:
+            stream = streams_mod.registry.by_symbol(symbol)
 
         reason = await asyncio.get_event_loop().run_in_executor(
             None, self._classify_close_reason, prev_pos["ticket"]
@@ -82,6 +86,8 @@ class PositionMonitorAgent(BaseAgent):
             "reason": reason,
             "type": prev_pos["type"],
             "open_price": prev_pos["open_price"],
+            "stream_id": stream.id if stream else None,
+            "magic": prev_pos.get("magic"),
         })
 
         # Сбрасываем статус торговли обратно в 0, чтобы можно было открыть новую позицию.
@@ -92,12 +98,12 @@ class PositionMonitorAgent(BaseAgent):
                 "symbol": symbol,
                 "status": 0,
                 "reason": f"position_closed:{reason}",
+                "stream_id": stream.id if stream else None,
             })
 
-        active = GlobalValues.active_strategy
-        if active in STRATEGIES:
+        if stream is not None and stream.strategy in STRATEGIES:
             try:
-                strategy = get_runtime_strategy(active, symbol)
+                strategy = get_runtime_strategy(stream.strategy, symbol)
                 strategy.on_trade_closed(
                     {"type": prev_pos["type"], "entry_price": prev_pos["open_price"]},
                     reason,
@@ -132,6 +138,7 @@ class PositionMonitorAgent(BaseAgent):
 
     def _get_positions_with_pnl(self) -> list:
         import MetaTrader5 as mt5
+        import streams as streams_mod
         positions = self.trading.getPositions()
         result = []
         for p in positions:
@@ -144,6 +151,8 @@ class PositionMonitorAgent(BaseAgent):
             else:
                 pnl = 0.0
 
+            magic = int(getattr(p, "magic", 0) or 0)
+            stream = streams_mod.registry.by_magic(magic)
             result.append({
                 "ticket": p.ticket,
                 "symbol": p.symbol,
@@ -154,16 +163,20 @@ class PositionMonitorAgent(BaseAgent):
                 "pnl_points": round(pnl, 1),
                 "pnl_money": round(p.profit, 2),
                 "open_time": int(p.time),
+                "magic": magic,
+                "stream_id": stream.id if stream else None,
+                "stream_name": stream.name if stream else None,
             })
         return result
 
     async def _check_rsi_exit(self, pos: dict):
-        """Проверяет сигнал выхода.
-        Если `GlobalValues.active_strategy` — одна из стратегий в STRATEGIES,
-        делегирует решение `strategy.get_exit_signal(row, position_dict)`.
-        Иначе (default) — legacy RSI-выход (<45 для BUY, >55 для SELL).
+        """Проверяет сигнал выхода для позиции по стратегии её потока.
+        Поток находим по magic позиции. Ручные позиции (stream=None) пропускаем.
+        Если стратегия потока — одна из STRATEGIES, делегируем решение `strategy.get_exit_signal`.
+        Иначе — legacy RSI-выход (<45 для BUY, >55 для SELL).
         """
-        from settings import Dictionary, GlobalValues
+        import streams as streams_mod
+        from settings import Dictionary
         from strategies import STRATEGIES
 
         symbol = pos["symbol"]
@@ -171,22 +184,26 @@ class PositionMonitorAgent(BaseAgent):
         if trading_status == 3:
             return
 
-        active = GlobalValues.active_strategy
-        if active in STRATEGIES:
-            await self._check_strategy_exit(pos, active)
-        else:
-            await self._check_legacy_rsi_exit(pos)
+        stream = streams_mod.registry.by_magic(pos.get("magic"))
+        if stream is None:
+            # Позиция не принадлежит ни одному потоку (ручная/legacy) — не вмешиваемся.
+            return
 
-    async def _check_strategy_exit(self, pos: dict, strategy_name: str):
-        from settings import GlobalValues
+        if stream.strategy in STRATEGIES:
+            await self._check_strategy_exit(pos, stream)
+        else:
+            await self._check_legacy_rsi_exit(pos, stream)
+
+    async def _check_strategy_exit(self, pos: dict, stream):
         from strategies.runtime import get_runtime_strategy
         from market_data_cache import cache
 
         symbol = pos["symbol"]
+        strategy_name = stream.strategy
         try:
             def _run():
                 strategy = get_runtime_strategy(strategy_name, symbol)
-                df = cache.get_rates(symbol, GlobalValues.time_frame, bars=500)
+                df = cache.get_rates(symbol, stream.timeframe, bars=500)
                 if df is None or len(df) < 50:
                     return None
                 df = strategy.compute_indicators(df)
@@ -205,20 +222,20 @@ class PositionMonitorAgent(BaseAgent):
                 await self.emit(EventType.ORDER_CLOSE_REQUEST, {
                     "ticket": pos["ticket"],
                     "symbol": symbol,
+                    "stream_id": stream.id,
                     "reason": f"strategy:{strategy_name}",
                 })
         except Exception as e:
             self._logger.warning(f"Strategy exit check failed {symbol}/{strategy_name}: {e}")
 
-    async def _check_legacy_rsi_exit(self, pos: dict):
-        from settings import GlobalValues
+    async def _check_legacy_rsi_exit(self, pos: dict, stream):
         from indicators import RSI
 
         symbol = pos["symbol"]
         try:
             rsi_ind = RSI()
             rsi_data = await asyncio.get_event_loop().run_in_executor(
-                None, rsi_ind.get_rsi_talib, symbol, GlobalValues.time_frame
+                None, rsi_ind.get_rsi_talib, symbol, stream.timeframe
             )
             if rsi_data is None or 'RSI' not in rsi_data or len(rsi_data['RSI']) < 1:
                 return
@@ -234,12 +251,14 @@ class PositionMonitorAgent(BaseAgent):
                 await self.emit(EventType.RSI_EXIT_TRIGGERED, {
                     "symbol": symbol,
                     "ticket": pos["ticket"],
+                    "stream_id": stream.id,
                     "rsi_value": rsi_value,
                     "position_type": pos["type"],
                 })
                 await self.emit(EventType.ORDER_CLOSE_REQUEST, {
                     "ticket": pos["ticket"],
                     "symbol": symbol,
+                    "stream_id": stream.id,
                     "reason": f"RSI={rsi_value:.1f}",
                 })
         except Exception as e:

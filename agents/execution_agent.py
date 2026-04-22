@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time as dtime
 
 from agents.base_agent import BaseAgent, AgentStatus
 from core.event_bus import EventBus
@@ -14,8 +14,10 @@ class ExecutionAgent(BaseAgent):
     """
     description = "Открытие и закрытие ордеров"
 
-    # Блокировка торговли при просадке > 35% до начала следующей недели.
+    # Блокировка потока при просадке > 35% до начала следующей недели.
     DD_BLOCK_THRESHOLD = 0.35
+    NIGHT_BLOCK_START = dtime(23, 50)
+    NIGHT_BLOCK_END   = dtime(5, 0)
 
     def __init__(self, name: str, bus: EventBus, trading):
         super().__init__(name, bus)
@@ -23,41 +25,100 @@ class ExecutionAgent(BaseAgent):
         self._queue: asyncio.Queue = asyncio.Queue()
         self.metrics["opened_today"] = 0
         self.metrics["closed_today"] = 0
-        self._peak_equity: float = 0.0
-        self._dd_block_until: datetime | None = None
+        # Per-stream DD state.
+        self._stream_peak: dict[str, float] = {}
+        self._stream_dd_block_until: dict[str, datetime] = {}
+        self._stream_week_start: dict[str, datetime] = {}
         bus.subscribe(EventType.SIGNAL_GENERATED, self._on_signal)
         bus.subscribe(EventType.ORDER_CLOSE_REQUEST, self._on_close_request)
 
-    def _check_drawdown_block(self) -> tuple[bool, str]:
-        """Проверяет, можно ли торговать. (allowed, reason)."""
-        from market_data_cache import cache
-        info = cache.get_account_info()
-        if info is None:
-            return True, ""
-        equity = float(info.equity or 0.0)
-        if equity > self._peak_equity:
-            self._peak_equity = equity
+    @classmethod
+    def _is_night_block(cls) -> tuple[bool, str]:
+        t = datetime.now().time()
+        if t >= cls.NIGHT_BLOCK_START or t < cls.NIGHT_BLOCK_END:
+            return True, "ночная блокировка торговли (23:50–05:00)"
+        return False, ""
+
+    @staticmethod
+    def _monday_start(now: datetime) -> datetime:
+        start = now - timedelta(days=now.weekday())
+        return start.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    @staticmethod
+    def _next_monday(now: datetime) -> datetime:
+        wd = now.weekday()
+        days = 7 - wd if wd > 0 else 7
+        return (now + timedelta(days=days)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+
+    def _compute_stream_equity(self, stream, week_start: datetime) -> float | None:
+        """stream.deposit + realized(magic,с начала недели) + unrealized(magic,открытые)."""
+        import MetaTrader5 as mt5
+        realized = 0.0
+        deals = mt5.history_deals_get(week_start, datetime.now())
+        if deals:
+            for d in deals:
+                if getattr(d, "magic", 0) == stream.magic:
+                    realized += (
+                        float(d.profit or 0.0)
+                        + float(getattr(d, "commission", 0.0) or 0.0)
+                        + float(getattr(d, "swap", 0.0) or 0.0)
+                    )
+        unrealized = 0.0
+        positions = mt5.positions_get(symbol=stream.symbol)
+        if positions:
+            for p in positions:
+                if getattr(p, "magic", 0) == stream.magic:
+                    unrealized += (
+                        float(p.profit or 0.0)
+                        + float(getattr(p, "swap", 0.0) or 0.0)
+                    )
+        return float(stream.deposit) + realized + unrealized
+
+    def _check_stream_drawdown(self, stream) -> tuple[bool, str]:
+        """Просадка по выделенному депозиту потока. (allowed, reason)."""
+        if float(stream.deposit or 0.0) <= 0:
+            return True, ""  # без выделенного депозита DD не контролируем
 
         now = datetime.now()
-        if self._dd_block_until is not None:
-            if now >= self._dd_block_until:
-                self._dd_block_until = None
-                self._peak_equity = equity  # сброс пика на старте новой недели
-            else:
-                return False, f"просадка > 35% — блокировка до {self._dd_block_until:%Y-%m-%d %H:%M}"
 
-        if self._peak_equity > 0 and equity < self._peak_equity:
-            dd = (self._peak_equity - equity) / self._peak_equity
-            if dd > self.DD_BLOCK_THRESHOLD:
-                # Начало следующей недели: ближайший понедельник 00:00.
-                wd = now.weekday()
-                days = 7 - wd if wd > 0 else 7
-                self._dd_block_until = (now + timedelta(days=days)).replace(
-                    hour=0, minute=0, second=0, microsecond=0
-                )
+        until = self._stream_dd_block_until.get(stream.id)
+        if until is not None:
+            if now >= until:
+                self._stream_dd_block_until.pop(stream.id, None)
+                self._stream_peak.pop(stream.id, None)
+                self._stream_week_start.pop(stream.id, None)
+            else:
                 return False, (
-                    f"просадка {dd*100:.1f}% > 35% — блокировка до "
-                    f"{self._dd_block_until:%Y-%m-%d %H:%M}"
+                    f"просадка потока > 35% — блокировка до {until:%Y-%m-%d %H:%M}"
+                )
+
+        week_start = self._stream_week_start.get(stream.id)
+        if week_start is None or (now - week_start) > timedelta(days=7):
+            week_start = self._monday_start(now)
+            self._stream_week_start[stream.id] = week_start
+            self._stream_peak.pop(stream.id, None)
+
+        try:
+            equity = self._compute_stream_equity(stream, week_start)
+        except Exception as e:
+            self._logger.warning(f"stream equity calc failed {stream.id}: {e}")
+            return True, ""
+
+        peak = self._stream_peak.get(stream.id, float(stream.deposit))
+        if equity > peak:
+            peak = equity
+        self._stream_peak[stream.id] = peak
+
+        if peak > 0 and equity < peak:
+            dd = (peak - equity) / peak
+            if dd > self.DD_BLOCK_THRESHOLD:
+                block_until = self._next_monday(now)
+                self._stream_dd_block_until[stream.id] = block_until
+                return False, (
+                    f"просадка потока {dd*100:.1f}% > 35% — "
+                    f"блокировка до {block_until:%Y-%m-%d %H:%M}"
                 )
         return True, ""
 
@@ -77,6 +138,7 @@ class ExecutionAgent(BaseAgent):
             await self._handle_close(event)
 
     async def _handle_signal(self, event: Event):
+        import streams as streams_mod
         p = event.payload
         symbol = p["symbol"]
         signal = p["signal"]
@@ -92,15 +154,26 @@ class ExecutionAgent(BaseAgent):
             )
             return
 
-        allowed, reason = self._check_drawdown_block()
-        if not allowed:
-            await self.emit_status(AgentStatus.IDLE, f"{symbol}: {reason}")
+        stream_id = p.get("stream_id")
+        stream = streams_mod.registry.get(stream_id) if stream_id else streams_mod.registry.by_symbol(symbol)
+        if stream is None or not stream.enabled:
+            await self.emit_status(AgentStatus.IDLE, f"{symbol}: нет активного потока")
             return
 
-        await self.emit_status(AgentStatus.RUNNING, f"Открытие {signal} {symbol}")
+        night_blocked, night_reason = self._is_night_block()
+        if night_blocked:
+            await self.emit_status(AgentStatus.IDLE, f"{symbol}: {night_reason}")
+            return
+
+        allowed, reason = self._check_stream_drawdown(stream)
+        if not allowed:
+            await self.emit_status(AgentStatus.IDLE, f"{symbol} [{stream.name}]: {reason}")
+            return
+
+        await self.emit_status(AgentStatus.RUNNING, f"Открытие {signal} {symbol} [{stream.name}]")
         try:
             result = await asyncio.get_event_loop().run_in_executor(
-                None, self._open_order, symbol, signal, p.get("indicators", {})
+                None, self._open_order, stream, signal, p.get("indicators", {})
             )
             if result:
                 self.metrics["opened_today"] = self.metrics.get("opened_today", 0) + 1
@@ -110,6 +183,8 @@ class ExecutionAgent(BaseAgent):
                     "volume": result.get("volume"),
                     "price": result.get("price"),
                     "ticket": result.get("ticket"),
+                    "stream_id": stream.id,
+                    "magic": stream.magic,
                     "indicators": p.get("indicators", {}),
                 })
                 Dictionary.symbolTradingStatus[symbol] = 1
@@ -117,16 +192,17 @@ class ExecutionAgent(BaseAgent):
                     "symbol": symbol,
                     "status": 1,
                     "reason": "order_opened",
+                    "stream_id": stream.id,
                 })
         except Exception as e:
             self._logger.error(f"Open order failed {symbol}: {e}")
             await self.emit(EventType.ORDER_ERROR, {"symbol": symbol, "error": str(e)})
 
-    def _open_order(self, symbol: str, signal: str, indicators: dict) -> dict:
+    def _open_order(self, stream, signal: str, indicators: dict) -> dict:
         import MetaTrader5 as mt5
         from market_data_cache import cache
-        from settings import GlobalValues
 
+        symbol = stream.symbol
         atr = indicators.get("atr_value", 0)
         symbol_info = cache.get_symbol_info(symbol)
         if symbol_info is None:
@@ -135,7 +211,7 @@ class ExecutionAgent(BaseAgent):
         order_type = mt5.ORDER_TYPE_BUY if signal == "BUY" else mt5.ORDER_TYPE_SELL
         stop_loss_pips = 2 * atr / symbol_info.point if atr > 0 else 100
 
-        fixed_volume = getattr(GlobalValues, 'active_volume', 0.0) or 0.0
+        fixed_volume = float(stream.volume or 0.0)
         if fixed_volume > 0:
             volume = fixed_volume
         else:
@@ -145,11 +221,11 @@ class ExecutionAgent(BaseAgent):
         if not volume or volume <= 0:
             return None
 
-        # Расчёт SL/TP по множителям ATR из активной стратегии (0 = выключено).
+        # Расчёт SL/TP по множителям ATR из настроек потока (0 = выключено).
         sl_price = 0.0
         tp_price = 0.0
-        sl_mult = float(getattr(GlobalValues, 'active_sl_atr', 0.0) or 0.0)
-        tp_mult = float(getattr(GlobalValues, 'active_tp_atr', 0.0) or 0.0)
+        sl_mult = float(stream.sl_atr or 0.0)
+        tp_mult = float(stream.tp_atr or 0.0)
         if (sl_mult > 0 or tp_mult > 0) and atr and atr > 0:
             tick = mt5.symbol_info_tick(symbol)
             entry_price = tick.ask if order_type == mt5.ORDER_TYPE_BUY else tick.bid
@@ -161,9 +237,11 @@ class ExecutionAgent(BaseAgent):
                 tp_price = entry_price + tp_mult * atr if signal == "BUY" else entry_price - tp_mult * atr
                 tp_price = round(tp_price, digits)
 
-        result = self.trading.orderOpen(symbol, order_type, volume, "sum_signal", sl=sl_price, tp=tp_price)
-        # trading.orderOpen возвращает dict {"order":..., "price":..., ...} при успехе.
-        # На ошибке — либо dict с order=None, либо дергает исключение.
+        comment = f"{stream.id}:{stream.strategy}"
+        result = self.trading.orderOpen(
+            symbol, order_type, volume, comment,
+            sl=sl_price, tp=tp_price, magic=stream.magic,
+        )
         if isinstance(result, dict) and result.get("order"):
             return {
                 "ticket": result["order"],

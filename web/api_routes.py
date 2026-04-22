@@ -331,6 +331,110 @@ async def get_active_strategy():
     }
 
 
+# ──────────────────────────── Streams (мульти-поточная торговля) ──
+
+class StreamCreateRequest(BaseModel):
+    name: Optional[str] = None
+    strategy: str = "default"
+    symbol: str
+    timeframe: str = "H1"
+    volume: float = 0.0
+    sl_atr: float = 0.0
+    tp_atr: float = 0.0
+    deposit: float = 0.0
+    enabled: bool = True
+
+
+class StreamUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    strategy: Optional[str] = None
+    symbol: Optional[str] = None
+    timeframe: Optional[str] = None
+    volume: Optional[float] = None
+    sl_atr: Optional[float] = None
+    tp_atr: Optional[float] = None
+    deposit: Optional[float] = None
+    enabled: Optional[bool] = None
+
+
+def _validate_symbol(symbol: str):
+    from settings import Dictionary
+    if symbol not in Dictionary.symbolTradingStatus:
+        raise HTTPException(status_code=400, detail=f"Неизвестный символ: {symbol}")
+
+
+def _tf_to_int(tf_str: str) -> int:
+    from settings import TF_MAP
+    if tf_str not in TF_MAP:
+        raise HTTPException(status_code=400, detail=f"Неизвестный timeframe: {tf_str}")
+    return TF_MAP[tf_str]
+
+
+@router.get("/streams")
+async def list_streams():
+    import streams as streams_mod
+    return {"streams": [s.to_dict() for s in streams_mod.registry.all()],
+            "max": streams_mod.MAX_STREAMS}
+
+
+@router.post("/streams")
+async def create_stream(req: StreamCreateRequest):
+    import streams as streams_mod
+    _validate_symbol(req.symbol)
+    tf = _tf_to_int(req.timeframe)
+    try:
+        s = streams_mod.registry.create(
+            name=req.name or "",
+            strategy=req.strategy,
+            symbol=req.symbol,
+            timeframe=tf,
+            volume=req.volume,
+            sl_atr=req.sl_atr,
+            tp_atr=req.tp_atr,
+            deposit=req.deposit,
+            enabled=req.enabled,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    await _broadcast_streams_changed()
+    return {"ok": True, "stream": s.to_dict()}
+
+
+@router.patch("/streams/{stream_id}")
+async def update_stream(stream_id: str, req: StreamUpdateRequest):
+    import streams as streams_mod
+    fields = req.model_dump(exclude_unset=True, exclude_none=True)
+    if "symbol" in fields:
+        _validate_symbol(fields["symbol"])
+    if "timeframe" in fields:
+        fields["timeframe"] = _tf_to_int(fields["timeframe"])
+    try:
+        s = streams_mod.registry.update(stream_id, **fields)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Поток {stream_id} не найден")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    await _broadcast_streams_changed()
+    return {"ok": True, "stream": s.to_dict()}
+
+
+@router.delete("/streams/{stream_id}")
+async def delete_stream(stream_id: str):
+    import streams as streams_mod
+    if not streams_mod.registry.delete(stream_id):
+        raise HTTPException(status_code=404, detail=f"Поток {stream_id} не найден")
+    await _broadcast_streams_changed()
+    return {"ok": True}
+
+
+async def _broadcast_streams_changed():
+    import streams as streams_mod
+    from web.ws_manager import ws_manager
+    await ws_manager.broadcast("streams_changed", {
+        "streams": [s.to_dict() for s in streams_mod.registry.all()],
+    })
+
+
 # ──────────────────────────── Backtest ────────────────────────────
 
 class BacktestRequest(BaseModel):

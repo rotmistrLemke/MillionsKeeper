@@ -10,7 +10,7 @@ atr = ATR()
 
 class Trading:
 
-    def orderOpen(self, symbol, type, maxVolume, comment, sl=0.0, tp=0.0):
+    def orderOpen(self, symbol, type, maxVolume, comment, sl=0.0, tp=0.0, magic=0):
         symbol_info = cache.get_symbol_info(symbol)
         if not symbol_info.visible:
             if not mt5.symbol_select(symbol, True):
@@ -35,6 +35,8 @@ class Trading:
                 request["sl"] = float(sl)
             if tp and tp > 0:
                 request["tp"] = float(tp)
+            if magic and int(magic) > 0:
+                request["magic"] = int(magic)
             result = mt5.order_send(request)
         if type == TargetType.SHORT:
             request = {
@@ -52,6 +54,8 @@ class Trading:
                 request["sl"] = float(sl)
             if tp and tp > 0:
                 request["tp"] = float(tp)
+            if magic and int(magic) > 0:
+                request["magic"] = int(magic)
             result = mt5.order_send(request)
         if not result:
             print(mt5.last_error())

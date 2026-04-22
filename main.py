@@ -52,10 +52,14 @@ async def main():
     import active_state
     active_state.load()
 
+    # ── Торговые потоки (мульти-поточная торговля) ───────────────
+    import streams
+    streams.load()
+
     # ── Список активных символов ──────────────────────────────────
     symbols = _get_active_symbols()
     timeframe = GlobalValues.time_frame
-    logger.info(f"Активных символов: {len(symbols)}")
+    logger.info(f"Активных символов: {len(symbols)} | потоков: {len(streams.registry.all())}")
 
     # ── Агенты ───────────────────────────────────────────────────
     from agents.market_data_agent   import MarketDataAgent

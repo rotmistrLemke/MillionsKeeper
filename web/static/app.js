@@ -286,6 +286,8 @@ const state = {
   backtest_result: null,
   bt_strategy: 'default',
   active_strategy: null,
+  streams: [],
+  streams_max: 10,
   log_lines: [],
   MAX_LOG: 200,
 };
@@ -357,6 +359,13 @@ function handleMessage(msg) {
       renderActiveStrategy();
       syncActiveStrategyForm();
     }
+    return;
+  }
+
+  if (msg_type === 'streams_changed') {
+    state.streams = data.streams || [];
+    renderStreams();
+    renderPositions();
     return;
   }
 
@@ -462,19 +471,27 @@ function renderPositions() {
     container.innerHTML = '<div style="color:var(--text-muted);padding:20px">Нет открытых позиций</div>';
     return;
   }
+  const streamsById = Object.fromEntries((state.streams || []).map(s => [s.id, s]));
   container.innerHTML = state.positions.map(p => {
-    const pnlClass = p.pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
-    const sign = p.pnl >= 0 ? '+' : '';
+    const pnl = (p.pnl != null) ? p.pnl : p.pnl_money;
+    const pnlClass = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
+    const sign = pnl >= 0 ? '+' : '';
+    const stream = p.stream_id ? streamsById[p.stream_id] : null;
+    const streamTag = stream
+      ? `<span class="pos-stream-tag" title="${escapeHtml(_strategyLabel(stream.strategy))}">${escapeHtml(stream.name)}</span>`
+      : (p.stream_name
+          ? `<span class="pos-stream-tag">${escapeHtml(p.stream_name)}</span>`
+          : `<span class="pos-stream-tag pos-stream-manual">вручную</span>`);
     return `
       <div class="pos-card">
-        <div class="pos-symbol">${p.symbol}</div>
+        <div class="pos-symbol">${p.symbol}${streamTag}</div>
         <div>
           <span class="badge badge-${p.type.toLowerCase()}">${p.type}</span>
           <span class="pos-meta" style="margin-left:8px">${p.volume} лот</span>
         </div>
         <div class="pos-meta">Вход: ${p.open_price?.toFixed(5)}</div>
         <div class="pos-meta">SL: ${p.sl?.toFixed(5) || '—'}</div>
-        <div class="pos-pnl ${pnlClass}">${sign}${fmt(p.pnl)}$</div>
+        <div class="pos-pnl ${pnlClass}">${sign}${fmt(pnl)}$</div>
         <button class="btn-close" onclick="closePosition(${p.ticket},'${p.symbol}')">✕ Закрыть</button>
       </div>
     `;
@@ -815,6 +832,247 @@ async function populateActiveSymbols() {
   } catch {}
 }
 
+// ─── Streams (мульти-поточная торговля) ──────────────────────────
+const STREAM_TF_OPTIONS = ['M1','M5','M15','M30','H1','H4','D1'];
+const STREAM_STRATEGY_OPTIONS = [
+  ['default',              'MA + MACD + RSI (основная)'],
+  ['sr_bounce',            'S/R Bounce'],
+  ['ema_pullback',         'EMA Pullback (50/200)'],
+  ['ema_cross',            'EMA 8/21 Cross'],
+  ['ema_cross_inverse',    'EMA 8/21 Cross Inverse'],
+  ['cci_rsi',              'CCI + RSI (D1-фильтр)'],
+  ['fibonacci_retracement','Fibonacci Retracement'],
+  ['macd_hist',            'MACD Histogram'],
+  ['default_hedge',        'Default + Hedge'],
+  ['default_inverse',      'Default Inverse (MA+MACD+RSI reverse)'],
+  ['candle_reversal',      'Candlestick Reversal'],
+  ['sar_adx',              'Parabolic SAR + ADX'],
+  ['donchian_breakout',    'Donchian Breakout'],
+  ['triple_ema',           'Triple EMA Momentum'],
+];
+
+async function loadStreams() {
+  try {
+    const r = await fetch('/api/streams');
+    const d = await r.json();
+    state.streams = d.streams || [];
+    state.streams_max = d.max || 10;
+    renderStreams();
+  } catch (e) {
+    console.error('loadStreams failed', e);
+  }
+}
+
+function _strategyLabel(key) {
+  const pair = STREAM_STRATEGY_OPTIONS.find(p => p[0] === key);
+  return pair ? pair[1] : key;
+}
+
+function renderStreams() {
+  const box = document.getElementById('streams-table');
+  if (!box) return;
+  const streams = state.streams || [];
+  const badge = document.getElementById('streams-count-badge');
+  if (badge) badge.textContent = `${streams.length} / ${state.streams_max || 10}`;
+
+  const addBtn = document.getElementById('btn-add-stream');
+  if (addBtn) addBtn.disabled = streams.length >= (state.streams_max || 10);
+
+  if (!streams.length) {
+    box.innerHTML = '<div class="streams-empty">Потоков пока нет — нажмите «+ Добавить поток», чтобы создать первый.</div>';
+    return;
+  }
+
+  const rows = streams.map(s => {
+    const vol = Number(s.volume || 0);
+    const volTxt = vol > 0 ? `${vol.toFixed(2)}` : 'авто';
+    const slTxt = Number(s.sl_atr || 0) > 0 ? `${s.sl_atr}×` : '—';
+    const tpTxt = Number(s.tp_atr || 0) > 0 ? `${s.tp_atr}×` : '—';
+    const dep = Number(s.deposit || 0);
+    const depTxt = dep > 0 ? `$${dep.toLocaleString('ru-RU')}` : '—';
+    const stateClass = s.enabled ? 'is-on' : 'is-off';
+    const stateLabel = s.enabled ? 'Вкл' : 'Выкл';
+    return `
+      <tr data-stream-id="${s.id}">
+        <td class="st-name">${escapeHtml(s.name)}</td>
+        <td title="${escapeHtml(_strategyLabel(s.strategy))}">${escapeHtml(_strategyLabel(s.strategy))}</td>
+        <td class="st-sym">${s.symbol}</td>
+        <td>${s.timeframe}</td>
+        <td>${volTxt}</td>
+        <td>${slTxt}</td>
+        <td>${tpTxt}</td>
+        <td>${depTxt}</td>
+        <td><span class="st-state ${stateClass}">${stateLabel}</span></td>
+        <td class="st-actions">
+          <button class="btn-ghost" title="${s.enabled ? 'Выключить' : 'Включить'}" onclick="toggleStream('${s.id}', ${!s.enabled})">${s.enabled ? '⏸' : '▶'}</button>
+          <button class="btn-ghost" title="Редактировать" onclick="openStreamForm('${s.id}')">✎</button>
+          <button class="btn-ghost btn-danger" title="Удалить" onclick="deleteStream('${s.id}')">✕</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  box.innerHTML = `
+    <table class="streams-grid">
+      <thead>
+        <tr>
+          <th>Название</th>
+          <th>Стратегия</th>
+          <th>Пара</th>
+          <th>TF</th>
+          <th>Объём</th>
+          <th>SL</th>
+          <th>TP</th>
+          <th>Депозит</th>
+          <th>Статус</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+async function openStreamForm(stream_id) {
+  const wrap = document.getElementById('stream-form-wrap');
+  if (!wrap) return;
+  const editing = stream_id ? (state.streams || []).find(s => s.id === stream_id) : null;
+
+  // Список пар: всё из /api/symbols минус уже занятые (кроме редактируемого).
+  let symbols = [];
+  try {
+    const r = await fetch('/api/symbols');
+    const d = await r.json();
+    symbols = d.symbols || [];
+  } catch {}
+  const takenSymbols = new Set((state.streams || [])
+    .filter(s => !editing || s.id !== editing.id)
+    .map(s => s.symbol));
+  const symOptions = symbols
+    .filter(sym => !takenSymbols.has(sym) || (editing && editing.symbol === sym))
+    .map(sym => `<option value="${sym}" ${editing && editing.symbol === sym ? 'selected' : ''}>${sym}</option>`)
+    .join('');
+
+  const stratOptions = STREAM_STRATEGY_OPTIONS.map(([v, l]) =>
+    `<option value="${v}" ${editing && editing.strategy === v ? 'selected' : ''}>${escapeHtml(l)}</option>`
+  ).join('');
+
+  const tfOptions = STREAM_TF_OPTIONS.map(tf =>
+    `<option value="${tf}" ${(editing ? editing.timeframe : 'H1') === tf ? 'selected' : ''}>${tf}</option>`
+  ).join('');
+
+  const titleTxt = editing ? `Редактирование потока «${escapeHtml(editing.name)}»` : 'Новый поток';
+  wrap.hidden = false;
+  wrap.innerHTML = `
+    <div class="stream-form">
+      <div class="stream-form-title">${titleTxt}</div>
+      <div class="bt-form">
+        <label>Название
+          <input id="sf-name" type="text" value="${editing ? escapeHtml(editing.name) : ''}" placeholder="например, XAU H1 скальп" style="width:200px">
+        </label>
+        <label>Стратегия
+          <select id="sf-strategy" style="min-width:240px">${stratOptions}</select>
+        </label>
+        <label>Пара
+          <select id="sf-symbol" style="min-width:130px">${symOptions}</select>
+        </label>
+        <label>Таймфрейм
+          <select id="sf-timeframe">${tfOptions}</select>
+        </label>
+        <label>Объём (0 = авто)
+          <input id="sf-volume" type="number" value="${editing ? editing.volume : 0}" min="0" step="0.01" style="width:100px">
+        </label>
+        <label>SL (×ATR)
+          <input id="sf-sl-atr" type="number" value="${editing ? editing.sl_atr : 0}" min="0" step="0.1" style="width:90px">
+        </label>
+        <label>TP (×ATR)
+          <input id="sf-tp-atr" type="number" value="${editing ? editing.tp_atr : 0}" min="0" step="0.1" style="width:90px">
+        </label>
+        <label title="Выделенный депозит потока. Просадка > 35% блокирует поток до понедельника.">
+          Депозит ($)
+          <input id="sf-deposit" type="number" value="${editing ? (editing.deposit || 0) : 0}" min="0" step="100" style="width:110px">
+        </label>
+        <label class="sf-enabled-label">
+          <input id="sf-enabled" type="checkbox" ${!editing || editing.enabled ? 'checked' : ''}>
+          Включён
+        </label>
+        <button class="btn-primary" onclick="submitStreamForm('${editing ? editing.id : ''}')">
+          ${editing ? 'Сохранить' : 'Создать'}
+        </button>
+        <button class="btn-ghost" onclick="closeStreamForm()">Отмена</button>
+        <span id="sf-error" class="sf-error"></span>
+      </div>
+    </div>
+  `;
+  setTimeout(() => document.getElementById('sf-name')?.focus(), 50);
+}
+
+function closeStreamForm() {
+  const wrap = document.getElementById('stream-form-wrap');
+  if (wrap) { wrap.hidden = true; wrap.innerHTML = ''; }
+}
+
+async function submitStreamForm(stream_id) {
+  const body = {
+    name:      document.getElementById('sf-name').value.trim(),
+    strategy:  document.getElementById('sf-strategy').value,
+    symbol:    document.getElementById('sf-symbol').value,
+    timeframe: document.getElementById('sf-timeframe').value,
+    volume:    parseFloat(document.getElementById('sf-volume').value || '0') || 0,
+    sl_atr:    parseFloat(document.getElementById('sf-sl-atr').value || '0') || 0,
+    tp_atr:    parseFloat(document.getElementById('sf-tp-atr').value || '0') || 0,
+    deposit:   parseFloat(document.getElementById('sf-deposit').value || '0') || 0,
+    enabled:   document.getElementById('sf-enabled').checked,
+  };
+  const errEl = document.getElementById('sf-error');
+  if (errEl) errEl.textContent = '';
+  const url    = stream_id ? `/api/streams/${stream_id}` : '/api/streams';
+  const method = stream_id ? 'PATCH' : 'POST';
+  try {
+    const r = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      if (errEl) errEl.textContent = d.detail || 'Ошибка';
+      return;
+    }
+    closeStreamForm();
+    await loadStreams();
+  } catch (e) {
+    if (errEl) errEl.textContent = e.message || 'Ошибка сети';
+  }
+}
+
+async function toggleStream(stream_id, enabled) {
+  try {
+    await fetch(`/api/streams/${stream_id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled }),
+    });
+    await loadStreams();
+  } catch (e) { console.error(e); }
+}
+
+async function deleteStream(stream_id) {
+  const s = (state.streams || []).find(x => x.id === stream_id);
+  const label = s ? `«${s.name}» (${s.symbol})` : stream_id;
+  if (!confirm(`Удалить поток ${label}? Открытые позиции этого потока не закрываются автоматически.`)) return;
+  try {
+    await fetch(`/api/streams/${stream_id}`, { method: 'DELETE' });
+    await loadStreams();
+  } catch (e) { console.error(e); }
+}
+
 // ─── Backtest ─────────────────────────────────────────────────────
 async function populateBtSymbols() {
   const sel = document.getElementById('bt-symbol');
@@ -849,9 +1107,10 @@ function runBacktest() {
   const volume    = parseFloat(document.getElementById('bt-volume').value);
   const sl_atr    = parseFloat(document.getElementById('bt-sl-atr')?.value || '0') || 0;
   const tp_atr    = parseFloat(document.getElementById('bt-tp-atr')?.value || '0') || 0;
+  const spread    = parseInt(document.getElementById('bt-spread')?.value || '0', 10) || 0;
   const start     = document.getElementById('bt-start').value || null;
   const end       = document.getElementById('bt-end').value || null;
-  sendCmd({ cmd: 'run_backtest', strategy, symbol, timeframe, bars, deposit, spread: 0, volume, sl_atr, tp_atr, start, end });
+  sendCmd({ cmd: 'run_backtest', strategy, symbol, timeframe, bars, deposit, spread, volume, sl_atr, tp_atr, start, end });
   document.getElementById('bt-result').innerHTML = '<div style="color:var(--text-muted)">Выполняется...</div>';
 }
 
@@ -1898,19 +2157,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('bt-end')?.addEventListener('change', toggleBarsVisibility);
   populateBtSymbols();
 
-  // Active strategy: символы + текущее состояние
-  (async () => {
-    await populateActiveSymbols();
-    try {
-      const r = await fetch('/api/active_strategy');
-      const d = await r.json();
-      if (!d.error) {
-        state.active_strategy = d;
-        renderActiveStrategy();
-        syncActiveStrategyForm();
-      }
-    } catch {}
-  })();
+  // Trading streams
+  loadStreams();
 
   // History period tabs
   document.querySelectorAll('#hist-period-tabs .hist-period-btn').forEach(b => {

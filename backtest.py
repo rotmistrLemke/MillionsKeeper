@@ -23,6 +23,18 @@ from authenticator import MT5Auth
 from account import Account
 
 
+# ─── Ночная блокировка торговли (23:50–05:00) ────────────────────────────
+
+def _is_night_bar(bar_time: pd.Timestamp) -> bool:
+    """True, если бар попадает в окно ночной блокировки 23:50–05:00."""
+    h, m = bar_time.hour, bar_time.minute
+    if h >= 23 and m >= 50:
+        return True
+    if h < 5:
+        return True
+    return False
+
+
 # ─── Загрузка данных ──────────────────────────────────────────────────────
 
 def load_rates(symbol, timeframe, bars=2000, date_from=None, date_to=None):
@@ -375,7 +387,8 @@ def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0,
             if get_macd_signal(row) == 'NO_SIGNAL':
                 trade_status = 0
 
-        if position is None and trade_status == 0 and combined != 'NO_SIGNAL' and dd_block_until is None:
+        if (position is None and trade_status == 0 and combined != 'NO_SIGNAL'
+                and dd_block_until is None and not _is_night_bar(bar_time)):
             entry_price = row['close']
             if combined == 'BUY':
                 entry_price += spread_points * point
@@ -607,7 +620,7 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
                 position = None
                 continue
 
-        if position is None and dd_block_until is None:
+        if position is None and dd_block_until is None and not _is_night_bar(bar_time):
             signal = strategy.get_entry_signal(row)
             if signal:
                 entry_price = row['close']

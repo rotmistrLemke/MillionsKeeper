@@ -61,6 +61,7 @@ class SignalAgent(BaseAgent):
         await self.emit(EventType.SIGNAL_GENERATED, {
             "symbol": symbol,
             "signal": combined,
+            "stream_id": p.get("stream_id"),
             "trading_status": Dictionary.symbolTradingStatus.get(symbol, 3),
             "indicators": {
                 "ma": signal_ma,

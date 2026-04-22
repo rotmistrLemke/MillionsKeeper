@@ -4,5 +4,6 @@ test*
 account*
 settings*
 active_state.json
+streams.json
 # Игнорировать кэш Python
 __pycache__/
