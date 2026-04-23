@@ -369,6 +369,25 @@ const STRATEGY_META = {
       { col: 'level_down', label: 'S'       },
     ],
   },
+  ema50_rejection: {
+    name: 'EMA50 Rejection (2×ATR)',
+    desc: [
+      'Торгуем только в сильном тренде, где EMA50 отстоит от EMA200 ≥ 2×ATR.',
+      '<b>BUY:</b>',
+      '1. EMA50 − EMA200 ≥ 2×ATR (сильный up-тренд)',
+      '2. Ждём закрытия свечи НИЖЕ EMA50 (откат)',
+      '3. Вход при закрытии следующей свечи ВЫШЕ EMA50',
+      '<b>SELL:</b> зеркально (EMA200 − EMA50 ≥ 2×ATR, откат выше, вход ниже)',
+      '<b>Выход:</b> только по установленным SL и TP',
+      '<b>Дефолт:</b> SL 1.5×ATR &nbsp; TP 3×ATR (перекрываются из формы)',
+      '<b>Таймфрейм:</b> H1 и выше',
+    ],
+    indicators: [
+      { col: 'ema50',  label: 'EMA50'  },
+      { col: 'ema200', label: 'EMA200' },
+      { col: 'atr',    label: 'ATR'    },
+    ],
+  },
 };
 
 // ─── State ────────────────────────────────────────────────────────
@@ -982,6 +1001,7 @@ const STREAM_STRATEGY_OPTIONS = [
   ['ema_triple_touch',     'EMA 20/50 Triple Touch'],
   ['market_phase',         '200 MA + Market Phase'],
   ['combined_a_plus',      'Combined A+ (5 факторов)'],
+  ['ema50_rejection',      'EMA50 Rejection (2×ATR)'],
 ];
 
 async function loadStreams() {
