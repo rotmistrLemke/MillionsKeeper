@@ -1158,6 +1158,13 @@ tr:hover td { background: var(--surface2); }
   border-color: #ef4444;
 }
 .btn-ghost:disabled { opacity: 0.4; cursor: default; }
+.btn-ghost.btn-ghost-lg {
+  padding: 0 18px;
+  min-height: 34px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
 .stream-form-wrap { margin-top: 12px; }
 .stream-form {
   background: var(--bg-panel);
@@ -1214,6 +1221,18 @@ tr:hover td { background: var(--surface2); }
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+.hist-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.hist-reason-info { color: var(--text-muted); font-weight: 500; }
+#hist-symbol-filter {
+  min-width: 140px;
+  padding: 5px 10px;
+  font-size: 12px;
 }
 .hist-period-tabs {
   display: flex;

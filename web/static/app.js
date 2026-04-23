@@ -54,20 +54,22 @@ const STRATEGY_META = {
     ],
   },
   ema_cross: {
-    name: 'EMA 8/21 Cross',
+    name: 'EMA 50/200 Cross',
     desc: [
-      'Пересечение быстрой и медленной EMA. Без SL/TP и без фильтра флэта.',
-      '<b>Вход:</b>',
-      'BUY: EMA8 пересекает EMA21 снизу вверх',
-      'SELL: EMA8 пересекает EMA21 сверху вниз',
+      'Взаимное положение быстрой EMA50 и медленной EMA200. Позиция всегда по направлению быстрой.',
+      '<b>Вход</b> (на открытии новой свечи):',
+      'BUY: EMA50 выше EMA200',
+      'SELL: EMA50 ниже EMA200',
       '<b>Выход:</b>',
-      'BUY: EMA8 пересекает EMA21 сверху вниз',
-      'SELL: EMA8 пересекает EMA21 снизу вверх',
-      '<b>Таймфрейм:</b> любой',
+      'По SL/TP (задаются множителями ATR в форме — 0 = выкл)',
+      'Либо по противоположному сигналу: BUY закрывается при EMA50 < EMA200, SELL — при EMA50 > EMA200',
+      '<b>SL по умолчанию:</b> 2 × ATR &nbsp; <b>TP по умолчанию:</b> 3 × ATR',
+      '<b>Таймфрейм:</b> любой (EMA200 требует достаточно истории)',
     ],
     indicators: [
-      { col: 'ema8',  label: 'EMA8'  },
-      { col: 'ema21', label: 'EMA21' },
+      { col: 'ema50',  label: 'EMA50'  },
+      { col: 'ema200', label: 'EMA200' },
+      { col: 'atr',    label: 'ATR'    },
     ],
   },
   ema_cross_inverse: {
@@ -471,20 +473,13 @@ function renderPositions() {
     container.innerHTML = '<div style="color:var(--text-muted);padding:20px">Нет открытых позиций</div>';
     return;
   }
-  const streamsById = Object.fromEntries((state.streams || []).map(s => [s.id, s]));
   container.innerHTML = state.positions.map(p => {
     const pnl = (p.pnl != null) ? p.pnl : p.pnl_money;
     const pnlClass = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
     const sign = pnl >= 0 ? '+' : '';
-    const stream = p.stream_id ? streamsById[p.stream_id] : null;
-    const streamTag = stream
-      ? `<span class="pos-stream-tag" title="${escapeHtml(_strategyLabel(stream.strategy))}">${escapeHtml(stream.name)}</span>`
-      : (p.stream_name
-          ? `<span class="pos-stream-tag">${escapeHtml(p.stream_name)}</span>`
-          : `<span class="pos-stream-tag pos-stream-manual">вручную</span>`);
     return `
       <div class="pos-card">
-        <div class="pos-symbol">${p.symbol}${streamTag}</div>
+        <div class="pos-symbol">${p.symbol}</div>
         <div>
           <span class="badge badge-${p.type.toLowerCase()}">${p.type}</span>
           <span class="pos-meta" style="margin-left:8px">${p.volume} лот</span>
@@ -542,17 +537,44 @@ function badge(val) {
 
 // ─── Render: History ─────────────────────────────────────────────
 let histPeriod = 'today';
+let histSymbol = '';
 let histPage = 0;
 const HIST_PER_PAGE = 20;
 
-function renderHistory() {
+function _histDealsFor(period) {
+  const all = state.history?.[period]?.deals || [];
+  if (!histSymbol) return all;
+  return all.filter(d => (d.symbol || '') === histSymbol);
+}
+
+function _histProfitFor(period) {
+  if (!histSymbol) return state.history?.[period]?.profit ?? 0;
+  return _histDealsFor(period).reduce((s, d) => s + (d.profit || 0), 0);
+}
+
+function refreshHistSymbolFilter() {
+  const sel = document.getElementById('hist-symbol-filter');
+  if (!sel) return;
   const h = state.history || {};
-  const todayP = h.today?.profit ?? 0;
-  const weekP  = h.week?.profit ?? 0;
-  const monthP = h.month?.profit ?? 0;
-  const todayN = h.today?.deals?.length ?? 0;
-  const weekN  = h.week?.deals?.length ?? 0;
-  const monthN = h.month?.deals?.length ?? 0;
+  const symbols = new Set();
+  ['today', 'week', 'month'].forEach(p => {
+    (h[p]?.deals || []).forEach(d => { if (d.symbol) symbols.add(d.symbol); });
+  });
+  const sorted = Array.from(symbols).sort();
+  if (histSymbol && !symbols.has(histSymbol)) histSymbol = '';
+  const current = histSymbol;
+  sel.innerHTML = '<option value="">Все пары</option>' +
+    sorted.map(s => `<option value="${s}" ${s === current ? 'selected' : ''}>${s}</option>`).join('');
+}
+
+function renderHistory() {
+  refreshHistSymbolFilter();
+  const todayP = _histProfitFor('today');
+  const weekP  = _histProfitFor('week');
+  const monthP = _histProfitFor('month');
+  const todayN = _histDealsFor('today').length;
+  const weekN  = _histDealsFor('week').length;
+  const monthN = _histDealsFor('month').length;
   document.getElementById('hist-today').innerHTML = `<div class="stat-label">Сегодня · ${todayN}</div><div class="stat-value ${todayP>=0?'pnl-pos':'pnl-neg'}">${todayP>=0?'+':''}${fmt(todayP)}$</div>`;
   document.getElementById('hist-week').innerHTML  = `<div class="stat-label">Неделя · ${weekN}</div><div class="stat-value ${weekP>=0?'pnl-pos':'pnl-neg'}">${weekP>=0?'+':''}${fmt(weekP)}$</div>`;
   document.getElementById('hist-month').innerHTML = `<div class="stat-label">Месяц · ${monthN}</div><div class="stat-value ${monthP>=0?'pnl-pos':'pnl-neg'}">${monthP>=0?'+':''}${fmt(monthP)}$</div>`;
@@ -560,8 +582,7 @@ function renderHistory() {
 }
 
 function renderHistDeals() {
-  const h = state.history || {};
-  const deals = (h[histPeriod]?.deals) || [];
+  const deals = _histDealsFor(histPeriod);
   const table = document.getElementById('hist-deals-table');
   const pag   = document.getElementById('hist-pagination');
   if (!table) return;
@@ -585,7 +606,7 @@ function renderHistDeals() {
   table.innerHTML = `
     <table>
       <tr>
-        <th>#</th><th>Время</th><th>Тип</th><th>Символ</th><th>Объём</th><th>Тикет</th><th>P&L $</th>
+        <th>#</th><th>Время</th><th>Тип</th><th>Символ</th><th>Объём</th><th>Тикет</th><th>Причина</th><th>P&L $</th>
       </tr>
       ${page.map((d, i) => {
         const globalIdx = start + i + 1;
@@ -593,6 +614,11 @@ function renderHistDeals() {
         const time = (d.time || '').toString().substring(0, 16);
         const type = d.type || '';
         const sign = (d.profit || 0) >= 0 ? '+' : '';
+        const reason = d.reason || '—';
+        const reasonClass = /^(SL|Stop Out)$/i.test(reason)   ? 'pnl-neg'
+                          : /^TP$/i.test(reason)               ? 'pnl-pos'
+                          : /^(SIGNAL|RSI|MANUAL)$/i.test(reason) ? 'hist-reason-info'
+                          : '';
         return `<tr>
           <td style="color:var(--text-muted)">${globalIdx}</td>
           <td>${time}</td>
@@ -600,11 +626,12 @@ function renderHistDeals() {
           <td>${d.symbol || ''}</td>
           <td>${d.volume != null ? d.volume : ''}</td>
           <td style="color:var(--text-muted)">${d.ticket || ''}</td>
+          <td class="${reasonClass}">${escapeHtml(reason)}</td>
           <td class="${pc}">${sign}${fmt(d.profit || 0)}$</td>
         </tr>`;
       }).join('')}
       <tr style="border-top:2px solid var(--border);font-weight:600">
-        <td colspan="6" style="text-align:right;color:var(--text-muted)">Итого:</td>
+        <td colspan="7" style="text-align:right;color:var(--text-muted)">Итого:</td>
         <td class="${totalClass}">${totalProfit>=0?'+':''}${fmt(totalProfit)}$</td>
       </tr>
     </table>
@@ -629,7 +656,7 @@ function renderHistDeals() {
 }
 
 function histGoPage(p) {
-  const deals = (state.history?.[histPeriod]?.deals) || [];
+  const deals = _histDealsFor(histPeriod);
   const totalPages = Math.ceil(deals.length / HIST_PER_PAGE);
   histPage = Math.max(0, Math.min(p, totalPages - 1));
   renderHistDeals();
@@ -642,6 +669,12 @@ function histSetPeriod(period) {
     b.classList.toggle('active', b.dataset.period === period);
   });
   renderHistDeals();
+}
+
+function histSetSymbol(symbol) {
+  histSymbol = symbol || '';
+  histPage = 0;
+  renderHistory();
 }
 
 // ─── Render: Event Log ────────────────────────────────────────────
@@ -838,7 +871,7 @@ const STREAM_STRATEGY_OPTIONS = [
   ['default',              'MA + MACD + RSI (основная)'],
   ['sr_bounce',            'S/R Bounce'],
   ['ema_pullback',         'EMA Pullback (50/200)'],
-  ['ema_cross',            'EMA 8/21 Cross'],
+  ['ema_cross',            'EMA 50/200 Cross'],
   ['ema_cross_inverse',    'EMA 8/21 Cross Inverse'],
   ['cci_rsi',              'CCI + RSI (D1-фильтр)'],
   ['fibonacci_retracement','Fibonacci Retracement'],
@@ -1005,7 +1038,7 @@ async function openStreamForm(stream_id) {
         <button class="btn-primary" onclick="submitStreamForm('${editing ? editing.id : ''}')">
           ${editing ? 'Сохранить' : 'Создать'}
         </button>
-        <button class="btn-ghost" onclick="closeStreamForm()">Отмена</button>
+        <button class="btn-ghost btn-ghost-lg" onclick="closeStreamForm()">Отмена</button>
         <span id="sf-error" class="sf-error"></span>
       </div>
     </div>
@@ -1501,8 +1534,13 @@ const chartModule = (() => {
     if (v == null) return '—';
     if (typeof v === 'boolean') return v ? '✓' : '—';
     if (typeof v !== 'number') return String(v);
-    if (col && (col.toLowerCase().includes('rsi') || col.toLowerCase() === 'cci' || col.toLowerCase().includes('adx'))) {
+    const lc = col ? col.toLowerCase() : '';
+    if (lc.includes('rsi') || lc === 'cci' || lc.includes('adx')) {
       return v.toFixed(2);
+    }
+    // Ценовые уровни (EMA/MA/SMA) — формат как у инструмента, до 5 знаков.
+    if (/^(ema|ma|sma|wma)\d*$/.test(lc) || lc === 'price' || lc === 'close') {
+      return v.toFixed(Math.min(digits, 5));
     }
     if (Math.abs(v) >= 100) return v.toFixed(2);
     if (Math.abs(v) >= 1) return v.toFixed(Math.min(digits, 5));
@@ -2163,6 +2201,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // History period tabs
   document.querySelectorAll('#hist-period-tabs .hist-period-btn').forEach(b => {
     b.addEventListener('click', () => histSetPeriod(b.dataset.period));
+  });
+  document.getElementById('hist-symbol-filter')?.addEventListener('change', (e) => {
+    histSetSymbol(e.target.value);
   });
 
   // Strategy descriptions — initial render

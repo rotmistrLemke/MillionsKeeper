@@ -8,26 +8,16 @@ class History:
         """
         Получить сумму профита по завершенным сделкам за период
         """
-        if not mt5.initialize():
-            print("Ошибка подключения к MT5")
-            return 0
-        
         try:
-            # Получаем историю сделок за указанный период
             deals = mt5.history_deals_get(date_from, date_to + timedelta(hours=3))
-            
             if deals is None:
-                print("Нет сделок за указанный период")
-                return 0
-            
+                return 0.0, []
+
             total_profit = 0.0
             closed_deals = []
-            
-            # Фильтруем только закрытые сделки и считаем профит
             for deal in deals:
-                # Проверяем, что сделка закрывающая (тип 0 или 1) и по нужному символу
-                if (deal.type in [0, 1] and  # 0 - buy, 1 - sell
-                    (symbol is None or deal.symbol == symbol) and deal.entry ==1):
+                if (deal.type in (0, 1) and deal.entry == 1
+                        and (symbol is None or deal.symbol == symbol)):
                     total_profit += deal.profit
                     closed_deals.append({
                         'ticket': deal.ticket,
@@ -35,17 +25,12 @@ class History:
                         'type': 'BUY' if deal.type == 0 else 'SELL',
                         'profit': deal.profit,
                         'time': datetime.fromtimestamp(deal.time),
-                        'volume': deal.volume
+                        'volume': deal.volume,
                     })
-            
-            print(f"Найдено закрытых сделок: {len(closed_deals)}")
-            print(f"Общий профит за период: {total_profit:.2f}")
-            
             return total_profit, closed_deals
-            
         except Exception as e:
             print(f"Ошибка при получении истории сделок: {e}")
-            return 0, []
+            return 0.0, []
 
     def get_profit_today(self, symbol=None):
         """Профит за сегодня"""

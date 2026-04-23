@@ -250,22 +250,41 @@ class ExecutionAgent(BaseAgent):
             }
         return None
 
+    @staticmethod
+    def _reason_to_tag(reason: str) -> str:
+        """Нормализует payload.reason → короткий тег для MT5 comment/истории."""
+        r = (reason or "").lower()
+        if r.startswith("strategy:"):
+            return "SIGNAL"
+        if r.startswith("rsi"):
+            return "RSI"
+        if r in ("sl", "stop_loss"):
+            return "SL"
+        if r in ("tp", "take_profit"):
+            return "TP"
+        if r.startswith("manual"):
+            return "MANUAL"
+        return (reason or "MANUAL")[:20]
+
     async def _handle_close(self, event: Event):
         p = event.payload
         ticket = p.get("ticket")
         symbol = p.get("symbol")
+        raw_reason = p.get("reason", "manual")
+        tag = self._reason_to_tag(raw_reason)
 
-        await self.emit_status(AgentStatus.RUNNING, f"Закрытие позиции {symbol}")
+        await self.emit_status(AgentStatus.RUNNING, f"Закрытие позиции {symbol} ({tag})")
         try:
             ok = await asyncio.get_event_loop().run_in_executor(
-                None, self.trading.orderClose, ticket, symbol
+                None, self.trading.orderClose, ticket, symbol, tag
             )
             if ok:
                 self.metrics["closed_today"] = self.metrics.get("closed_today", 0) + 1
                 await self.emit(EventType.ORDER_CLOSED, {
                     "ticket": ticket,
                     "symbol": symbol,
-                    "reason": p.get("reason", "manual"),
+                    "reason": raw_reason,
+                    "tag": tag,
                 })
         except Exception as e:
             self._logger.error(f"Close order failed {ticket}: {e}")

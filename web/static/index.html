@@ -151,10 +151,15 @@
       <div class="card">
         <div class="card-title hist-deals-head">
           <span>Сделки</span>
-          <div class="hist-period-tabs" id="hist-period-tabs">
-            <button class="hist-period-btn active" data-period="today">Сегодня</button>
-            <button class="hist-period-btn" data-period="week">Неделя</button>
-            <button class="hist-period-btn" data-period="month">Месяц</button>
+          <div class="hist-controls">
+            <select id="hist-symbol-filter" class="toolbar-select" title="Фильтр по паре">
+              <option value="">Все пары</option>
+            </select>
+            <div class="hist-period-tabs" id="hist-period-tabs">
+              <button class="hist-period-btn active" data-period="today">Сегодня</button>
+              <button class="hist-period-btn" data-period="week">Неделя</button>
+              <button class="hist-period-btn" data-period="month">Месяц</button>
+            </div>
           </div>
         </div>
         <div id="hist-deals-table"></div>
@@ -175,7 +180,7 @@
               <option value="default">MA + MACD + RSI (основная)</option>
               <option value="sr_bounce">S/R Bounce</option>
               <option value="ema_pullback">EMA Pullback (50/200)</option>
-              <option value="ema_cross">EMA 8/21 Cross</option>
+              <option value="ema_cross">EMA 50/200 Cross</option>
               <option value="ema_cross_inverse">EMA 8/21 Cross Inverse</option>
               <option value="cci_rsi">CCI + RSI (D1-фильтр)</option>
               <option value="fibonacci_retracement">Fibonacci Retracement</option>

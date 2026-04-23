@@ -103,6 +103,13 @@ class BaseStrategy(ABC):
         одновременно с основной."""
         return False
 
+    def closes_on_weekend(self) -> bool:
+        """Если True — бэктест принудительно закрывает позицию перед выходными
+        (пт ≥23:00, сб/вс, пн <02:00) с причиной WEEKEND.
+        Стратегии с редкими сильными сигналами (напр. EMA 8/200) могут вернуть
+        False и удерживать позицию через выходные."""
+        return True
+
     def get_hedge_exit_signal(self, row, hedge_position: dict) -> bool:
         """True если нужно закрыть только хедж (основная продолжает работать)."""
         return False

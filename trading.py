@@ -68,12 +68,41 @@ class Trading:
 
         return {"order": result.order, "price": result.price, "symbol": symbol, "targetType": type}
 
-    def orderClose(self, orderTicket, symbol):
-        result = mt5.Close(symbol=symbol, ticket=orderTicket)
+    def orderClose(self, orderTicket, symbol, comment=""):
+        """Закрытие через order_send, чтобы сохранить произвольный comment
+        в MT5-истории (для отражения причины закрытия)."""
+        positions = mt5.positions_get(ticket=orderTicket)
+        if not positions:
+            print(f"orderClose: позиция {orderTicket} не найдена")
+            return False
+        pos = positions[0]
+        tick = mt5.symbol_info_tick(symbol)
+        if tick is None:
+            print(f"orderClose: нет котировки для {symbol}")
+            return False
+        close_type = mt5.ORDER_TYPE_SELL if pos.type == mt5.ORDER_TYPE_BUY else mt5.ORDER_TYPE_BUY
+        price = tick.bid if close_type == mt5.ORDER_TYPE_SELL else tick.ask
+        request = {
+            "action":       mt5.TRADE_ACTION_DEAL,
+            "symbol":       symbol,
+            "volume":       pos.volume,
+            "type":         close_type,
+            "position":     pos.ticket,
+            "price":        price,
+            "deviation":    20,
+            "magic":        int(getattr(pos, "magic", 0) or 0),
+            "comment":      (comment or "")[:31],  # MT5 лимит ~31 символ
+            "type_time":    mt5.ORDER_TIME_GTC,
+            "type_filling": mt5.ORDER_FILLING_FOK,
+        }
+        result = mt5.order_send(request)
         if not result:
             print(mt5.last_error())
             return False
-        print(f"Пара {symbol} Ордер {orderTicket} успешно снят")
+        if result.retcode != mt5.TRADE_RETCODE_DONE:
+            print(f"orderClose failed retcode={result.retcode}")
+            return False
+        print(f"Пара {symbol} Ордер {orderTicket} закрыт ({comment or '—'})")
         return True
 
     def getPositions(self):

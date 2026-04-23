@@ -75,6 +75,20 @@ class WebSocketManager:
             },
         })
 
+        # Немедленно отдаём кэш истории (если уже был сделан первый опрос MT5),
+        # чтобы UI не ждал следующего 5-минутного тика HistoryAgent.
+        try:
+            from agents.history_agent import get_latest_snapshot
+            snap = get_latest_snapshot()
+            if snap:
+                await self.send_to(ws, "event_stream", {
+                    "type": "history.snapshot",
+                    "source": "HistoryAgent",
+                    "payload": snap,
+                })
+        except Exception as e:
+            logger.warning(f"history snapshot send failed: {e}")
+
     @property
     def connection_count(self) -> int:
         return len(self._connections)

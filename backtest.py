@@ -545,7 +545,7 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
             result.trades.append(_make_strategy_trade(h, ref_row, ref_i, h_pnl_points, h_pnl_money, current_balance, reason))
             position['hedge'] = None
 
-        if weekend_block and position is not None:
+        if weekend_block and position is not None and strategy.closes_on_weekend():
             pnl_points      = _calc_pnl_points(position, row['close'], point, spread_points)
             pnl_money       = pnl_points * pip_value_per_lot * position['volume'] if (deposit > 0 or fixed_volume > 0) else 0.0
             current_balance += pnl_money
@@ -558,10 +558,8 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
             position = None
             continue
 
-        if weekend_block:
-            result.equity_curve.append(cumulative_pnl)
-            continue
-
+        # SL/TP проверяем до weekend-skip: даже в «блокированные» часы (пт 23:00)
+        # цена ещё ходит, и стоп/тейк должны срабатывать.
         if position is not None:
             hit_sl = hit_tp = False
             sl = position.get('sl')
@@ -600,6 +598,12 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
                 strategy.on_trade_closed(position, 'TP')
                 position = None
                 continue
+
+        if weekend_block:
+            # Новые входы и strategy-exit на выходных заблокированы. Позиция
+            # удерживается (если стратегия не закрывает по WEEKEND).
+            result.equity_curve.append(cumulative_pnl)
+            continue
 
         # Хедж-выход (закрывает только хедж, основная продолжает работать)
         if position is not None and position.get('hedge') is not None:
