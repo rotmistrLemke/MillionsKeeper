@@ -274,6 +274,101 @@ const STRATEGY_META = {
       { col: 'atr',       label: 'ATR'       },
     ],
   },
+  mean_revert_ema: {
+    name: 'Mean Revert 10/20 EMA',
+    desc: [
+      'Возврат к среднему: зона 10/20 EMA как справедливая цена в тренде.',
+      '<b>Контекст:</b>',
+      'BUY: EMA10 &gt; EMA20 &nbsp; SELL: EMA10 &lt; EMA20',
+      '<b>Триггер</b> (свеча в зоне EMA):',
+      'BUY: бычий пин-бар ≥3× или поглощение ≥80%',
+      'SELL: медвежий пин-бар или поглощение',
+      '<b>Фильтр:</b> не входим, если цена &gt; 3×ATR от EMA10',
+      '<b>SL:</b> 1.5 × ATR &nbsp; <b>Выход:</b> трейл (закрытие свечи за EMA20)',
+      '<b>Таймфрейм:</b> H4/D1',
+    ],
+    indicators: [
+      { col: 'ema10', label: 'EMA10' },
+      { col: 'ema20', label: 'EMA20' },
+      { col: 'atr',   label: 'ATR'   },
+    ],
+  },
+  ema50_pullback: {
+    name: 'EMA50 Pullback',
+    desc: [
+      'Трендовая торговля на откатах к 50 EMA в тренде 200 EMA.',
+      '<b>Фильтр тренда:</b> close vs EMA200',
+      '<b>Касание:</b> low ≤ EMA50 + 0.5×ATR (BUY) / зеркально (SELL)',
+      '<b>Триггер:</b> пин-бар ≥3× или поглощение ≥80%',
+      '<b>SL:</b> консервативный из (1×ATR от low сигнальной свечи, 1×ATR от цены входа)',
+      '<b>Выход:</b> трейл (закрытие свечи за EMA50)',
+      '<b>Таймфрейм:</b> D1 свинг / H4 активный',
+    ],
+    indicators: [
+      { col: 'ema50',  label: 'EMA50'  },
+      { col: 'ema200', label: 'EMA200' },
+      { col: 'atr',    label: 'ATR'    },
+    ],
+  },
+  ema_triple_touch: {
+    name: 'EMA 20/50 Triple Touch',
+    desc: [
+      'После пересечения EMA20/50 ждём 3 теста зоны перед входом.',
+      '<b>Глобальный тренд:</b> цена vs EMA200',
+      '<b>Тест зоны</b> [EMA20..EMA50] = касание + закрытие свечи ВНУТРИ зоны',
+      '<b>Вход:</b> на 3-м или последующем тесте в направлении кросса',
+      '<b>Сброс:</b> обратный кросс 20/50 или пробой EMA200',
+      '<b>SL:</b> 2 × ATR &nbsp; <b>Выход:</b> трейл (закрытие свечи за EMA50)',
+      '<b>Таймфрейм:</b> H4/D1',
+    ],
+    indicators: [
+      { col: 'ema20',  label: 'EMA20'  },
+      { col: 'ema50',  label: 'EMA50'  },
+      { col: 'ema200', label: 'EMA200' },
+      { col: 'atr',    label: 'ATR'    },
+    ],
+  },
+  market_phase: {
+    name: '200 MA + Market Phase',
+    desc: [
+      'Классификатор фазы по наклону 200 MA, торговля уровней по фазе.',
+      '<b>Фаза:</b>',
+      'RANGE (|slope| &lt; 0.1°) — пробой последних фрактальных уровней ± 0.2×ATR',
+      'TREND_UP — пробой fractal-resistance (продолжение)',
+      'TREND_DOWN — пробой fractal-support (продолжение)',
+      '<b>Уровни:</b> фракталы Билла Вильямса в окне 40 баров',
+      '<b>SL:</b> противоположный уровень ± 0.2×ATR',
+      '<b>Выход:</b> трейл (закрытие свечи за 200 MA)',
+      '<b>Таймфрейм:</b> D1 / H4',
+    ],
+    indicators: [
+      { col: 'ema200',            label: 'EMA200' },
+      { col: 'ma200_slope',       label: 'Slope°' },
+      { col: 'level_resistance',  label: 'R'      },
+      { col: 'level_support',     label: 'S'      },
+      { col: 'atr',               label: 'ATR'    },
+    ],
+  },
+  combined_a_plus: {
+    name: 'Combined A+ (5 факторов)',
+    desc: [
+      'Сигнал проходит только при score ≥ 4 из 5 факторов.',
+      '<b>1. Направление:</b> close vs EMA200',
+      '<b>2. Касание EMA50:</b> low ≤ EMA50 + 0.5×ATR (BUY)',
+      '<b>3. Price action:</b> пин-бар ≥3× или поглощение ≥80%',
+      '<b>4. Горизонтальный уровень</b> (фрактал) совпадает с EMA50 или low/high свечи',
+      '<b>5. ATR в норме:</b> 0.5× ≤ atr/atr_avg_50 ≤ 2×',
+      '<b>SL:</b> 2 × ATR &nbsp; <b>Выход:</b> трейл (закрытие свечи за EMA50)',
+      '<b>Таймфрейм:</b> H4/D1',
+    ],
+    indicators: [
+      { col: 'ema50',      label: 'EMA50'   },
+      { col: 'ema200',     label: 'EMA200'  },
+      { col: 'atr',        label: 'ATR'     },
+      { col: 'level_up',   label: 'R'       },
+      { col: 'level_down', label: 'S'       },
+    ],
+  },
 };
 
 // ─── State ────────────────────────────────────────────────────────
@@ -882,6 +977,11 @@ const STREAM_STRATEGY_OPTIONS = [
   ['sar_adx',              'Parabolic SAR + ADX'],
   ['donchian_breakout',    'Donchian Breakout'],
   ['triple_ema',           'Triple EMA Momentum'],
+  ['mean_revert_ema',      'Mean Revert 10/20 EMA'],
+  ['ema50_pullback',       'EMA50 Pullback (D1/H4)'],
+  ['ema_triple_touch',     'EMA 20/50 Triple Touch'],
+  ['market_phase',         '200 MA + Market Phase'],
+  ['combined_a_plus',      'Combined A+ (5 факторов)'],
 ];
 
 async function loadStreams() {

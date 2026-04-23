@@ -12,6 +12,11 @@ from strategies.macd_hist import MacdHistStrategy
 from strategies.candle_reversal import CandleReversalStrategy
 from strategies.default_hedge import DefaultHedgeStrategy
 from strategies.default_inverse import DefaultInverseStrategy
+from strategies.mean_revert_ema import MeanRevertEmaStrategy
+from strategies.ema50_pullback import Ema50PullbackStrategy
+from strategies.ema_triple_touch import EmaTripleTouchStrategy
+from strategies.market_phase import MarketPhaseStrategy
+from strategies.combined_a_plus import CombinedAPlusStrategy
 
 STRATEGIES = {
     # H1 внутридневные/среднесрочные
@@ -29,4 +34,10 @@ STRATEGIES = {
     'sar_adx':               EmaScalpStrategy,
     'donchian_breakout':     BollingerScalpStrategy,
     'triple_ema':            StochasticScalpStrategy,
+    # Price-action H4/D1
+    'mean_revert_ema':       MeanRevertEmaStrategy,
+    'ema50_pullback':        Ema50PullbackStrategy,
+    'ema_triple_touch':      EmaTripleTouchStrategy,
+    'market_phase':          MarketPhaseStrategy,
+    'combined_a_plus':       CombinedAPlusStrategy,
 }
