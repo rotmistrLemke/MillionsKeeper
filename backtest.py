@@ -637,18 +637,22 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
 
                 # Пользовательские множители SL/TP переопределяют значения стратегии.
                 # 0 = не использовать соответствующий уровень.
-                if sl_atr_mult > 0 or tp_atr_mult > 0:
+                # Стратегии с трейлинг-выходом (uses_trailing_exit) сохраняют
+                # свой TP=None, иначе фиксированный TP закроет позицию до того,
+                # как трейлинг успеет развиться.
+                trailing = bool(getattr(strategy, 'uses_trailing_exit', lambda: False)())
+                if sl_atr_mult > 0 or (tp_atr_mult > 0 and not trailing):
                     atr_val = row.get('atr') if 'atr' in row.index else None
                     if atr_val is not None and not pd.isna(atr_val) and atr_val > 0:
                         if sl_atr_mult > 0:
                             sl = (entry_price - sl_atr_mult * atr_val) if signal == 'BUY' \
                                  else (entry_price + sl_atr_mult * atr_val)
-                        else:
+                        elif not trailing:
                             sl = None
-                        if tp_atr_mult > 0:
+                        if tp_atr_mult > 0 and not trailing:
                             tp = (entry_price + tp_atr_mult * atr_val) if signal == 'BUY' \
                                  else (entry_price - tp_atr_mult * atr_val)
-                        else:
+                        elif tp_atr_mult <= 0 and not trailing:
                             tp = None
 
                 if fixed_volume > 0:

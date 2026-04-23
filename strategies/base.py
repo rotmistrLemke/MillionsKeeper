@@ -110,6 +110,14 @@ class BaseStrategy(ABC):
         False и удерживать позицию через выходные."""
         return True
 
+    def uses_trailing_exit(self) -> bool:
+        """Если True — выход полностью контролируется `get_exit_signal`
+        (например, трейл по EMA). Движок не должен подменять TP на
+        фиксированный ATR-уровень из пользовательской формы, иначе
+        позиция закроется по цели до того, как трейлинг успеет развиться.
+        SL — по-прежнему применяется, он защищает от провала."""
+        return False
+
     def get_hedge_exit_signal(self, row, hedge_position: dict) -> bool:
         """True если нужно закрыть только хедж (основная продолжает работать)."""
         return False

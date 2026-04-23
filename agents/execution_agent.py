@@ -222,10 +222,23 @@ class ExecutionAgent(BaseAgent):
             return None
 
         # Расчёт SL/TP по множителям ATR из настроек потока (0 = выключено).
+        # Для стратегий с трейлинг-выходом принудительно обнуляем TP —
+        # закрытие контролирует get_exit_signal через PositionMonitorAgent.
+        from strategies import STRATEGIES
+        strat_cls = STRATEGIES.get(stream.strategy)
+        trailing = False
+        if strat_cls is not None:
+            try:
+                trailing = bool(strat_cls().uses_trailing_exit())
+            except Exception:
+                trailing = False
+
         sl_price = 0.0
         tp_price = 0.0
         sl_mult = float(stream.sl_atr or 0.0)
         tp_mult = float(stream.tp_atr or 0.0)
+        if trailing:
+            tp_mult = 0.0
         if (sl_mult > 0 or tp_mult > 0) and atr and atr > 0:
             tick = mt5.symbol_info_tick(symbol)
             entry_price = tick.ask if order_type == mt5.ORDER_TYPE_BUY else tick.bid
