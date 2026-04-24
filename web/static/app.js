@@ -1058,6 +1058,8 @@ function renderStreams() {
     const volTxt = vol > 0 ? `${vol.toFixed(2)}` : 'авто';
     const slTxt = Number(s.sl_atr || 0) > 0 ? `${s.sl_atr}×` : '—';
     const tpTxt = Number(s.tp_atr || 0) > 0 ? `${s.tp_atr}×` : '—';
+    const beTxt = Number(s.breakeven_atr || 0) > 0 ? `${s.breakeven_atr}×` : '—';
+    const trTxt = Number(s.trail_atr || 0) > 0 ? `${s.trail_atr}×` : '—';
     const dep = Number(s.deposit || 0);
     const depTxt = dep > 0 ? `$${dep.toLocaleString('ru-RU')}` : '—';
     const stateClass = s.enabled ? 'is-on' : 'is-off';
@@ -1071,6 +1073,8 @@ function renderStreams() {
         <td>${volTxt}</td>
         <td>${slTxt}</td>
         <td>${tpTxt}</td>
+        <td title="Breakeven × ATR">${beTxt}</td>
+        <td title="Trailing SL × ATR">${trTxt}</td>
         <td>${depTxt}</td>
         <td><span class="st-state ${stateClass}">${stateLabel}</span></td>
         <td class="st-actions">
@@ -1093,6 +1097,8 @@ function renderStreams() {
           <th>Объём</th>
           <th>SL</th>
           <th>TP</th>
+          <th>BE</th>
+          <th>Trail</th>
           <th>Депозит</th>
           <th>Статус</th>
           <th></th>
@@ -1168,6 +1174,14 @@ async function openStreamForm(stream_id) {
           Депозит ($)
           <input id="sf-deposit" type="number" value="${editing ? (editing.deposit || 0) : 0}" min="0" step="100" style="width:110px">
         </label>
+        <label title="После прохода +N×ATR в нашу сторону двигает SL в точку входа. 0 = выкл.">
+          BE (×ATR)
+          <input id="sf-be-atr" type="number" value="${editing ? (editing.breakeven_atr || 0) : 0}" min="0" step="0.1" style="width:90px">
+        </label>
+        <label title="Трейлинг SL по ATR. SL только ужесточается. 0 = выкл.">
+          Trail (×ATR)
+          <input id="sf-trail-atr" type="number" value="${editing ? (editing.trail_atr || 0) : 0}" min="0" step="0.1" style="width:90px">
+        </label>
         <label class="sf-enabled-label">
           <input id="sf-enabled" type="checkbox" ${!editing || editing.enabled ? 'checked' : ''}>
           Включён
@@ -1194,11 +1208,13 @@ async function submitStreamForm(stream_id) {
     strategy:  document.getElementById('sf-strategy').value,
     symbol:    document.getElementById('sf-symbol').value,
     timeframe: document.getElementById('sf-timeframe').value,
-    volume:    parseFloat(document.getElementById('sf-volume').value || '0') || 0,
-    sl_atr:    parseFloat(document.getElementById('sf-sl-atr').value || '0') || 0,
-    tp_atr:    parseFloat(document.getElementById('sf-tp-atr').value || '0') || 0,
-    deposit:   parseFloat(document.getElementById('sf-deposit').value || '0') || 0,
-    enabled:   document.getElementById('sf-enabled').checked,
+    volume:        parseFloat(document.getElementById('sf-volume').value   || '0') || 0,
+    sl_atr:        parseFloat(document.getElementById('sf-sl-atr').value   || '0') || 0,
+    tp_atr:        parseFloat(document.getElementById('sf-tp-atr').value   || '0') || 0,
+    deposit:       parseFloat(document.getElementById('sf-deposit').value  || '0') || 0,
+    breakeven_atr: parseFloat(document.getElementById('sf-be-atr').value   || '0') || 0,
+    trail_atr:     parseFloat(document.getElementById('sf-trail-atr').value|| '0') || 0,
+    enabled:       document.getElementById('sf-enabled').checked,
   };
   const errEl = document.getElementById('sf-error');
   if (errEl) errEl.textContent = '';
@@ -1278,9 +1294,11 @@ function runBacktest() {
   const sl_atr    = parseFloat(document.getElementById('bt-sl-atr')?.value || '0') || 0;
   const tp_atr    = parseFloat(document.getElementById('bt-tp-atr')?.value || '0') || 0;
   const spread    = parseInt(document.getElementById('bt-spread')?.value || '0', 10) || 0;
+  const breakeven_atr = parseFloat(document.getElementById('bt-be-atr')?.value    || '0') || 0;
+  const trail_atr     = parseFloat(document.getElementById('bt-trail-atr')?.value || '0') || 0;
   const start     = document.getElementById('bt-start').value || null;
   const end       = document.getElementById('bt-end').value || null;
-  sendCmd({ cmd: 'run_backtest', strategy, symbol, timeframe, bars, deposit, spread, volume, sl_atr, tp_atr, start, end });
+  sendCmd({ cmd: 'run_backtest', strategy, symbol, timeframe, bars, deposit, spread, volume, sl_atr, tp_atr, breakeven_atr, trail_atr, start, end });
   document.getElementById('bt-result').innerHTML = '<div style="color:var(--text-muted)">Выполняется...</div>';
 }
 

@@ -99,6 +99,8 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
                 "volume": cmd.get("volume", 0.0),
                 "sl_atr": cmd.get("sl_atr", 0.0),
                 "tp_atr": cmd.get("tp_atr", 0.0),
+                "breakeven_atr": cmd.get("breakeven_atr", 0.0),
+                "trail_atr": cmd.get("trail_atr", 0.0),
                 "timeframe": cmd.get("timeframe"),
                 "start": cmd.get("start"),
                 "end": cmd.get("end"),

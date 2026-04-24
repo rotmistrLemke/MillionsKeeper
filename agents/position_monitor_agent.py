@@ -25,6 +25,8 @@ class PositionMonitorAgent(BaseAgent):
         self._prev_positions: dict = {}
         # Символы, по которым пришла новая свеча — на них проверяем exit в ближайшем тике.
         self._pending_exit_symbols: set = set()
+        # Ticket → флаг «breakeven уже переставлен», чтобы не дёргать order_send повторно.
+        self._be_done: set = set()
         bus.subscribe(EventType.NEW_BAR, self._on_new_bar)
 
     async def _on_new_bar(self, event):
@@ -46,7 +48,15 @@ class PositionMonitorAgent(BaseAgent):
             for ticket, prev_pos in list(self._prev_positions.items()):
                 if ticket not in current_tickets:
                     await self._on_position_disappeared(prev_pos)
+                    self._be_done.discard(ticket)
             self._prev_positions = {p["ticket"]: p for p in positions}
+
+            # Breakeven + trailing SL — каждый тик поллинга, для любой позиции потока,
+            # у которой в настройках задан breakeven_atr или trail_atr.
+            for pos in positions:
+                await asyncio.get_event_loop().run_in_executor(
+                    None, self._apply_trailing_sl, pos
+                )
 
             # Проверяем сигнал выхода ТОЛЬКО для символов с новой свечой.
             if self._pending_exit_symbols:
@@ -110,6 +120,87 @@ class PositionMonitorAgent(BaseAgent):
                 )
             except Exception as e:
                 self._logger.warning(f"on_trade_closed hook failed: {e}")
+
+    def _apply_trailing_sl(self, pos: dict) -> None:
+        """Синхронно пересчитывает breakeven + trailing SL для позиции потока
+        и вызывает trading.modifySL, если уровень изменился.
+        Вызывается в executor, чтобы не блокировать event-loop."""
+        import streams as streams_mod
+        import MetaTrader5 as mt5
+
+        stream = streams_mod.registry.by_magic(pos.get("magic"))
+        if stream is None:
+            return
+        be_mult   = float(getattr(stream, "breakeven_atr", 0.0) or 0.0)
+        trail_mult = float(getattr(stream, "trail_atr", 0.0) or 0.0)
+        if be_mult <= 0 and trail_mult <= 0:
+            return
+
+        symbol = pos["symbol"]
+        # ATR на рабочем TF потока
+        rates = mt5.copy_rates_from_pos(symbol, stream.timeframe, 0, 30)
+        if rates is None or len(rates) < 15:
+            return
+        try:
+            import talib
+            highs = rates['high'].astype(float)
+            lows  = rates['low'].astype(float)
+            closes = rates['close'].astype(float)
+            atr_series = talib.ATR(highs, lows, closes, timeperiod=14)
+            atr = float(atr_series[-1])
+        except Exception:
+            return
+        if not atr or atr <= 0:
+            return
+
+        tick = mt5.symbol_info_tick(symbol)
+        if tick is None:
+            return
+        # ref_price для высчитывания трейла: best bid/ask в нашу сторону
+        # (для BUY трейлим от max-high, для SELL — от min-low; в рантайме
+        # аппроксимируем текущей ценой, т.к. high/low бара ещё не закрылся).
+        entry = pos["open_price"]
+        side  = pos["type"]
+        ticket = pos["ticket"]
+        cur_sl = float(pos.get("sl") or 0.0)
+
+        candidate_sl = cur_sl if cur_sl > 0 else None
+
+        if side == "BUY":
+            if be_mult > 0 and ticket not in self._be_done:
+                if tick.bid - entry >= be_mult * atr:
+                    if candidate_sl is None or entry > candidate_sl:
+                        candidate_sl = entry
+                    self._be_done.add(ticket)
+            if trail_mult > 0:
+                cand = tick.bid - trail_mult * atr
+                if candidate_sl is None or cand > candidate_sl:
+                    candidate_sl = cand
+        else:  # SELL
+            if be_mult > 0 and ticket not in self._be_done:
+                if entry - tick.ask >= be_mult * atr:
+                    if candidate_sl is None or entry < candidate_sl:
+                        candidate_sl = entry
+                    self._be_done.add(ticket)
+            if trail_mult > 0:
+                cand = tick.ask + trail_mult * atr
+                if candidate_sl is None or cand < candidate_sl:
+                    candidate_sl = cand
+
+        if candidate_sl is None:
+            return
+        # Порог «нужно двигать»: отличие от текущего > 0.1×ATR, чтобы
+        # не слать order_send на каждую каплю цены.
+        if cur_sl > 0 and abs(candidate_sl - cur_sl) < 0.1 * atr:
+            return
+        try:
+            ok = self.trading.modifySL(ticket, symbol, candidate_sl)
+            if ok:
+                self._logger.info(
+                    f"Trail SL {symbol} #{ticket}: {cur_sl:.5f} → {candidate_sl:.5f}"
+                )
+        except Exception as e:
+            self._logger.warning(f"modifySL failed {symbol}/{ticket}: {e}")
 
     def _classify_close_reason(self, ticket: int) -> str:
         """Определяет причину закрытия по MT5 history_deals.

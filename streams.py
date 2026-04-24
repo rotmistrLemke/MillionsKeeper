@@ -32,7 +32,9 @@ class TradingStream:
     sl_atr: float
     tp_atr: float
     magic: int
-    deposit: float = 0.0   # выделенный поток-бюджет ($); используется для per-stream DD
+    deposit: float = 0.0        # выделенный поток-бюджет ($); используется для per-stream DD
+    breakeven_atr: float = 0.0  # после +N×ATR прибыли двигаем SL в точку входа (0 = выкл)
+    trail_atr: float = 0.0      # трейлинг SL = high - N×ATR (BUY), low + N×ATR (SELL); 0 = выкл
     enabled: bool = True
 
     def to_dict(self) -> dict:
@@ -100,6 +102,7 @@ class StreamRegistry:
                timeframe: int, volume: float = 0.0,
                sl_atr: float = 0.0, tp_atr: float = 0.0,
                deposit: float = 0.0,
+               breakeven_atr: float = 0.0, trail_atr: float = 0.0,
                enabled: bool = True) -> TradingStream:
         with self._lock:
             if len(self._streams) >= MAX_STREAMS:
@@ -118,6 +121,8 @@ class StreamRegistry:
                 tp_atr=float(tp_atr or 0.0),
                 magic=self._allocate_magic_locked(),
                 deposit=float(deposit or 0.0),
+                breakeven_atr=float(breakeven_atr or 0.0),
+                trail_atr=float(trail_atr or 0.0),
                 enabled=bool(enabled),
             )
             self._streams[stream.id] = stream
@@ -136,10 +141,12 @@ class StreamRegistry:
                     if s.id != stream_id and s.symbol == new_symbol:
                         raise ValueError(f"Пара {new_symbol} уже закреплена за потоком «{s.name}»")
             for k in ("name", "strategy", "symbol", "timeframe",
-                      "volume", "sl_atr", "tp_atr", "deposit", "enabled"):
+                      "volume", "sl_atr", "tp_atr", "deposit",
+                      "breakeven_atr", "trail_atr", "enabled"):
                 if k in fields and fields[k] is not None:
                     v = fields[k]
-                    if k in ("volume", "sl_atr", "tp_atr", "deposit"):
+                    if k in ("volume", "sl_atr", "tp_atr", "deposit",
+                             "breakeven_atr", "trail_atr"):
                         v = float(v)
                     elif k == "timeframe":
                         v = int(v)
@@ -183,6 +190,8 @@ class StreamRegistry:
                     tp_atr=float(d.get("tp_atr", 0.0) or 0.0),
                     magic=int(d.get("magic") or 0),
                     deposit=float(d.get("deposit", 0.0) or 0.0),
+                    breakeven_atr=float(d.get("breakeven_atr", 0.0) or 0.0),
+                    trail_atr=float(d.get("trail_atr", 0.0) or 0.0),
                     enabled=bool(d.get("enabled", True)),
                 )
                 self._streams[stream.id] = stream

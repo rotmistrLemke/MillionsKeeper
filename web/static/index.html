@@ -262,6 +262,14 @@
             TP (×ATR, 0 = выкл)
             <input id="bt-tp-atr" type="number" value="0" min="0" step="0.1" style="width:90px">
           </label>
+          <label title="После прохода +N×ATR в нашу сторону двигает SL в точку входа. 0 = выкл.">
+            BE (×ATR, 0 = выкл)
+            <input id="bt-be-atr" type="number" value="0" min="0" step="0.1" style="width:90px">
+          </label>
+          <label title="Трейлинг SL: для BUY не ближе (high − N×ATR), для SELL не дальше (low + N×ATR). SL только ужесточается. 0 = выкл.">
+            Trail (×ATR, 0 = выкл)
+            <input id="bt-trail-atr" type="number" value="0" min="0" step="0.1" style="width:90px">
+          </label>
           <button class="btn-primary" id="btn-run-bt">▶ Запустить</button>
         </div>
         <div id="bt-strategy-desc" class="strategy-desc"></div>

@@ -105,6 +105,41 @@ class Trading:
         print(f"Пара {symbol} Ордер {orderTicket} закрыт ({comment or '—'})")
         return True
 
+    def modifySL(self, ticket: int, symbol: str, new_sl: float,
+                 new_tp: float | None = None) -> bool:
+        """Изменяет SL (и опционально TP) открытой позиции.
+        Учитывает trade_stops_level — если новый SL ближе к цене, чем
+        брокер разрешает, возвращает False без вызова order_send.
+        """
+        positions = mt5.positions_get(ticket=ticket)
+        if not positions:
+            return False
+        pos = positions[0]
+        tick = mt5.symbol_info_tick(symbol)
+        info = cache.get_symbol_info(symbol)
+        if tick is None or info is None:
+            return False
+        point = float(getattr(info, 'point', 0.0) or 0.0)
+        min_dist = float(getattr(info, 'trade_stops_level', 0) or 0) * point
+        # Минимальная дистанция от текущей цены (bid для BUY, ask для SELL)
+        ref_price = tick.bid if pos.type == mt5.ORDER_TYPE_BUY else tick.ask
+        if pos.type == mt5.ORDER_TYPE_BUY and new_sl >= ref_price - min_dist:
+            return False
+        if pos.type == mt5.ORDER_TYPE_SELL and new_sl <= ref_price + min_dist:
+            return False
+        digits = int(getattr(info, 'digits', 5) or 5)
+        request = {
+            "action":   mt5.TRADE_ACTION_SLTP,
+            "symbol":   symbol,
+            "position": ticket,
+            "sl":       round(float(new_sl), digits),
+            "tp":       round(float(new_tp), digits) if new_tp else float(pos.tp or 0.0),
+        }
+        result = mt5.order_send(request)
+        if not result or result.retcode != mt5.TRADE_RETCODE_DONE:
+            return False
+        return True
+
     def getPositions(self):
         """Использует кэш вместо прямого вызова MT5."""
         return cache.get_positions()

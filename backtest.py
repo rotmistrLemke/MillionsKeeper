@@ -464,7 +464,8 @@ def _make_default_trade(position, row, i, pnl_points, pnl_money, balance, reason
 def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=0,
                           deposit=0.0, risk_pct=80, fixed_volume=0.0,
                           date_from=None, date_to=None,
-                          sl_atr_mult=0.0, tp_atr_mult=0.0):
+                          sl_atr_mult=0.0, tp_atr_mult=0.0,
+                          breakeven_atr_mult=0.0, trail_atr_mult=0.0):
     rates = load_rates(symbol, timeframe, bars, date_from, date_to)
     if rates is None or len(rates) < 100:
         print(f"  Недостаточно данных для {symbol}")
@@ -474,8 +475,10 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
     df['time'] = pd.to_datetime(df['time'], unit='s')
     df = strategy.compute_indicators(df)
 
-    # Для пользовательских множителей SL/TP нужен ATR — считаем, если стратегия его не предоставила.
-    if (sl_atr_mult > 0 or tp_atr_mult > 0) and 'atr' not in df.columns:
+    # ATR нужен для SL/TP/breakeven/trail — считаем, если стратегия не предоставила.
+    need_atr = (sl_atr_mult > 0 or tp_atr_mult > 0
+                or breakeven_atr_mult > 0 or trail_atr_mult > 0)
+    if need_atr and 'atr' not in df.columns:
         import talib
         df['atr'] = talib.ATR(
             df['high'].values.astype(float),
@@ -557,6 +560,44 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
             strategy.on_trade_closed(position, 'WEEKEND')
             position = None
             continue
+
+        # Breakeven + trailing SL — перед проверкой SL/TP.
+        # Breakeven: после прохода +breakeven_mult × ATR в нашу сторону двигаем
+        # SL в цену входа. Trail: SL не ниже (high - trail_mult × ATR) для BUY
+        # / не выше (low + trail_mult × ATR) для SELL. SL только ужесточается.
+        if position is not None and (breakeven_atr_mult > 0 or trail_atr_mult > 0):
+            atr_val = row.get('atr') if 'atr' in row.index else None
+            if atr_val is not None and not pd.isna(atr_val) and atr_val > 0:
+                entry = position['entry_price']
+                cur_sl = position.get('sl')
+                if position['type'] == 'BUY':
+                    new_sl = cur_sl
+                    if breakeven_atr_mult > 0 and not position.get('_be_done'):
+                        if row['high'] - entry >= breakeven_atr_mult * atr_val:
+                            cand = entry
+                            if new_sl is None or cand > new_sl:
+                                new_sl = cand
+                            position['_be_done'] = True
+                    if trail_atr_mult > 0:
+                        cand = row['high'] - trail_atr_mult * atr_val
+                        if new_sl is None or cand > new_sl:
+                            new_sl = cand
+                    if new_sl is not None and new_sl != cur_sl:
+                        position['sl'] = new_sl
+                else:
+                    new_sl = cur_sl
+                    if breakeven_atr_mult > 0 and not position.get('_be_done'):
+                        if entry - row['low'] >= breakeven_atr_mult * atr_val:
+                            cand = entry
+                            if new_sl is None or cand < new_sl:
+                                new_sl = cand
+                            position['_be_done'] = True
+                    if trail_atr_mult > 0:
+                        cand = row['low'] + trail_atr_mult * atr_val
+                        if new_sl is None or cand < new_sl:
+                            new_sl = cand
+                    if new_sl is not None and new_sl != cur_sl:
+                        position['sl'] = new_sl
 
         # SL/TP проверяем до weekend-skip: даже в «блокированные» часы (пт 23:00)
         # цена ещё ходит, и стоп/тейк должны срабатывать.

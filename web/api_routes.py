@@ -342,6 +342,8 @@ class StreamCreateRequest(BaseModel):
     sl_atr: float = 0.0
     tp_atr: float = 0.0
     deposit: float = 0.0
+    breakeven_atr: float = 0.0
+    trail_atr: float = 0.0
     enabled: bool = True
 
 
@@ -354,6 +356,8 @@ class StreamUpdateRequest(BaseModel):
     sl_atr: Optional[float] = None
     tp_atr: Optional[float] = None
     deposit: Optional[float] = None
+    breakeven_atr: Optional[float] = None
+    trail_atr: Optional[float] = None
     enabled: Optional[bool] = None
 
 
@@ -392,6 +396,8 @@ async def create_stream(req: StreamCreateRequest):
             sl_atr=req.sl_atr,
             tp_atr=req.tp_atr,
             deposit=req.deposit,
+            breakeven_atr=req.breakeven_atr,
+            trail_atr=req.trail_atr,
             enabled=req.enabled,
         )
     except ValueError as e:
@@ -447,6 +453,8 @@ class BacktestRequest(BaseModel):
     volume: float = 0.0
     sl_atr: float = 0.0
     tp_atr: float = 0.0
+    breakeven_atr: float = 0.0
+    trail_atr: float = 0.0
     start: Optional[str] = None
     end: Optional[str] = None
 
@@ -466,6 +474,8 @@ async def run_backtest(req: BacktestRequest):
             "volume": req.volume,
             "sl_atr": req.sl_atr,
             "tp_atr": req.tp_atr,
+            "breakeven_atr": req.breakeven_atr,
+            "trail_atr": req.trail_atr,
             "start": req.start,
             "end": req.end,
         }
