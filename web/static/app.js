@@ -388,6 +388,22 @@ const STRATEGY_META = {
       { col: 'atr',    label: 'ATR'    },
     ],
   },
+  ema50_overstretch: {
+    name: 'EMA50 Overstretch (3.5×ATR фейд)',
+    desc: [
+      'Контртренд: фейдим перерастяжение цены от EMA50 в EMA-контексте.',
+      '<b>SELL:</b> EMA50 &gt; EMA200 и закрытие ≥ 3.5×ATR ВЫШЕ EMA50',
+      '<b>BUY:</b> EMA50 &lt; EMA200 и закрытие ≥ 3.5×ATR НИЖЕ EMA50',
+      '<b>Выход:</b> только по установленным SL и TP',
+      '<b>Дефолт:</b> SL 1.5×ATR &nbsp; TP 3×ATR (перекрываются из формы)',
+      '<b>Таймфрейм:</b> H1 и выше',
+    ],
+    indicators: [
+      { col: 'ema50',  label: 'EMA50'  },
+      { col: 'ema200', label: 'EMA200' },
+      { col: 'atr',    label: 'ATR'    },
+    ],
+  },
 };
 
 // ─── State ────────────────────────────────────────────────────────
@@ -1002,6 +1018,7 @@ const STREAM_STRATEGY_OPTIONS = [
   ['market_phase',         '200 MA + Market Phase'],
   ['combined_a_plus',      'Combined A+ (5 факторов)'],
   ['ema50_rejection',      'EMA50 Rejection (2×ATR)'],
+  ['ema50_overstretch',    'EMA50 Overstretch (3.5×ATR фейд)'],
 ];
 
 async function loadStreams() {

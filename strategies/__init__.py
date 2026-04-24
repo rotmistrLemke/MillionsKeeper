@@ -18,6 +18,7 @@ from strategies.ema_triple_touch import EmaTripleTouchStrategy
 from strategies.market_phase import MarketPhaseStrategy
 from strategies.combined_a_plus import CombinedAPlusStrategy
 from strategies.ema50_rejection import Ema50RejectionStrategy
+from strategies.ema50_overstretch import Ema50OverstretchStrategy
 
 STRATEGIES = {
     # H1 внутридневные/среднесрочные
@@ -42,4 +43,5 @@ STRATEGIES = {
     'market_phase':          MarketPhaseStrategy,
     'combined_a_plus':       CombinedAPlusStrategy,
     'ema50_rejection':       Ema50RejectionStrategy,
+    'ema50_overstretch':     Ema50OverstretchStrategy,
 }
