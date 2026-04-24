@@ -8,10 +8,10 @@
 Правила:
   SELL:
     EMA50 > EMA200 (восходящий EMA-контекст)
-    Закрытие свечи ≥ 3.5×ATR ВЫШЕ EMA50 → фейдим SELL
+    Закрытие свечи ≥ 4.5×ATR ВЫШЕ EMA50 → фейдим SELL
   BUY:
     EMA50 < EMA200 (нисходящий EMA-контекст)
-    Закрытие свечи ≥ 3.5×ATR НИЖЕ EMA50 → фейдим BUY
+    Закрытие свечи ≥ 4.5×ATR НИЖЕ EMA50 → фейдим BUY
 
 Выход: только по установленным SL/TP (множители ATR из формы
   или дефолтные 1.5 / 3.0). Трейла нет.
@@ -24,11 +24,11 @@ from strategies.base import BaseStrategy
 
 class Ema50OverstretchStrategy(BaseStrategy):
     name = "ema50_overstretch"
-    description = "EMA50 Overstretch — фейдим перерастяжение от EMA50 (≥ 3.5×ATR)"
+    description = "EMA50 Overstretch — фейдим перерастяжение от EMA50 (≥ 4.5×ATR)"
     default_timeframe = "H1"
 
     def __init__(self, ema_fast=50, ema_slow=200, atr_period=14,
-                 stretch_atr=3.5, sl_atr_mult=1.5, tp_atr_mult=3.0):
+                 stretch_atr=4.5, sl_atr_mult=1.5, tp_atr_mult=3.0):
         self.ema_fast = ema_fast
         self.ema_slow = ema_slow
         self.atr_period = atr_period

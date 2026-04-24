@@ -20,6 +20,11 @@
       <span id="conn-text">Disconnected</span>
     </div>
     <span id="clock"></span>
+    <span id="user-info" class="user-info">
+      <span id="user-name"></span>
+      <span id="user-role" class="user-role"></span>
+      <button id="btn-logout" class="btn-ghost" title="Выйти">⎋</button>
+    </span>
   </div>
 </header>
 
@@ -36,6 +41,7 @@
       <div class="tab" data-tab="history">История</div>
       <div class="tab" data-tab="backtest">Бэктест</div>
       <div class="tab" data-tab="events">Лог событий</div>
+      <div class="tab admin-only" data-tab="users">Пользователи</div>
     </div>
 
     <!-- Trading -->
@@ -45,7 +51,7 @@
       <div class="card">
         <div class="card-title card-title-row">
           <span>Потоки торговли <span id="streams-count-badge" class="streams-count-badge"></span></span>
-          <button class="btn-primary" id="btn-add-stream" onclick="openStreamForm()">+ Добавить поток</button>
+          <button class="btn-primary admin-only" id="btn-add-stream" onclick="openStreamForm()">+ Добавить поток</button>
         </div>
         <div id="streams-table" class="streams-table">
           <div style="color:var(--text-muted);padding:16px">Загрузка...</div>
@@ -89,7 +95,7 @@
             <option value="market_phase">200 MA + Market Phase</option>
             <option value="combined_a_plus">Combined A+ (5 факторов)</option>
             <option value="ema50_rejection">EMA50 Rejection (2×ATR)</option>
-            <option value="ema50_overstretch">EMA50 Overstretch (3.5×ATR фейд)</option>
+            <option value="ema50_overstretch">EMA50 Overstretch (4.5×ATR фейд)</option>
           </select>
         </div>
         <div class="toolbar-group tf-buttons" id="chart-tf-buttons">
@@ -204,7 +210,7 @@
               <option value="market_phase">200 MA + Market Phase</option>
               <option value="combined_a_plus">Combined A+ (5 факторов)</option>
               <option value="ema50_rejection">EMA50 Rejection (2×ATR)</option>
-              <option value="ema50_overstretch">EMA50 Overstretch (3.5×ATR фейд)</option>
+              <option value="ema50_overstretch">EMA50 Overstretch (4.5×ATR фейд)</option>
             </select>
           </label>
           <label>
@@ -287,6 +293,18 @@
         </label>
       </div>
       <div id="agent-log-panels" class="agent-log-grid"></div>
+    </div>
+
+    <!-- Users (admin only) -->
+    <div id="tab-users" class="content">
+      <div class="card">
+        <div class="card-title card-title-row">
+          <span>Пользователи</span>
+          <button class="btn-primary" onclick="openUserForm()">+ Добавить пользователя</button>
+        </div>
+        <div id="users-table"></div>
+        <div id="user-form-wrap" class="stream-form-wrap" hidden></div>
+      </div>
     </div>
 
   </div><!-- .main -->

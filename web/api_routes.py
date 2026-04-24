@@ -1,26 +1,71 @@
 import json
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional
 
 from core.agent_registry import registry
 from core.event_bus import bus
 from core.events import Event, EventType
+import auth
 
 router = APIRouter(prefix="/api")
+
+
+# ──────────────────────────── Auth dependencies ───────────────────
+
+_bearer = HTTPBearer(auto_error=False)
+
+
+def get_current_user(
+    creds: Optional[HTTPAuthorizationCredentials] = Depends(_bearer),
+) -> auth.UserRecord:
+    if creds is None or not creds.credentials:
+        raise HTTPException(status_code=401, detail="Требуется авторизация")
+    user = auth.user_from_token(creds.credentials)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Недействительный токен")
+    return user
+
+
+def require_admin(user: auth.UserRecord = Depends(get_current_user)) -> auth.UserRecord:
+    if user.role != auth.ROLE_ADMIN:
+        raise HTTPException(status_code=403, detail="Требуются права администратора")
+    return user
+
+
+# ──────────────────────────── Auth endpoints ──────────────────────
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+@router.post("/auth/login")
+async def login(req: LoginRequest):
+    user = auth.registry.verify_password(req.username, req.password)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Неверный логин или пароль")
+    token = auth.create_access_token(user.username, user.role)
+    return {"token": token, "user": user.to_public()}
+
+
+@router.get("/auth/me")
+async def me(user: auth.UserRecord = Depends(get_current_user)):
+    return {"user": user.to_public()}
 
 
 # ──────────────────────────── Agents ──────────────────────────────
 
 @router.get("/agents")
-async def get_agents():
+async def get_agents(user: auth.UserRecord = Depends(get_current_user)):
     return {"agents": registry.get_all_statuses()}
 
 
 # ──────────────────────────── Account ─────────────────────────────
 
 @router.get("/account")
-async def get_account():
+async def get_account(user: auth.UserRecord = Depends(get_current_user)):
     try:
         from market_data_cache import cache
         info = cache.get_account_info()
@@ -40,7 +85,7 @@ async def get_account():
 # ──────────────────────────── Positions ───────────────────────────
 
 @router.get("/positions")
-async def get_positions():
+async def get_positions(user: auth.UserRecord = Depends(get_current_user)):
     try:
         import MetaTrader5 as mt5
         positions = mt5.positions_get()
@@ -66,7 +111,8 @@ async def get_positions():
 # ──────────────────────────── History ─────────────────────────────
 
 @router.get("/history")
-async def get_history(days: int = 1):
+async def get_history(days: int = 1,
+                      user: auth.UserRecord = Depends(get_current_user)):
     try:
         from history import History
         h = History()
@@ -86,7 +132,8 @@ async def get_history(days: int = 1):
 # ──────────────────────────── Candles (OHLCV) ────────────────────
 
 @router.get("/candles")
-async def get_candles(symbol: str, timeframe: str = "H1", bars: int = 500):
+async def get_candles(symbol: str, timeframe: str = "H1", bars: int = 500,
+                      user: auth.UserRecord = Depends(get_current_user)):
     try:
         import MetaTrader5 as mt5
         tf_map = {
@@ -129,7 +176,7 @@ async def get_candles(symbol: str, timeframe: str = "H1", bars: int = 500):
 
 
 @router.get("/symbols")
-async def get_symbols():
+async def get_symbols(user: auth.UserRecord = Depends(get_current_user)):
     from settings import Dictionary
     return {"symbols": list(Dictionary.symbolTradingStatus.keys())}
 
@@ -179,7 +226,8 @@ def _default_signal(row):
 
 
 @router.get("/indicators")
-async def get_indicators(symbol: str, timeframe: str = "H1", strategy: str = "default", bars: int = 500):
+async def get_indicators(symbol: str, timeframe: str = "H1", strategy: str = "default", bars: int = 500,
+                         user: auth.UserRecord = Depends(get_current_user)):
     try:
         import math
         import MetaTrader5 as mt5
@@ -284,7 +332,8 @@ async def get_indicators(symbol: str, timeframe: str = "H1", strategy: str = "de
 # ──────────────────────────── Events ──────────────────────────────
 
 @router.get("/events")
-async def get_events(event_type: Optional[str] = None, limit: int = 50):
+async def get_events(event_type: Optional[str] = None, limit: int = 50,
+                     user: auth.UserRecord = Depends(get_current_user)):
     events = bus.get_recent_events(event_type=event_type, limit=limit)
     return {"events": [e.to_dict() for e in events]}
 
@@ -297,7 +346,8 @@ class TradingStatusRequest(BaseModel):
 
 
 @router.post("/trading/status")
-async def set_trading_status(req: TradingStatusRequest):
+async def set_trading_status(req: TradingStatusRequest,
+                             admin: auth.UserRecord = Depends(require_admin)):
     from settings import Dictionary
     if req.symbol not in Dictionary.symbolTradingStatus:
         raise HTTPException(status_code=404, detail=f"Символ {req.symbol} не найден")
@@ -311,7 +361,7 @@ async def set_trading_status(req: TradingStatusRequest):
 
 
 @router.get("/trading/status")
-async def get_trading_status():
+async def get_trading_status(user: auth.UserRecord = Depends(get_current_user)):
     from settings import Dictionary
     return {"status": Dictionary.symbolTradingStatus}
 
@@ -319,7 +369,7 @@ async def get_trading_status():
 # ──────────────────────────── Active strategy ────────────────────
 
 @router.get("/active_strategy")
-async def get_active_strategy():
+async def get_active_strategy(user: auth.UserRecord = Depends(get_current_user)):
     from settings import GlobalValues, TF_REVERSE
     return {
         "strategy":  GlobalValues.active_strategy,
@@ -375,14 +425,15 @@ def _tf_to_int(tf_str: str) -> int:
 
 
 @router.get("/streams")
-async def list_streams():
+async def list_streams(user: auth.UserRecord = Depends(get_current_user)):
     import streams as streams_mod
     return {"streams": [s.to_dict() for s in streams_mod.registry.all()],
             "max": streams_mod.MAX_STREAMS}
 
 
 @router.post("/streams")
-async def create_stream(req: StreamCreateRequest):
+async def create_stream(req: StreamCreateRequest,
+                        admin: auth.UserRecord = Depends(require_admin)):
     import streams as streams_mod
     _validate_symbol(req.symbol)
     tf = _tf_to_int(req.timeframe)
@@ -407,7 +458,8 @@ async def create_stream(req: StreamCreateRequest):
 
 
 @router.patch("/streams/{stream_id}")
-async def update_stream(stream_id: str, req: StreamUpdateRequest):
+async def update_stream(stream_id: str, req: StreamUpdateRequest,
+                        admin: auth.UserRecord = Depends(require_admin)):
     import streams as streams_mod
     fields = req.model_dump(exclude_unset=True, exclude_none=True)
     if "symbol" in fields:
@@ -425,7 +477,8 @@ async def update_stream(stream_id: str, req: StreamUpdateRequest):
 
 
 @router.delete("/streams/{stream_id}")
-async def delete_stream(stream_id: str):
+async def delete_stream(stream_id: str,
+                        admin: auth.UserRecord = Depends(require_admin)):
     import streams as streams_mod
     if not streams_mod.registry.delete(stream_id):
         raise HTTPException(status_code=404, detail=f"Поток {stream_id} не найден")
@@ -460,7 +513,8 @@ class BacktestRequest(BaseModel):
 
 
 @router.post("/backtest")
-async def run_backtest(req: BacktestRequest):
+async def run_backtest(req: BacktestRequest,
+                       user: auth.UserRecord = Depends(get_current_user)):
     await bus.publish(Event(
         type=EventType.BACKTEST_STARTED,
         source="api",
@@ -491,10 +545,65 @@ class ClosePositionRequest(BaseModel):
 
 
 @router.post("/position/close")
-async def close_position(req: ClosePositionRequest):
+async def close_position(req: ClosePositionRequest,
+                         admin: auth.UserRecord = Depends(require_admin)):
     await bus.publish(Event(
         type=EventType.ORDER_CLOSE_REQUEST,
         source="api",
         payload={"ticket": req.ticket, "symbol": req.symbol, "reason": "manual_api"}
     ))
     return {"ok": True, "ticket": req.ticket}
+
+
+# ──────────────────────────── Users (admin only) ──────────────────
+
+class UserCreateRequest(BaseModel):
+    username: str
+    password: str
+    role: str = "user"
+
+
+class UserUpdateRequest(BaseModel):
+    password: Optional[str] = None
+    role: Optional[str] = None
+
+
+@router.get("/users")
+async def list_users(admin: auth.UserRecord = Depends(require_admin)):
+    return {"users": [u.to_public() for u in auth.registry.all()]}
+
+
+@router.post("/users")
+async def create_user(req: UserCreateRequest,
+                      admin: auth.UserRecord = Depends(require_admin)):
+    try:
+        rec = auth.registry.create(req.username, req.password, req.role)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True, "user": rec.to_public()}
+
+
+@router.patch("/users/{username}")
+async def update_user(username: str, req: UserUpdateRequest,
+                      admin: auth.UserRecord = Depends(require_admin)):
+    try:
+        rec = auth.registry.update(username, password=req.password, role=req.role)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Пользователь {username} не найден")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True, "user": rec.to_public()}
+
+
+@router.delete("/users/{username}")
+async def delete_user(username: str,
+                      admin: auth.UserRecord = Depends(require_admin)):
+    if username.lower() == admin.username.lower():
+        raise HTTPException(status_code=400, detail="Нельзя удалить самого себя")
+    try:
+        ok = auth.registry.delete(username)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not ok:
+        raise HTTPException(status_code=404, detail=f"Пользователь {username} не найден")
+    return {"ok": True}

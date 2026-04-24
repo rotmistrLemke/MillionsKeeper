@@ -1,3 +1,40 @@
+// ─── Auth: bootstrap ──────────────────────────────────────────────
+// Если токена нет — сразу уходим на /login. Иначе оставляем его в
+// памяти для заголовка Authorization и WS-auth.
+const AUTH_TOKEN = localStorage.getItem('mk_token');
+let AUTH_USER = null;
+try { AUTH_USER = JSON.parse(localStorage.getItem('mk_user') || 'null'); } catch {}
+
+if (!AUTH_TOKEN) {
+  window.location.replace('/login');
+}
+
+function isAdmin() {
+  return AUTH_USER && AUTH_USER.role === 'admin';
+}
+
+function logout() {
+  localStorage.removeItem('mk_token');
+  localStorage.removeItem('mk_user');
+  window.location.replace('/login');
+}
+
+// Обёртка fetch — автоматически добавляет Authorization и
+// редиректит на /login при 401.
+const _rawFetch = window.fetch.bind(window);
+window.fetch = async function(input, init) {
+  init = init || {};
+  init.headers = new Headers(init.headers || {});
+  if (AUTH_TOKEN && !init.headers.has('Authorization')) {
+    init.headers.set('Authorization', 'Bearer ' + AUTH_TOKEN);
+  }
+  const res = await _rawFetch(input, init);
+  if (res.status === 401) {
+    logout();
+  }
+  return res;
+};
+
 // ─── Strategy Metadata ────────────────────────────────────────────
 const STRATEGY_META = {
   default: {
@@ -389,11 +426,11 @@ const STRATEGY_META = {
     ],
   },
   ema50_overstretch: {
-    name: 'EMA50 Overstretch (3.5×ATR фейд)',
+    name: 'EMA50 Overstretch (4.5×ATR фейд)',
     desc: [
       'Контртренд: фейдим перерастяжение цены от EMA50 в EMA-контексте.',
-      '<b>SELL:</b> EMA50 &gt; EMA200 и закрытие ≥ 3.5×ATR ВЫШЕ EMA50',
-      '<b>BUY:</b> EMA50 &lt; EMA200 и закрытие ≥ 3.5×ATR НИЖЕ EMA50',
+      '<b>SELL:</b> EMA50 &gt; EMA200 и закрытие ≥ 4.5×ATR ВЫШЕ EMA50',
+      '<b>BUY:</b> EMA50 &lt; EMA200 и закрытие ≥ 4.5×ATR НИЖЕ EMA50',
       '<b>Выход:</b> только по установленным SL и TP',
       '<b>Дефолт:</b> SL 1.5×ATR &nbsp; TP 3×ATR (перекрываются из формы)',
       '<b>Таймфрейм:</b> H1 и выше',
@@ -432,6 +469,11 @@ function connect() {
   state.ws.onopen = () => {
     state.connected = true;
     setConnStatus(true);
+    // Первым сообщением отправляем токен — до ответа auth_ok сервер
+    // не принимает команды и не шлёт события.
+    if (AUTH_TOKEN) {
+      state.ws.send(JSON.stringify({ cmd: 'auth', token: AUTH_TOKEN }));
+    }
     if (typeof chartModule !== 'undefined') chartModule.onWsReconnect();
   };
 
@@ -471,6 +513,26 @@ function handleMessage(msg) {
   const { msg_type, data } = msg;
 
   if (msg_type === 'ping') return;
+
+  if (msg_type === 'auth_ok') {
+    // Сервер подтвердил токен и пришлёт agents_snapshot следом.
+    if (data && data.user) {
+      AUTH_USER = data.user;
+      localStorage.setItem('mk_user', JSON.stringify(data.user));
+      applyRoleVisibility();
+    }
+    return;
+  }
+
+  if (msg_type === 'auth_error' || msg_type === 'auth_required') {
+    logout();
+    return;
+  }
+
+  if (msg_type === 'forbidden') {
+    alert((data && data.error) || 'Действие запрещено для вашей роли');
+    return;
+  }
 
   if (msg_type === 'agents_snapshot') {
     (data.agents || []).forEach(a => { state.agents[a.name] = a; });
@@ -617,10 +679,11 @@ function renderPositions() {
         <div class="pos-meta">Вход: ${p.open_price?.toFixed(5)}</div>
         <div class="pos-meta">SL: ${p.sl?.toFixed(5) || '—'}</div>
         <div class="pos-pnl ${pnlClass}">${sign}${fmt(pnl)}$</div>
-        <button class="btn-close" onclick="closePosition(${p.ticket},'${p.symbol}')">✕ Закрыть</button>
+        <button class="btn-close admin-only" onclick="closePosition(${p.ticket},'${p.symbol}')">✕ Закрыть</button>
       </div>
     `;
   }).join('');
+  applyRoleVisibility();
 }
 
 function closePosition(ticket, symbol) {
@@ -1018,7 +1081,7 @@ const STREAM_STRATEGY_OPTIONS = [
   ['market_phase',         '200 MA + Market Phase'],
   ['combined_a_plus',      'Combined A+ (5 факторов)'],
   ['ema50_rejection',      'EMA50 Rejection (2×ATR)'],
-  ['ema50_overstretch',    'EMA50 Overstretch (3.5×ATR фейд)'],
+  ['ema50_overstretch',    'EMA50 Overstretch (4.5×ATR фейд)'],
 ];
 
 async function loadStreams() {
@@ -1077,7 +1140,7 @@ function renderStreams() {
         <td title="Trailing SL × ATR">${trTxt}</td>
         <td>${depTxt}</td>
         <td><span class="st-state ${stateClass}">${stateLabel}</span></td>
-        <td class="st-actions">
+        <td class="st-actions admin-only">
           <button class="btn-ghost" title="${s.enabled ? 'Выключить' : 'Включить'}" onclick="toggleStream('${s.id}', ${!s.enabled})">${s.enabled ? '⏸' : '▶'}</button>
           <button class="btn-ghost" title="Редактировать" onclick="openStreamForm('${s.id}')">✎</button>
           <button class="btn-ghost btn-danger" title="Удалить" onclick="deleteStream('${s.id}')">✕</button>
@@ -1101,12 +1164,13 @@ function renderStreams() {
           <th>Trail</th>
           <th>Депозит</th>
           <th>Статус</th>
-          <th></th>
+          <th class="admin-only"></th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>
   `;
+  applyRoleVisibility();
 }
 
 function escapeHtml(s) {
@@ -2337,11 +2401,182 @@ function switchTab(name) {
   else chartModule.deactivate();
 }
 
+// ─── Role-based visibility & auth bindings ────────────────────────
+function applyRoleVisibility() {
+  const admin = isAdmin();
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = admin ? '' : 'none';
+  });
+  const nameEl = document.getElementById('user-name');
+  const roleEl = document.getElementById('user-role');
+  if (nameEl && AUTH_USER) nameEl.textContent = AUTH_USER.username;
+  if (roleEl && AUTH_USER) {
+    roleEl.textContent = admin ? 'admin' : 'user';
+    roleEl.classList.toggle('is-admin', admin);
+  }
+}
+
+// ─── Users tab (admin only) ───────────────────────────────────────
+async function loadUsers() {
+  try {
+    const r = await fetch('/api/users');
+    if (!r.ok) return;
+    const d = await r.json();
+    state.users = d.users || [];
+    renderUsers();
+  } catch {}
+}
+
+function renderUsers() {
+  const box = document.getElementById('users-table');
+  if (!box) return;
+  const users = state.users || [];
+  if (!users.length) {
+    box.innerHTML = '<div style="color:var(--text-muted);padding:16px">Нет пользователей</div>';
+    return;
+  }
+  const rows = users.map(u => {
+    const isSelf = AUTH_USER && u.username === AUTH_USER.username;
+    return `
+      <tr>
+        <td class="st-name">${escapeHtml(u.username)}</td>
+        <td><span class="st-state ${u.role === 'admin' ? 'is-on' : 'is-off'}">${u.role}</span></td>
+        <td style="color:var(--text-muted);font-size:11.5px">${(u.created_at||'').substring(0,10)}</td>
+        <td class="st-actions">
+          <button class="btn-ghost" title="Сменить пароль" onclick="changeUserPassword('${escapeHtml(u.username)}')">🔑</button>
+          <button class="btn-ghost" title="Сменить роль" onclick="toggleUserRole('${escapeHtml(u.username)}', '${u.role}')">${u.role === 'admin' ? '▼' : '▲'}</button>
+          <button class="btn-ghost btn-danger" title="${isSelf ? 'Нельзя удалить себя' : 'Удалить'}" ${isSelf ? 'disabled' : ''} onclick="deleteUser('${escapeHtml(u.username)}')">✕</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  box.innerHTML = `
+    <table class="streams-grid">
+      <thead>
+        <tr>
+          <th>Логин</th>
+          <th>Роль</th>
+          <th>Создан</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function openUserForm() {
+  const wrap = document.getElementById('user-form-wrap');
+  if (!wrap) return;
+  wrap.hidden = false;
+  wrap.innerHTML = `
+    <div class="stream-form">
+      <div class="stream-form-title">Новый пользователь</div>
+      <div class="bt-form">
+        <label>Логин
+          <input id="uf-username" type="text" style="width:160px">
+        </label>
+        <label>Пароль
+          <input id="uf-password" type="password" style="width:160px">
+        </label>
+        <label>Роль
+          <select id="uf-role">
+            <option value="user" selected>user</option>
+            <option value="admin">admin</option>
+          </select>
+        </label>
+        <button class="btn-primary" onclick="submitUserForm()">Создать</button>
+        <button class="btn-ghost btn-ghost-lg" onclick="closeUserForm()">Отмена</button>
+        <span id="uf-error" class="sf-error"></span>
+      </div>
+    </div>
+  `;
+  setTimeout(() => document.getElementById('uf-username')?.focus(), 50);
+}
+
+function closeUserForm() {
+  const wrap = document.getElementById('user-form-wrap');
+  if (wrap) { wrap.hidden = true; wrap.innerHTML = ''; }
+}
+
+async function submitUserForm() {
+  const body = {
+    username: document.getElementById('uf-username').value.trim(),
+    password: document.getElementById('uf-password').value,
+    role:     document.getElementById('uf-role').value,
+  };
+  const errEl = document.getElementById('uf-error');
+  errEl.textContent = '';
+  try {
+    const r = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      errEl.textContent = d.detail || 'Ошибка';
+      return;
+    }
+    closeUserForm();
+    await loadUsers();
+  } catch (e) { errEl.textContent = 'Сеть недоступна'; }
+}
+
+async function changeUserPassword(username) {
+  const newPw = prompt(`Новый пароль для ${username} (минимум 6 символов):`);
+  if (!newPw) return;
+  const r = await fetch(`/api/users/${encodeURIComponent(username)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: newPw }),
+  });
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    alert(d.detail || 'Ошибка смены пароля');
+    return;
+  }
+  await loadUsers();
+}
+
+async function toggleUserRole(username, currentRole) {
+  const newRole = currentRole === 'admin' ? 'user' : 'admin';
+  if (!confirm(`Сменить роль ${username}: ${currentRole} → ${newRole}?`)) return;
+  const r = await fetch(`/api/users/${encodeURIComponent(username)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: newRole }),
+  });
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    alert(d.detail || 'Ошибка смены роли');
+    return;
+  }
+  await loadUsers();
+}
+
+async function deleteUser(username) {
+  if (!confirm(`Удалить пользователя ${username}?`)) return;
+  const r = await fetch(`/api/users/${encodeURIComponent(username)}`, { method: 'DELETE' });
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    alert(d.detail || 'Ошибка удаления');
+    return;
+  }
+  await loadUsers();
+}
+
 // ─── Init ─────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  applyRoleVisibility();
+  document.getElementById('btn-logout')?.addEventListener('click', logout);
+
   // Tabs
   document.querySelectorAll('.tab').forEach(t => {
-    t.addEventListener('click', () => switchTab(t.dataset.tab));
+    t.addEventListener('click', () => {
+      switchTab(t.dataset.tab);
+      if (t.dataset.tab === 'users' && isAdmin()) loadUsers();
+    });
   });
 
   // Backtest

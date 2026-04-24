@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MillionsKeeper — Вход</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: var(--bg);
+    }
+    .login-card {
+      width: 360px;
+      padding: 28px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+    }
+    .login-title {
+      margin: 0 0 18px;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .login-sub {
+      margin: 0 0 20px;
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+    .login-field { margin-bottom: 12px; }
+    .login-field label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .login-field input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 9px 12px;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 13.5px;
+    }
+    .login-field input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .login-submit {
+      width: 100%;
+      margin-top: 8px;
+    }
+    .login-error {
+      margin-top: 10px;
+      padding: 8px 10px;
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.4);
+      border-radius: 6px;
+      color: #ef4444;
+      font-size: 12.5px;
+      display: none;
+    }
+    .login-error.active { display: block; }
+  </style>
+</head>
+<body>
+  <form class="login-card" id="login-form" autocomplete="on">
+    <h1 class="login-title">MillionsKeeper</h1>
+    <p class="login-sub">Войдите в аккаунт, чтобы продолжить.</p>
+    <div class="login-field">
+      <label for="username">Логин</label>
+      <input id="username" type="text" autocomplete="username" required autofocus>
+    </div>
+    <div class="login-field">
+      <label for="password">Пароль</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+    </div>
+    <button class="btn-primary login-submit" type="submit">Войти</button>
+    <div class="login-error" id="login-error"></div>
+  </form>
+
+  <script>
+    // Если уже залогинены — уходим на главную.
+    const existingToken = localStorage.getItem('mk_token');
+    if (existingToken) {
+      fetch('/api/auth/me', {
+        headers: { Authorization: 'Bearer ' + existingToken },
+      }).then(r => {
+        if (r.ok) window.location.replace('/');
+      }).catch(() => {});
+    }
+
+    const form = document.getElementById('login-form');
+    const errEl = document.getElementById('login-error');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errEl.classList.remove('active');
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      try {
+        const r = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password }),
+        });
+        const d = await r.json();
+        if (!r.ok) {
+          errEl.textContent = d.detail || 'Ошибка входа';
+          errEl.classList.add('active');
+          return;
+        }
+        localStorage.setItem('mk_token', d.token);
+        localStorage.setItem('mk_user', JSON.stringify(d.user));
+        window.location.replace('/');
+      } catch (err) {
+        errEl.textContent = 'Сеть недоступна';
+        errEl.classList.add('active');
+      }
+    });
+  </script>
+</body>
+</html>

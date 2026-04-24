@@ -5,5 +5,7 @@ account*
 settings*
 active_state.json
 streams.json
+users.json
+.jwt_secret
 # Игнорировать кэш Python
 __pycache__/

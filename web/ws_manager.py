@@ -6,6 +6,7 @@ from typing import Set
 
 from fastapi import WebSocket
 from core.events import Event, EventType
+import auth
 
 logger = logging.getLogger("WSManager")
 
@@ -13,25 +14,44 @@ logger = logging.getLogger("WSManager")
 class WebSocketManager:
     """
     Управляет WebSocket-соединениями.
-    Ретранслирует события с шины EventBus всем подключённым клиентам.
+    Ретранслирует события с шины EventBus всем авторизованным клиентам.
     """
 
     def __init__(self):
         self._connections: Set[WebSocket] = set()
+        # Авторизованные сокеты — только им уходят события и снапшот.
+        self._auth_by_ws: dict[WebSocket, auth.UserRecord] = {}
 
     async def connect(self, ws: WebSocket):
         await ws.accept()
         self._connections.add(ws)
         logger.info(f"WS client connected. Total: {len(self._connections)}")
-        # Отправляем начальный снепшот состояния
-        await self._send_snapshot(ws)
+        # Снапшот НЕ отправляем до авторизации — клиент шлёт {cmd:'auth',token}
+        # первым сообщением, после чего мы вызываем authenticate().
 
     def disconnect(self, ws: WebSocket):
         self._connections.discard(ws)
+        self._auth_by_ws.pop(ws, None)
         logger.info(f"WS client disconnected. Total: {len(self._connections)}")
 
+    async def authenticate(self, ws: WebSocket, token: str) -> bool:
+        user = auth.user_from_token(token or "")
+        if user is None:
+            await self.send_to(ws, "auth_error", {"error": "Недействительный токен"})
+            return False
+        self._auth_by_ws[ws] = user
+        await self.send_to(ws, "auth_ok", {"user": user.to_public()})
+        await self._send_snapshot(ws)
+        return True
+
+    def user_of(self, ws: WebSocket):
+        return self._auth_by_ws.get(ws)
+
+    def is_authenticated(self, ws: WebSocket) -> bool:
+        return ws in self._auth_by_ws
+
     async def broadcast(self, msg_type: str, data: dict):
-        if not self._connections:
+        if not self._auth_by_ws:
             return
         msg = json.dumps({
             "msg_type": msg_type,
@@ -39,12 +59,14 @@ class WebSocketManager:
             "data": data,
         }, default=str)
         dead = set()
-        for ws in list(self._connections):
+        for ws in list(self._auth_by_ws.keys()):
             try:
                 await ws.send_text(msg)
             except Exception:
                 dead.add(ws)
-        self._connections -= dead
+        for ws in dead:
+            self._auth_by_ws.pop(ws, None)
+            self._connections.discard(ws)
 
     async def send_to(self, ws: WebSocket, msg_type: str, data: dict):
         try:

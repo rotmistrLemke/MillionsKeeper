@@ -38,7 +38,14 @@ async def shutdown():
 
 @app.get("/")
 async def index():
+    # Проверку токена делает клиент: если в localStorage нет валидного mk_token,
+    # app.js сразу редиректит на /login.
     return FileResponse(str(static_dir / "index.html"))
+
+
+@app.get("/login")
+async def login_page():
+    return FileResponse(str(static_dir / "login.html"))
 
 
 @app.websocket("/ws")
@@ -69,6 +76,29 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
         return
 
     action = cmd.get("cmd")
+
+    # Единственная команда, доступная без авторизации — сама аутентификация.
+    if action == "auth":
+        await ws_manager.authenticate(ws, cmd.get("token") or "")
+        return
+
+    if not ws_manager.is_authenticated(ws):
+        await ws_manager.send_to(ws, "auth_required", {
+            "error": "Требуется авторизация перед любыми командами"
+        })
+        return
+
+    # Команды, которые может выполнять только admin.
+    ADMIN_ONLY = {"close_position", "set_active_strategy", "set_trading_status"}
+    if action in ADMIN_ONLY:
+        import auth as auth_mod
+        user = ws_manager.user_of(ws)
+        if user is None or user.role != auth_mod.ROLE_ADMIN:
+            await ws_manager.send_to(ws, "forbidden", {
+                "cmd": action,
+                "error": "Требуются права администратора"
+            })
+            return
 
     if action == "get_agents":
         from core.agent_registry import registry

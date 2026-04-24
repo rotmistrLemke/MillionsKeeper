@@ -1165,6 +1165,29 @@ tr:hover td { background: var(--surface2); }
   font-weight: 600;
   letter-spacing: 0.2px;
 }
+.user-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 14px;
+  padding-left: 14px;
+  border-left: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.user-info #user-name { color: var(--text); font-weight: 500; }
+.user-role {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: rgba(148,163,184,0.15);
+  color: var(--text-muted);
+}
+.user-role.is-admin {
+  background: rgba(251,191,36,0.15);
+  color: #fbbf24;
+}
+#btn-logout { padding: 2px 9px; font-size: 14px; }
 .stream-form-wrap { margin-top: 12px; }
 .stream-form {
   background: var(--bg-panel);

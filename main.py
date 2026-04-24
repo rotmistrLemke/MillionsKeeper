@@ -52,6 +52,10 @@ async def main():
     import active_state
     active_state.load()
 
+    # ── Авторизация: загрузка пользователей ──────────────────────
+    import auth
+    auth.load()
+
     # ── Торговые потоки (мульти-поточная торговля) ───────────────
     import streams
     streams.load()
