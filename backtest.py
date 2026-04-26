@@ -1,5 +1,5 @@
 """
-Единый бэктест-движок MillionsKeeper.
+Единый бэктест-движок TradingHouse.
 
 Поддерживает:
   - Основную стратегию MA + MACD + RSI (strategy="default")
@@ -852,7 +852,7 @@ def main():
 
     all_strategies = ['default'] + list(STRATEGIES.keys())
 
-    parser = argparse.ArgumentParser(description='Бэктест торговых стратегий MillionsKeeper')
+    parser = argparse.ArgumentParser(description='Бэктест торговых стратегий TradingHouse')
     parser.add_argument('--strategy', default='default',
                         choices=all_strategies + ['all'],
                         help='Стратегия: default, all или имя из strategies/')

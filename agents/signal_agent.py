@@ -45,7 +45,7 @@ class SignalAgent(BaseAgent):
             elif combined == "SELL":
                 self.metrics["sell_signals"] = self.metrics.get("sell_signals", 0) + 1
         else:
-            # Та же логика, что и в alligatorBot.checkOpen
+            # Legacy MA + MACD + RSI логика для default-стратегии
             if (signal_ma == "BUY" and signal_critical == "BUY"
                     and macd_signal == "BUY" and rsi_signal == "BUY"):
                 combined = "BUY"

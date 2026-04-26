@@ -13,7 +13,7 @@ from core.event_bus import bus
 
 logger = logging.getLogger("WebApp")
 
-app = FastAPI(title="MillionsKeeper Dashboard", version="1.0.0")
+app = FastAPI(title="TradingHouse Dashboard", version="1.0.0")
 
 # REST API
 app.include_router(api_router)
@@ -38,7 +38,7 @@ async def shutdown():
 
 @app.get("/")
 async def index():
-    # Проверку токена делает клиент: если в localStorage нет валидного mk_token,
+    # Проверку токена делает клиент: если в localStorage нет валидного th_token,
     # app.js сразу редиректит на /login.
     return FileResponse(str(static_dir / "index.html"))
 

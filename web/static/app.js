@@ -1,9 +1,9 @@
 // ─── Auth: bootstrap ──────────────────────────────────────────────
 // Если токена нет — сразу уходим на /login. Иначе оставляем его в
 // памяти для заголовка Authorization и WS-auth.
-const AUTH_TOKEN = localStorage.getItem('mk_token');
+const AUTH_TOKEN = localStorage.getItem('th_token');
 let AUTH_USER = null;
-try { AUTH_USER = JSON.parse(localStorage.getItem('mk_user') || 'null'); } catch {}
+try { AUTH_USER = JSON.parse(localStorage.getItem('th_user') || 'null'); } catch {}
 
 if (!AUTH_TOKEN) {
   window.location.replace('/login');
@@ -14,8 +14,8 @@ function isAdmin() {
 }
 
 function logout() {
-  localStorage.removeItem('mk_token');
-  localStorage.removeItem('mk_user');
+  localStorage.removeItem('th_token');
+  localStorage.removeItem('th_user');
   window.location.replace('/login');
 }
 
@@ -518,7 +518,7 @@ function handleMessage(msg) {
     // Сервер подтвердил токен и пришлёт agents_snapshot следом.
     if (data && data.user) {
       AUTH_USER = data.user;
-      localStorage.setItem('mk_user', JSON.stringify(data.user));
+      localStorage.setItem('th_user', JSON.stringify(data.user));
       applyRoleVisibility();
     }
     return;

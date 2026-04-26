@@ -1,13 +1,12 @@
 """
-main.py — Точка входа с мульти-агентной архитектурой + Web Dashboard.
+main.py — Точка входа TradingHouse: мульти-агентная архитектура + Web Dashboard.
 
 Запуск:
     python main.py
 
 Web Dashboard доступен по адресу: http://localhost:8080
-
-Также поддерживается запуск только торгового бота (без агентов):
-    python alligatorBot.py
+Учётные данные первого админа задаются через env ADMIN_PASSWORD; если не
+задан — генерируется случайный пароль и печатается в лог при первом старте.
 """
 import asyncio
 import logging
