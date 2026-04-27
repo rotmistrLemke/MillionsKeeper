@@ -156,13 +156,13 @@ C:\Caddy\caddy.exe version
 не попадёт):
 
 ```
-ACCOUNT_NUMBER=12345678
-ACCOUNT_PASSWORD=ВашПарольMT5
-ACCOUNT_SERVER=YourBroker-Demo
+MT5_LOGIN=12345678
+MT5_PASSWORD=ВашПарольMT5
+MT5_SERVER=YourBroker-Demo
 ```
 
-Имена переменных читаются из `account.py` — посмотрите этот файл, чтобы
-выяснить точные ключи в вашей версии.
+`MT5_LOGIN` — число счёта без кавычек. Имена ключей фиксированы и
+читаются в `account.py`.
 
 ### 3.2 Caddyfile
 
