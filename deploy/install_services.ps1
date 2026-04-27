@@ -18,6 +18,9 @@ $PythonExe     = "C:\Python311\python.exe"  # путь к python.exe
 $AppPort       = "8080"                     # порт бота (внутренний, локальный)
 $Domain        = "trade.example.com"        # ваш домен (для TRUSTED_HOSTS)
 $AdminPassword = "ИЗМЕНИ_МЕНЯ"              # пароль admin при первом запуске
+# Путь к terminal64.exe — обязателен в режиме сервиса, иначе IPC к MT5 не
+# поднимается (LocalSystem ≠ RDP-сессия). Найдите свой через `where /R "C:\Program Files" terminal64.exe`.
+$Mt5Path       = "C:\Program Files\MetaTrader 5\terminal64.exe"
 $CaddyExe      = "C:\Caddy\caddy.exe"
 $Caddyfile     = "C:\Caddy\Caddyfile"
 # ──────────────────────────────────────────────────────────────────────
@@ -43,6 +46,7 @@ Test-Command "nssm"
 
 if (-not (Test-Path $PythonExe))   { throw "Python не найден: $PythonExe" }
 if (-not (Test-Path "$AppRoot\main.py")) { throw "main.py не найден в $AppRoot" }
+if (-not (Test-Path $Mt5Path))     { throw "MT5 terminal не найден: $Mt5Path (см. `$Mt5Path в шапке скрипта)" }
 if (-not (Test-Path $CaddyExe))    { throw "caddy.exe не найден: $CaddyExe" }
 if (-not (Test-Path $Caddyfile))   { throw "Caddyfile не найден: $Caddyfile" }
 
@@ -68,11 +72,14 @@ Remove-IfInstalled "TradingHouse"
 & nssm set TradingHouse Start SERVICE_AUTO_START
 
 # Env: бот слушает только локальный интерфейс, Caddy проксирует извне.
+# MT5_PATH позволяет initialize() запускать терминал в той же сессии,
+# что и сервис — без него получим No IPC connection.
 & nssm set TradingHouse AppEnvironmentExtra `
     "HOST=127.0.0.1" `
     "PORT=$AppPort" `
     "TRUSTED_HOSTS=$Domain,localhost,127.0.0.1" `
-    "ADMIN_PASSWORD=$AdminPassword"
+    "ADMIN_PASSWORD=$AdminPassword" `
+    "MT5_PATH=$Mt5Path"
 
 # Логи stdout/stderr в файл с ротацией.
 $LogDir = "$AppRoot\logs"
