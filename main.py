@@ -43,11 +43,15 @@ async def main():
     from settings import GlobalValues
 
     # ── Авторизация MT5 ──────────────────────────────────────────
+    # ВАЖНО: имя локальной переменной — `mt5_auth`, а не `auth`. Иначе её
+    # затрёт `import auth` ниже, MT5Auth-объект уйдёт в GC, его __del__
+    # вызовет mt5.shutdown() и порвёт IPC. Все агенты получат
+    # «-10004 No IPC connection».
     logger.info("Подключение к MT5...")
     import account as acc_module
     from authenticator import MT5Auth
-    auth = MT5Auth(acc_module.Account.account)
-    auth.login()
+    mt5_auth = MT5Auth(acc_module.Account.account)
+    mt5_auth.login()
 
     # ── EventBus ─────────────────────────────────────────────────
     from core.event_bus import bus
