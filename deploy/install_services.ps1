@@ -50,15 +50,27 @@ if (-not (Test-Path $Mt5Path))     { throw "MT5 terminal не найден: $Mt5
 if (-not (Test-Path $CaddyExe))    { throw "caddy.exe не найден: $CaddyExe" }
 if (-not (Test-Path $Caddyfile))   { throw "Caddyfile не найден: $Caddyfile" }
 
-# NSSM пишет stderr-сообщения в UTF-16 — глушим оба стрима через Out-Null,
-# а наличие сервиса проверяем заранее через Get-Service, чтобы не было
-# "Can't open service!" при первом запуске.
-function Remove-IfInstalled([string]$Name) {
-    if (Get-Service $Name -ErrorAction SilentlyContinue) {
-        Write-Host "  Удаляю существующий сервис $Name..." -ForegroundColor Yellow
-        & nssm stop $Name 2>&1 | Out-Null
-        & nssm remove $Name confirm 2>&1 | Out-Null
+# NSSM пишет stderr в UTF-16 и любая такая строка с $ErrorActionPreference=Stop
+# превращается в NativeCommandError и роняет скрипт. Invoke-Nssm временно
+# выключает Stop вокруг nssm-вызова и заглушает все стримы.
+function Invoke-Nssm {
+    $old = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & nssm @args *>$null
+    } finally {
+        $ErrorActionPreference = $old
     }
+}
+
+function Remove-IfInstalled([string]$Name) {
+    $svc = Get-Service $Name -ErrorAction SilentlyContinue
+    if (-not $svc) { return }
+    Write-Host "  Удаляю существующий сервис $Name..." -ForegroundColor Yellow
+    if ($svc.Status -eq 'Running') {
+        Invoke-Nssm stop $Name
+    }
+    Invoke-Nssm remove $Name confirm
 }
 
 # ── 1. TradingHouse сервис ───────────────────────────────────────────
