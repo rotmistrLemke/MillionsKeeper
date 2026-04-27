@@ -46,12 +46,20 @@ if (-not (Test-Path "$AppRoot\main.py")) { throw "main.py не найден в $
 if (-not (Test-Path $CaddyExe))    { throw "caddy.exe не найден: $CaddyExe" }
 if (-not (Test-Path $Caddyfile))   { throw "Caddyfile не найден: $Caddyfile" }
 
+# NSSM пишет stderr-сообщения в UTF-16 — глушим оба стрима через Out-Null,
+# а наличие сервиса проверяем заранее через Get-Service, чтобы не было
+# "Can't open service!" при первом запуске.
+function Remove-IfInstalled([string]$Name) {
+    if (Get-Service $Name -ErrorAction SilentlyContinue) {
+        Write-Host "  Удаляю существующий сервис $Name..." -ForegroundColor Yellow
+        & nssm stop $Name 2>&1 | Out-Null
+        & nssm remove $Name confirm 2>&1 | Out-Null
+    }
+}
+
 # ── 1. TradingHouse сервис ───────────────────────────────────────────
 Write-Host "Регистрирую сервис TradingHouse..." -ForegroundColor Cyan
-
-# Если сервис уже стоит — переустановить.
-& nssm stop TradingHouse 2>$null
-& nssm remove TradingHouse confirm 2>$null
+Remove-IfInstalled "TradingHouse"
 
 & nssm install TradingHouse $PythonExe "$AppRoot\main.py"
 & nssm set TradingHouse AppDirectory $AppRoot
@@ -84,9 +92,7 @@ Write-Host "  Запускаю TradingHouse..." -ForegroundColor Yellow
 
 # ── 2. Caddy сервис ──────────────────────────────────────────────────
 Write-Host "Регистрирую сервис Caddy..." -ForegroundColor Cyan
-
-& nssm stop Caddy 2>$null
-& nssm remove Caddy confirm 2>$null
+Remove-IfInstalled "Caddy"
 
 & nssm install Caddy $CaddyExe "run" "--config" $Caddyfile
 & nssm set Caddy AppDirectory (Split-Path $CaddyExe)
