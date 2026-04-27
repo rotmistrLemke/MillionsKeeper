@@ -1,4 +1,4 @@
-# install_services.ps1 — регистрирует TradingHouse и Caddy как Windows-сервисы
+﻿# install_services.ps1 — регистрирует TradingHouse и Caddy как Windows-сервисы
 # через NSSM. Запускать в PowerShell от имени администратора.
 #
 # Перед запуском:
