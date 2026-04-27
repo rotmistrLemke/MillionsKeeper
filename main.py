@@ -4,12 +4,21 @@ main.py — Точка входа TradingHouse: мульти-агентная а
 Запуск:
     python main.py
 
-Web Dashboard доступен по адресу: http://localhost:8080
-Учётные данные первого админа задаются через env ADMIN_PASSWORD; если не
-задан — генерируется случайный пароль и печатается в лог при первом старте.
+Конфигурация через env-переменные:
+    HOST              — bind address (default 127.0.0.1; для production ставим
+                         localhost и публикуем через reverse-proxy)
+    PORT              — порт uvicorn (default 8080)
+    ADMIN_PASSWORD    — пароль первого admin при первом старте; если не задан,
+                         сгенерируется случайный и попадёт в лог один раз
+    JWT_SECRET        — секрет подписи токенов (если не задан, читается/создаётся
+                         в .jwt_secret)
+    TRUSTED_HOSTS     — comma-separated список Host-заголовков, которые сервер
+                         принимает (default: localhost,127.0.0.1)
+    CORS_ORIGINS      — comma-separated список origin-ов для CORS (default: пусто)
 """
 import asyncio
 import logging
+import os
 import sys
 import threading
 import uvicorn
@@ -88,17 +97,20 @@ async def main():
     # ── Web Dashboard ─────────────────────────────────────────────
     from web.app import app as web_app
 
+    host = os.environ.get("HOST", "127.0.0.1")
+    port = int(os.environ.get("PORT", "8080"))
     config = uvicorn.Config(
         web_app,
-        host="0.0.0.0",
-        port=8080,
-        log_level="warning",
+        host=host,
+        port=port,
+        log_level="info",
         loop="asyncio",
+        access_log=False,  # access-логи идут через nginx/Caddy
     )
     server = uvicorn.Server(config)
 
     # ── Запускаем всё вместе ──────────────────────────────────────
-    logger.info("Запуск агентов и Web Dashboard на http://localhost:8080")
+    logger.info(f"Запуск агентов и Web Dashboard на http://{host}:{port}")
     await asyncio.gather(
         bus.run(),
         *[agent.start() for agent in agents],

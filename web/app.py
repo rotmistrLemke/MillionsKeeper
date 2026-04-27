@@ -1,7 +1,10 @@
 import asyncio
 import json
 import logging
+import os
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pathlib import Path
@@ -15,12 +18,45 @@ logger = logging.getLogger("WebApp")
 
 app = FastAPI(title="TradingHouse Dashboard", version="1.0.0")
 
+
+def _csv_env(key: str, default: str = "") -> list[str]:
+    raw = os.environ.get(key, default).strip()
+    return [x.strip() for x in raw.split(",") if x.strip()] if raw else []
+
+
+# TrustedHost — защита от Host-header injection. По умолчанию принимаем только
+# localhost. Для production добавить домен через TRUSTED_HOSTS=mydomain.com,...
+_trusted_hosts = _csv_env("TRUSTED_HOSTS", "localhost,127.0.0.1")
+if _trusted_hosts:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=_trusted_hosts)
+
+# CORS — по умолчанию пусто (запросы идут с того же домена). Если фронт хостится
+# отдельно — указать через CORS_ORIGINS=https://app.example.com,...
+_cors_origins = _csv_env("CORS_ORIGINS")
+if _cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
 # REST API
 app.include_router(api_router)
 
 # Static files
 static_dir = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+
+@app.get("/health")
+async def health():
+    """Health check для reverse-proxy / мониторинга."""
+    return {
+        "status": "ok",
+        "ws_clients": ws_manager.connection_count,
+    }
 
 
 @app.on_event("startup")
