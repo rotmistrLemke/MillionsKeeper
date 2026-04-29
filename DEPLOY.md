@@ -181,58 +181,121 @@ notepad C:\Caddy\Caddyfile
 
 ---
 
-## 4. Регистрация сервисов
+## 4. Caddy (reverse-proxy + HTTPS)
 
-Откройте `C:\TradingHouse\deploy\install_services.ps1` и **отредактируйте
-переменные в начале файла**:
-
-```powershell
-$AppRoot       = "C:\TradingHouse"
-$PythonExe     = "C:\Python311\python.exe"
-$AppPort       = "8080"
-$Domain        = "trade.your-domain.com"
-$AdminPassword = "ВашПарольДляAdmin"   # минимум 6 символов
-```
-
-Запустите:
+Caddy ставим как Windows-сервис через NSSM. Под LocalSystem он работает
+без проблем — ему профиля пользователя не требуется.
 
 ```powershell
 cd C:\TradingHouse\deploy
-PowerShell -ExecutionPolicy Bypass -File .\install_services.ps1
+PowerShell -ExecutionPolicy Bypass -File .\install_caddy.ps1
 ```
 
 Скрипт:
 
-1. Регистрирует `TradingHouse` сервис через NSSM (с env-переменными)
-2. Регистрирует `Caddy` сервис
-3. Открывает порты 80/443 в файрволе
-4. Запускает оба сервиса
-5. Печатает финальную проверку
+1. Регистрирует `Caddy` как Windows-сервис
+2. Открывает 80/443 в файрволе
+3. Запускает Caddy
 
-Проверки после запуска:
+Проверка:
 
 ```powershell
-# Бот напрямую (только с самого сервера):
-curl http://127.0.0.1:8080/health
-# Через Caddy + HTTPS (с любой машины):
-curl https://trade.your-domain.com/health
+nssm status Caddy        # должно быть SERVICE_RUNNING
+curl http://127.0.0.1    # ответит редиректом на HTTPS
 ```
 
-Откройте браузер: `https://trade.your-domain.com` — должна появиться форма
-логина TradingHouse. Войдите как `admin` с паролем из `$AdminPassword`.
+Если Caddy не получает SSL — в `C:\Caddy\logs\caddy.err.log` будет ошибка
+(чаще всего: DNS ещё не распространился, либо Cloudflare с включенным proxy).
 
 ---
 
-## 5. Безопасность
+## 5. TradingHouse как Scheduled Task
 
-### 5.1 Минимально
+**Почему не Windows-сервис:** MT5 хранит настройки и сохранённый счёт в
+`%APPDATA%\Roaming\MetaQuotes`. Сервис под LocalSystem не имеет этого
+профиля — терминал в session 0 запускается без логина и алготрейдинга.
+Возни много, надёжность плохая.
+
+**Решение:** Task Scheduler запускает бота при логине Administrator.
+Бот работает в той же сессии, где открыт MT5 (запущенный из RDP-стартапа).
+Всё работает как при `python main.py` руками, только автоматически.
+
+### 5.1 Подготовка `run_task.ps1`
+
+Откройте `C:\TradingHouse\deploy\run_task.ps1` и **отредактируйте**:
+
+```powershell
+$PythonExe     = "C:\Program Files\Python313\python.exe"   # ваша версия
+$AppPort       = "8080"
+$Domain        = "trade.your-domain.com"
+$AdminPassword = "ВашПарольДляAdmin"
+```
+
+`run_task.ps1` — это wrapper, который Task Scheduler вызовет: он задаёт
+env-переменные и перенаправляет логи в `logs\task.out.log`.
+
+### 5.2 MT5 в автозагрузке
+
+`shell:startup` (вставить эту строку в адресную строку проводника)
+→ положить туда ярлык на `terminal64.exe`. После авто-логина MT5
+запустится первым, бот — следом (через ~3 сек после старта Task).
+
+В MT5 сохраните пароль через **File → Login to Trade Account →
+Save account information**.
+
+### 5.3 Регистрация задачи
+
+```powershell
+cd C:\TradingHouse\deploy
+PowerShell -ExecutionPolicy Bypass -File .\install_task.ps1
+```
+
+Скрипт:
+
+1. Удаляет старый NSSM-сервис `TradingHouse` (если был с прошлой попытки)
+2. Удаляет старую задачу с тем же именем (если была)
+3. Создаёт `Scheduled Task → Trigger: At log on (Administrator)
+   → Run as Administrator (Interactive) → Highest privileges`
+4. Стартует прямо сейчас (не нужно ребутить)
+
+После запуска через ~10 секунд:
+
+```powershell
+curl http://127.0.0.1:8080/health   # бот напрямую (с самого сервера)
+curl https://trade.your-domain.com/health  # через Caddy (с любой машины)
+```
+
+Откройте `https://trade.your-domain.com` — форма логина. Вход: `admin` /
+`$AdminPassword`.
+
+### 5.4 Авто-логин Administrator
+
+Чтобы после ребута сервера бот стартовал без RDP:
+
+```powershell
+PowerShell -ExecutionPolicy Bypass -File C:\TradingHouse\deploy\enable_autologon.ps1
+```
+
+Запросит пароль Administrator. После настройки — после Restart-Computer
+Windows автологинит, MT5 запускается из shell:startup, бот — из Task
+Scheduler.
+
+> ⚠️ **Безопасность:** пароль Administrator хранится в реестре в plain text
+> (Windows ограничение). Это приемлемо только если RDP закрыт от интернета
+> (VPN или whitelist по IP) и пароль длинный/уникальный.
+
+---
+
+## 6. Безопасность
+
+### 6.1 Минимально
 
 - ☑ HTTPS-only (Caddy сам редиректит HTTP → HTTPS)
 - ☑ Бот слушает `127.0.0.1`, наружу не торчит
 - ☑ Пароли хешированы (pbkdf2_sha256), JWT с недельным TTL
 - ☑ В `.gitignore`: `.env`, `users.json`, `.jwt_secret`, `streams.json`
 
-### 5.2 Рекомендую
+### 6.2 Рекомендую
 
 - **RDP только по VPN** или с whitelist по IP. По умолчанию открытый RDP — это
   ежедневные брутфорс-атаки на ваш сервер. Меньше зло — сменить порт RDP с
@@ -242,7 +305,7 @@ curl https://trade.your-domain.com/health
 - **Двухфакторка для регистратора домена** — если перехватят домен, перехватят
   HTTPS.
 
-### 5.3 Что менять регулярно
+### 6.3 Что менять регулярно
 
 - Пароли пользователей — раз в 3 месяца через UI
 - `JWT_SECRET` — раз в год (выйдет в `.jwt_secret`, удалить, перезапустить
@@ -250,9 +313,9 @@ curl https://trade.your-domain.com/health
 
 ---
 
-## 6. Бэкапы
+## 7. Бэкапы
 
-### 6.1 Что бэкапить
+### 7.1 Что бэкапить
 
 - `users.json` — учётные записи
 - `streams.json` — конфигурация потоков
@@ -260,11 +323,11 @@ curl https://trade.your-domain.com/health
 - `.env` — учётка MT5
 - (опционально) `logs/`
 
-### 6.2 Скрипт
+### 7.2 Скрипт
 
 `deploy\backup.ps1` собирает всё в zip-архив с датой и хранит 30 дней.
 
-### 6.3 Регулярный запуск
+### 7.3 Регулярный запуск
 
 ```powershell
 # Создать задачу в Task Scheduler — раз в сутки в 3:00.
@@ -280,39 +343,46 @@ Register-ScheduledTask -TaskName "TradingHouse Backup" -Action $action -Trigger 
 
 ---
 
-## 7. Эксплуатация
+## 8. Эксплуатация
 
-### Управление сервисами
+### Управление ботом (Scheduled Task)
 
 ```powershell
-nssm status   TradingHouse
-nssm restart  TradingHouse
-nssm stop     TradingHouse
-nssm start    TradingHouse
+Get-ScheduledTaskInfo -TaskName TradingHouse   # время последнего запуска и код выхода
+Start-ScheduledTask   -TaskName TradingHouse
+Stop-ScheduledTask    -TaskName TradingHouse
+```
 
+Задача автоматически перезапускает себя при крахе процесса (до 999 попыток
+с интервалом 1 мин — настраивается в `install_task.ps1`).
+
+### Управление Caddy (NSSM-сервис)
+
+```powershell
 nssm status   Caddy
 nssm restart  Caddy
+nssm stop     Caddy
 ```
 
 ### Логи
 
-- Бот:   `C:\TradingHouse\logs\service.out.log`, `service.err.log`
-- Caddy: `C:\Caddy\logs\access.log`, `caddy.out.log`, `caddy.err.log`
+- Бот:   `C:\TradingHouse\logs\task.out.log` (ротация на 50 MB → `.old`)
+- Caddy: `C:\Caddy\logs\caddy.out.log`, `caddy.err.log`, `access.log`
 
 Посмотреть последние 200 строк бота в реальном времени:
 
 ```powershell
-Get-Content C:\TradingHouse\logs\service.out.log -Tail 200 -Wait
+Get-Content C:\TradingHouse\logs\task.out.log -Tail 200 -Wait
 ```
 
 ### Обновление кода
 
 ```powershell
-nssm stop TradingHouse
+Stop-ScheduledTask -TaskName TradingHouse
 cd C:\TradingHouse
 git pull
 pip install -r requirements.txt        # если зависимости изменились
-nssm start TradingHouse
+Start-ScheduledTask -TaskName TradingHouse
 ```
 
 Если изменился `Caddyfile` — `nssm restart Caddy`.
@@ -325,12 +395,22 @@ nssm start TradingHouse
   challenge).
 - Логи Caddy: `C:\Caddy\logs\caddy.err.log`.
 
+### Если бот не запускается
+
+- `Get-ScheduledTaskInfo TradingHouse` — посмотрите `LastTaskResult`. `0x0`
+  значит OK; иначе — Action не нашёл `powershell.exe`/`run_task.ps1`.
+- `C:\TradingHouse\logs\task.out.log` — последние строки, traceback.
+- Запустите `python C:\TradingHouse\main.py` руками в RDP-сессии — увидите
+  ошибки в консоли.
+
 ### Если бот не подключается к MT5
 
-- Проверьте, что MT5 терминал запущен и залогинен.
-- В терминале: **Tools → Options → Expert Advisors** — обе галочки.
-- Запустите `python C:\TradingHouse\main.py` руками (предварительно остановив
-  сервис), чтобы увидеть ошибки в консоли.
+- Терминал MT5 должен быть **запущен в той же сессии** (RDP под Administrator).
+  Проверьте через Task Manager — `terminal64.exe` есть.
+- В терминале: **Tools → Options → Expert Advisors** — «Allow algorithmic
+  trading» включено.
+- В `.env` — `MT5_LOGIN`, `MT5_PASSWORD`, `MT5_SERVER` правильные.
+- Если меняли пароль на счёте — обновите `.env` и перезапустите задачу.
 
 ---
 
