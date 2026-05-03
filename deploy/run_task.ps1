@@ -26,6 +26,11 @@ if ((Test-Path $LogFile) -and ((Get-Item $LogFile).Length -gt 52428800)) {
 }
 
 # ── Env-переменные для python ────────────────────────────────────────
+# UTF-8 mode: иначе print() с кириллицей валит cp1252 codec error и
+# реальная причина падения MT5 / других модулей теряется.
+$env:PYTHONUTF8       = "1"
+$env:PYTHONIOENCODING = "utf-8"
+
 $env:HOST           = "127.0.0.1"
 $env:PORT           = $AppPort
 $env:TRUSTED_HOSTS  = "$Domain,localhost,127.0.0.1"
