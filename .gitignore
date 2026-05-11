@@ -8,6 +8,7 @@ streams.json
 users.json
 .jwt_secret
 .env
+task.out.log
 # Игнорировать кэш Python
 __pycache__/
 
