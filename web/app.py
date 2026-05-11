@@ -11,6 +11,7 @@ from pathlib import Path
 
 from web.ws_manager import ws_manager, event_to_ws_bridge
 from web.api_routes import router as api_router
+from web.routes_anomalies import router as anomalies_router
 from web.chart_streamer import chart_streamer
 from core.event_bus import bus
 
@@ -44,6 +45,7 @@ if _cors_origins:
 
 # REST API
 app.include_router(api_router)
+app.include_router(anomalies_router)
 
 # Static files
 static_dir = Path(__file__).parent / "static"
