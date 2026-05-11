@@ -3422,12 +3422,13 @@ const Anomalies = (() => {
   function _dirClass(types) {
     if (!types || types.length === 0) return '';
     const arr = Array.isArray(types) ? types : [types];
-    const up   = arr.some(t => /buy|up|bull|long/i.test(t));
-    const down = arr.some(t => /sell|down|bear|short/i.test(t));
+    const set = new Set(arr);
+    const up   = set.has('EMA_FAR_UP')   || set.has('STOCH_OB');
+    const down = set.has('EMA_FAR_DOWN') || set.has('STOCH_OS');
     if (up && down) return 'mixed';
     if (up)   return 'up';
     if (down) return 'down';
-    return 'mixed';
+    return '';
   }
 
   function _periodToFrom(period) {
