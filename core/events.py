@@ -41,6 +41,11 @@ class EventType(str, Enum):
     BACKTEST_STARTED         = "backtest.started"
     BACKTEST_RESULT          = "backtest.result"
 
+    # AnomalyScannerAgent
+    ANOMALY_OPENED           = "anomaly.opened"
+    ANOMALY_UPDATED          = "anomaly.updated"
+    ANOMALY_CLOSED           = "anomaly.closed"
+
     # System
     AGENT_STATUS             = "agent.status"
     TRADING_STATUS_CHANGED   = "trading.status_changed"
