@@ -10,3 +10,9 @@ users.json
 .env
 # Игнорировать кэш Python
 __pycache__/
+
+# Локальное окружение и инструменты
+.claude/
+.mcp.json
+notes/
+tools/_out/
