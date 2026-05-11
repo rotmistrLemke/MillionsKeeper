@@ -12,6 +12,11 @@ task.out.log
 # Игнорировать кэш Python
 __pycache__/
 
+# БД аномалий (создаётся локально)
+data/anomalies.db
+data/anomalies.db-wal
+data/anomalies.db-shm
+
 # Локальное окружение и инструменты
 .claude/
 .mcp.json

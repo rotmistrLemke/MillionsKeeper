@@ -86,6 +86,31 @@ async def main():
     from agents.history_agent       import HistoryAgent
     from agents.backtest_agent      import BacktestAgent
     from agents.account_agent       import AccountAgent
+    from agents.anomaly_scanner_agent import AnomalyScannerAgent
+    from anomaly.store import AnomalyStore
+    from anomaly.detector import DetectorConfig
+    from anomaly.config import AnomalySettings
+
+    anomaly_store = AnomalyStore(AnomalySettings.DB_PATH)
+    anomaly_store.init_schema()
+    anomaly_agent = AnomalyScannerAgent(
+        "AnomalyScanner", bus, anomaly_store,
+        DetectorConfig(
+            ema_period=AnomalySettings.EMA_PERIOD,
+            atr_period=AnomalySettings.ATR_PERIOD,
+            atr_mult=AnomalySettings.ATR_MULT,
+            stoch_fastk=AnomalySettings.STOCH_FASTK,
+            stoch_slowk=AnomalySettings.STOCH_SLOWK,
+            stoch_slowd=AnomalySettings.STOCH_SLOWD,
+            stoch_ob=AnomalySettings.STOCH_OB,
+            stoch_os=AnomalySettings.STOCH_OS,
+        ),
+        scan_interval_sec=AnomalySettings.SCAN_INTERVAL_SEC,
+        miss_tolerance=AnomalySettings.MISS_TOLERANCE,
+        timeframe=AnomalySettings.TIMEFRAME,
+        bars_to_fetch=AnomalySettings.BARS_TO_FETCH,
+        db_path=AnomalySettings.DB_PATH,
+    )
 
     agents = [
         MarketDataAgent("MarketData",  bus, symbols, timeframe, poll_interval=10.0),
@@ -96,10 +121,14 @@ async def main():
         HistoryAgent("History",        bus, poll_interval=300.0),
         BacktestAgent("Backtest",      bus),
         AccountAgent("Account",        bus, poll_interval=30.0),
+        anomaly_agent,
     ]
 
     # ── Web Dashboard ─────────────────────────────────────────────
     from web.app import app as web_app
+    from web.routes_anomalies import deps as anomaly_deps
+    anomaly_deps.store = anomaly_store
+    anomaly_deps.agent = anomaly_agent
 
     host = os.environ.get("HOST", "127.0.0.1")
     port = int(os.environ.get("PORT", "8080"))
