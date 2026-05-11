@@ -614,6 +614,8 @@ function routeEvent(ev) {
   if (type === 'history.snapshot') {
     state.history = payload;
     renderHistory();
+    // обновляем маркеры сделок на графике
+    try { chartModule.refreshMarkers && chartModule.refreshMarkers(); } catch {}
     return;
   }
 
@@ -731,17 +733,28 @@ function badge(val) {
 // ─── Render: History ─────────────────────────────────────────────
 let histPeriod = 'today';
 let histSymbol = '';
+let histOnlyChartSymbol = false;
 let histPage = 0;
 const HIST_PER_PAGE = 20;
 
+/** Эффективный фильтр символа: явный селект или "только текущий символ графика". */
+function _effectiveHistSymbol() {
+  if (histOnlyChartSymbol && typeof chartModule !== 'undefined') {
+    try { return chartModule.getSymbol() || ''; } catch { /* ignore */ }
+  }
+  return histSymbol;
+}
+
 function _histDealsFor(period) {
   const all = state.history?.[period]?.deals || [];
-  if (!histSymbol) return all;
-  return all.filter(d => (d.symbol || '') === histSymbol);
+  const sym = _effectiveHistSymbol();
+  if (!sym) return all;
+  return all.filter(d => (d.symbol || '') === sym);
 }
 
 function _histProfitFor(period) {
-  if (!histSymbol) return state.history?.[period]?.profit ?? 0;
+  const sym = _effectiveHistSymbol();
+  if (!sym) return state.history?.[period]?.profit ?? 0;
   return _histDealsFor(period).reduce((s, d) => s + (d.profit || 0), 0);
 }
 
@@ -1341,6 +1354,52 @@ async function populateBtSymbols() {
   } catch {}
 }
 
+/**
+ * Заполняет селект стратегий бэктеста из /api/strategies. Вызывается при
+ * инициализации, чтобы новые стратегии появлялись без правки HTML.
+ * Группируем по семейству, чтобы было удобно ориентироваться.
+ */
+async function populateBtStrategies() {
+  const sel = document.getElementById('bt-strategy');
+  if (!sel) return;
+  const preferred = sel.value || 'default';
+  try {
+    const r = await fetch('/api/strategies');
+    const d = await r.json();
+    const items = d.strategies || [];
+    if (!items.length) return;
+
+    const groups = {};
+    for (const s of items) (groups[s.family] = groups[s.family] || []).push(s);
+
+    // Сохраняем «default» (он не в STRATEGIES, но есть в backend как ветвь "default")
+    let html = `<option value="default">MA + MACD + RSI (основная)</option>`;
+    const order = ['candle','mean_revert','trend_follow','breakout','scalp','momentum','hedge','custom'];
+    const seen = new Set();
+    const fams = order.filter(f => groups[f]).concat(Object.keys(groups).filter(f => !order.includes(f)));
+    for (const fam of fams) {
+      const arr = groups[fam] || [];
+      if (!arr.length) continue;
+      const label = (typeof STRAT_FAMILY_LABEL !== 'undefined' && STRAT_FAMILY_LABEL[fam]) || fam;
+      html += `<optgroup label="${escapeHtml(label)}">`;
+      for (const s of arr.sort((a,b)=>a.key.localeCompare(b.key))) {
+        if (seen.has(s.key)) continue;
+        seen.add(s.key);
+        const desc = s.description ? ` — ${s.description}` : '';
+        html += `<option value="${escapeHtml(s.key)}">${escapeHtml(s.key)}${escapeHtml(desc)}</option>`;
+      }
+      html += `</optgroup>`;
+    }
+    sel.innerHTML = html;
+    // Восстанавливаем предыдущий выбор, если возможно
+    if ([...sel.options].some(o => o.value === preferred)) sel.value = preferred;
+    // Триггерим зависимый рендер описания
+    try { onBtStrategyChange(); } catch {}
+  } catch (e) {
+    console.warn('populateBtStrategies failed:', e);
+  }
+}
+
 function toggleBarsVisibility() {
   const start = document.getElementById('bt-start').value;
   const end = document.getElementById('bt-end').value;
@@ -1390,9 +1449,202 @@ function renderBacktestResult(payload) {
         <div class="stat-box"><div class="stat-label">Баланс</div><div class="stat-value">${fmt(r.final_balance)}$</div></div>
       ` : ''}
     </div>
+    <div id="bt-chart-card" class="card" style="display:none">
+      <div class="card-title">График сделок</div>
+      <div id="bt-chart-container" style="position:relative;width:100%;height:380px"></div>
+    </div>
     ${renderBtTrades(r.trades)}
   `;
   renderBtPage();
+  // График свечей со сделками бэктеста (асинхронно — может потребовать запрос /api/candles)
+  try { renderBtChart(payload); } catch (e) { console.warn('bt chart failed:', e); }
+}
+
+// ─── Backtest: candle chart with trades ───────────────────────────
+let _btChart = null;
+let _btCandleSeries = null;
+const _btTradeLines = [];
+
+function _btDestroyChart() {
+  while (_btTradeLines.length) {
+    const s = _btTradeLines.pop();
+    try { _btChart.removeSeries(s); } catch {}
+  }
+  if (_btChart) {
+    try { _btChart.remove(); } catch {}
+    _btChart = null;
+    _btCandleSeries = null;
+  }
+}
+
+/** Парсит "YYYY-MM-DD HH:MM:SS" → unix-секунды (UTC). */
+function _btTimeToUnix(s) {
+  if (!s) return null;
+  const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+  if (!m) return null;
+  return Math.floor(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]) / 1000);
+}
+
+/** Снап ts на ближайший бар (бин-поиск по массиву candles). */
+function _btSnapToBar(ts, candles) {
+  if (!candles.length) return null;
+  let lo = 0, hi = candles.length - 1;
+  if (ts <= candles[0].time) return candles[0].time;
+  if (ts >= candles[hi].time) return candles[hi].time;
+  while (lo < hi - 1) {
+    const mid = (lo + hi) >> 1;
+    if (candles[mid].time <= ts) lo = mid; else hi = mid;
+  }
+  return candles[lo].time;
+}
+
+async function renderBtChart(payload) {
+  const card = document.getElementById('bt-chart-card');
+  const el   = document.getElementById('bt-chart-container');
+  if (!card || !el || typeof LightweightCharts === 'undefined') return;
+  const r = payload?.result;
+  const trades = r?.trades || [];
+  if (!trades.length) { card.style.display = 'none'; return; }
+
+  const symbol    = payload.symbol || document.getElementById('bt-symbol')?.value;
+  const timeframe = (document.getElementById('bt-timeframe')?.value || 'H1').toUpperCase();
+  if (!symbol) return;
+
+  // Диапазон дат: первая запись entry → последняя exit, плюс паддинг.
+  const tsList = [];
+  for (const t of trades) {
+    const a = _btTimeToUnix(t.entry_time); if (a) tsList.push(a);
+    const b = _btTimeToUnix(t.exit_time);  if (b) tsList.push(b);
+  }
+  if (!tsList.length) { card.style.display = 'none'; return; }
+  const minTs = Math.min(...tsList);
+  const maxTs = Math.max(...tsList);
+  // паддинг: 5% диапазона по краям, минимум 1 день
+  const pad = Math.max(86400, Math.floor((maxTs - minTs) * 0.05));
+  const fmtDate = (ts) => {
+    const d = new Date((ts - pad) * 1000);
+    const pad2 = (n) => String(n).padStart(2, '0');
+    return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth()+1)}-${pad2(d.getUTCDate())}`;
+  };
+  const dateFrom = fmtDate(minTs);
+  const dateTo   = (() => {
+    const d = new Date((maxTs + pad) * 1000);
+    const pad2 = (n) => String(n).padStart(2, '0');
+    return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth()+1)}-${pad2(d.getUTCDate())}`;
+  })();
+
+  card.style.display = '';
+  el.innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted)">Загрузка свечей…</div>';
+
+  let candles = [];
+  try {
+    const url = `/api/candles?symbol=${encodeURIComponent(symbol)}&timeframe=${encodeURIComponent(timeframe)}&date_from=${dateFrom}&date_to=${dateTo}`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    candles = (data.candles || []).map(c => ({
+      time: c.time, open: c.open, high: c.high, low: c.low, close: c.close,
+    }));
+  } catch (e) {
+    el.innerHTML = `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-danger,#e66)">Ошибка загрузки свечей: ${escapeHtml(String(e.message||e))}</div>`;
+    return;
+  }
+  if (!candles.length) {
+    el.innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-muted)">Нет данных за период</div>';
+    return;
+  }
+
+  // Пересоздаём график начисто
+  _btDestroyChart();
+  el.innerHTML = '';
+  _btChart = LightweightCharts.createChart(el, {
+    width:  el.clientWidth,
+    height: el.clientHeight,
+    layout: {
+      background: { color: 'transparent' },
+      textColor: getComputedStyle(document.body).getPropertyValue('--text-primary')?.trim() || '#d1d4dc',
+    },
+    grid: {
+      vertLines: { color: 'rgba(120,120,120,0.10)' },
+      horzLines: { color: 'rgba(120,120,120,0.10)' },
+    },
+    rightPriceScale: { borderVisible: false },
+    timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false },
+    crosshair: { mode: 1 },
+  });
+  _btCandleSeries = _btChart.addCandlestickSeries({
+    upColor: '#20B26C', downColor: '#EF454A',
+    borderUpColor: '#20B26C', borderDownColor: '#EF454A',
+    wickUpColor: '#20B26C', wickDownColor: '#EF454A',
+  });
+  _btCandleSeries.setData(candles);
+
+  // Маркеры + пунктирные линии open→close
+  const fmtMoney = (v) => (v >= 0 ? '+' : '') + (Number(v) || 0).toFixed(2) + '$';
+  const fmtPts   = (v) => (v >= 0 ? '+' : '') + (Number(v) || 0).toFixed(0);
+  const markers = [];
+  for (const t of trades) {
+    const entryTs = _btTimeToUnix(t.entry_time);
+    const exitTs  = _btTimeToUnix(t.exit_time);
+    if (entryTs == null || exitTs == null) continue;
+    const entryBar = _btSnapToBar(entryTs, candles);
+    const exitBar  = _btSnapToBar(exitTs,  candles);
+    const type = (t.type || '').toUpperCase();
+    const isBuy = type === 'BUY';
+    const pnl = (t.pnl_money != null) ? Number(t.pnl_money) : Number(t.pnl_points || 0);
+    const pos = pnl >= 0;
+    const color = isBuy ? '#20B26C' : '#EF454A';
+
+    // Маркер входа
+    markers.push({
+      time:     entryBar,
+      position: isBuy ? 'belowBar' : 'aboveBar',
+      shape:    isBuy ? 'arrowUp'  : 'arrowDown',
+      color,
+      text:     type,
+    });
+    // Маркер выхода (цвет по знаку P&L)
+    markers.push({
+      time:     exitBar,
+      position: isBuy ? 'aboveBar' : 'belowBar',
+      shape:    'circle',
+      color:    pos ? '#20B26C' : '#EF454A',
+      text:     (t.pnl_money != null) ? fmtMoney(t.pnl_money) : fmtPts(t.pnl_points),
+    });
+
+    // Пунктирная линия entry→exit
+    let t1 = entryBar, t2 = exitBar;
+    if (t2 <= t1) t2 = t1 + 1;
+    try {
+      const line = _btChart.addLineSeries({
+        color,
+        lineWidth: 1.5,
+        lineStyle: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      line.setData([
+        { time: t1, value: Number(t.entry_price) },
+        { time: t2, value: Number(t.exit_price)  },
+      ]);
+      _btTradeLines.push(line);
+    } catch {}
+  }
+  markers.sort((a, b) => a.time - b.time);
+  try { _btCandleSeries.setMarkers(markers); } catch {}
+
+  _btChart.timeScale().fitContent();
+
+  // Ресайз
+  if (!el._btResizeBound) {
+    new ResizeObserver((entries) => {
+      for (const e of entries) {
+        if (_btChart) try { _btChart.applyOptions({ width: e.contentRect.width, height: e.contentRect.height }); } catch {}
+      }
+    }).observe(el);
+    el._btResizeBound = true;
+  }
 }
 
 let btPage = 0;
@@ -1516,6 +1768,7 @@ const chartModule = (() => {
   let syncingRange = false;
   let syncingCrosshair = false;
   const overlaySeries = {}; // col -> lineSeries
+  const tradeLineSeries = []; // линии open→close для каждой сделки
   let currentSymbol = 'XAUUSDrfd';
   let currentTf = 'H1';
   let currentStrategy = 'default';
@@ -1707,6 +1960,8 @@ const chartModule = (() => {
         setLegend(last, prev);
       }
       scheduleSync();
+      // Маркеры сделок поверх свечей (для текущего символа)
+      try { refreshMarkers(); } catch {}
     } catch (e) {
       console.warn('candles fetch failed:', e);
     }
@@ -2340,6 +2595,8 @@ const chartModule = (() => {
     showMacdPane(false);
     load();
     if (active) { subscribeWS(); loadIndicators(); }
+    // Если в истории включён режим "только текущий символ" — перерисовать
+    try { if (typeof histOnlyChartSymbol !== 'undefined' && histOnlyChartSymbol) renderHistory(); } catch {}
   }
   function setTimeframe(tf) {
     currentTf = tf;
@@ -2384,21 +2641,368 @@ const chartModule = (() => {
 
   function bind() {
     document.getElementById('chart-symbol')?.addEventListener('change', e => setSymbol(e.target.value));
-    document.getElementById('chart-strategy')?.addEventListener('change', e => setStrategy(e.target.value));
     document.querySelectorAll('#chart-tf-buttons .tf-btn').forEach(b =>
       b.addEventListener('click', () => setTimeframe(b.dataset.tf))
     );
   }
 
-  return { activate, deactivate, bind, onCandleUpdate, onWsReconnect };
+  /** Возвращает символ текущего графика (для маркеров сделок и фильтра истории). */
+  function getSymbol() { return currentSymbol; }
+
+  /** Преобразует "YYYY-MM-DD HH:MM:SS" → unix-секунды (UTC-trick для корректной шкалы LWC). */
+  function _dealTimeToUnix(s) {
+    if (!s) return null;
+    const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
+    if (!m) return null;
+    return Math.floor(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]) / 1000);
+  }
+
+  /** Снап сделки на ближайший бар графика (бин-поиск). */
+  function _snapToBar(dealTs, candles) {
+    if (!candles.length) return null;
+    let lo = 0, hi = candles.length - 1;
+    if (dealTs <= candles[0].time) return candles[0].time;
+    if (dealTs >= candles[hi].time) return candles[hi].time;
+    while (lo < hi - 1) {
+      const mid = (lo + hi) >> 1;
+      if (candles[mid].time <= dealTs) lo = mid; else hi = mid;
+    }
+    return candles[lo].time;
+  }
+
+  /** Удаляет все нарисованные ранее линии трейдов с графика. */
+  function _clearTradeLines() {
+    while (tradeLineSeries.length) {
+      const s = tradeLineSeries.pop();
+      try { chart.removeSeries(s); } catch {}
+    }
+  }
+
+  /**
+   * Рисует маркеры + пунктирные линии open→close по каждой закрытой сделке
+   * (как в MetaTrader). BUY-линии зелёные, SELL — красные. Маркеры:
+   * BUY → arrowUp снизу бара, SELL → arrowDown сверху; цвет по знаку P&L.
+   */
+  function refreshMarkers() {
+    if (!candleSeries) return;
+    const candles = candleSeries.data();
+    _clearTradeLines();
+    if (!candles.length) { try { candleSeries.setMarkers([]); } catch {} return; }
+    const minT = candles[0].time, maxT = candles[candles.length-1].time;
+
+    // Берём максимально широкий период (месяц) — он содержит и неделю, и сегодня
+    const all = (state?.history?.month?.deals) || [];
+    const fmtUSD = (v) => (v >= 0 ? '+' : '') + (Number(v) || 0).toFixed(2) + '$';
+
+    const markers = [];
+    for (const d of all) {
+      if (!d || d.symbol !== currentSymbol) continue;
+      // Предпочитаем сырой unix-таймстемп от бэкенда (без сдвигов TZ).
+      const closeTs = (d.time_ts != null) ? Number(d.time_ts) : _dealTimeToUnix(d.time);
+      if (closeTs == null || closeTs < minT - 86400 || closeTs > maxT + 86400) continue;
+      const barT = _snapToBar(closeTs, candles);
+      if (barT == null) continue;
+
+      // Маркер закрытия (в духе уже принятого UX: цвет по P&L)
+      const closingType = (d.type || '').toUpperCase();
+      const profit = Number(d.profit) || 0;
+      const profitPos = profit >= 0;
+      markers.push({
+        time:     barT,
+        // closingType — это ПРОТИВОПОЛОЖНОЕ направление позиции
+        // (BUY-позиция закрывается SELL-сделкой). Стрелка = направление позиции.
+        position: closingType === 'SELL' ? 'belowBar' : 'aboveBar',
+        shape:    closingType === 'SELL' ? 'arrowUp'  : 'arrowDown',
+        color:    profitPos ? '#20B26C' : '#EF454A',
+        text:     fmtUSD(profit),
+      });
+
+      // Пунктирная линия от точки входа до закрытия — стиль MetaTrader.
+      // Используем position_type (направление позиции) из IN-сделки.
+      const openTs = (d.open_time_ts != null) ? Number(d.open_time_ts) : _dealTimeToUnix(d.open_time);
+      const openP  = (d.open_price  != null) ? Number(d.open_price)  : null;
+      const closeP = (d.close_price != null) ? Number(d.close_price) : null;
+      const posType = (d.position_type || '').toUpperCase();
+      if (openTs != null && openP != null && closeP != null && posType) {
+        // Гарантируем строго возрастающий порядок (LWC требует уникальных time).
+        let t1 = openTs;
+        let t2 = closeTs;
+        if (t2 <= t1) t2 = t1 + 1;
+        try {
+          const color = posType === 'BUY' ? '#20B26C' : '#EF454A';
+          const line = chart.addLineSeries({
+            color,
+            lineWidth: 1.5,
+            lineStyle: 2, // 2 = Dashed (LightweightCharts.LineStyle.Dashed)
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: false,
+          });
+          line.setData([
+            { time: t1, value: openP },
+            { time: t2, value: closeP },
+          ]);
+          tradeLineSeries.push(line);
+        } catch (e) {
+          // молча — не ломаем график из-за одной плохой сделки
+        }
+      }
+    }
+    // LWC требует возрастающий порядок по time
+    markers.sort((a, b) => a.time - b.time);
+    try { candleSeries.setMarkers(markers); } catch (e) { console.warn('setMarkers failed:', e); }
+  }
+
+  return { activate, deactivate, bind, onCandleUpdate, onWsReconnect, refreshMarkers, getSymbol };
 })();
 
 // ─── Tabs ─────────────────────────────────────────────────────────
 function switchTab(name) {
+  // Совместимость: старая вкладка 'history' теперь живёт внутри 'indicators'
+  if (name === 'history') name = 'indicators';
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   document.querySelectorAll('.content').forEach(c => c.classList.toggle('active', c.id === `tab-${name}`));
-  if (name === 'indicators') chartModule.activate();
-  else chartModule.deactivate();
+  if (name === 'indicators') {
+    chartModule.activate();
+    // Подсветить историю и нарисовать маркеры на графике
+    try { renderHistory(); } catch {}
+    try { chartModule.refreshMarkers && chartModule.refreshMarkers(); } catch {}
+  } else {
+    chartModule.deactivate();
+  }
+  if (name === 'strategies') {
+    try { loadStrategiesTab(); } catch (e) { console.warn('strategies load failed:', e); }
+  }
+}
+
+// ─── Strategies catalog ───────────────────────────────────────────
+const _stratState = { items: [], selected: null, loaded: false };
+const STRAT_FAMILY_LABEL = {
+  candle:       'Свечные паттерны',
+  mean_revert:  'Возврат к среднему',
+  trend_follow: 'Тренд',
+  breakout:     'Пробой / отскок S/R',
+  scalp:        'Скальпинг',
+  momentum:     'Моментум',
+  hedge:        'Хедж / инверсия',
+  custom:       'Прочее',
+};
+
+async function loadStrategiesTab() {
+  if (_stratState.loaded) return;
+  try {
+    const r = await fetch('/api/strategies');
+    const d = await r.json();
+    _stratState.items  = d.strategies || [];
+    _stratState.loaded = true;
+    renderStrategyList();
+    if (_stratState.items.length) selectStrategy(_stratState.items[0].key);
+  } catch (e) {
+    document.getElementById('strat-list').innerHTML =
+      `<div style="color:var(--text-danger,#e66);padding:12px">Ошибка загрузки: ${escapeHtml(String(e))}</div>`;
+  }
+  // Поиск
+  const search = document.getElementById('strat-search');
+  if (search && !search._bound) {
+    search.addEventListener('input', () => renderStrategyList(search.value.trim().toLowerCase()));
+    search._bound = true;
+  }
+}
+
+function renderStrategyList(filter = '') {
+  const list = document.getElementById('strat-list');
+  if (!list) return;
+  const items = !filter ? _stratState.items : _stratState.items.filter(s =>
+    s.key.toLowerCase().includes(filter) ||
+    (s.description || '').toLowerCase().includes(filter) ||
+    (s.doc || '').toLowerCase().includes(filter)
+  );
+  if (!items.length) {
+    list.innerHTML = '<div style="color:var(--text-muted);padding:12px">Ничего не найдено</div>';
+    return;
+  }
+  // Группируем по семейству
+  const groups = {};
+  for (const s of items) (groups[s.family] = groups[s.family] || []).push(s);
+  let html = '';
+  for (const fam of Object.keys(groups)) {
+    html += `<div class="strat-list-group">${escapeHtml(STRAT_FAMILY_LABEL[fam] || fam)}</div>`;
+    for (const s of groups[fam]) {
+      const active = (_stratState.selected === s.key) ? ' active' : '';
+      html += `<div class="strat-list-item${active}" data-key="${escapeHtml(s.key)}" onclick="selectStrategy('${s.key}')">
+        <span>${escapeHtml(s.key)}</span>
+        <span class="tf-badge">${escapeHtml(s.timeframe)}</span>
+      </div>`;
+    }
+  }
+  list.innerHTML = html;
+}
+
+function selectStrategy(key) {
+  _stratState.selected = key;
+  renderStrategyList(document.getElementById('strat-search')?.value?.trim()?.toLowerCase() || '');
+  const s = _stratState.items.find(x => x.key === key);
+  if (!s) return;
+  const detail = document.getElementById('strat-detail');
+  if (!detail) return;
+
+  const params = (s.indicators || []).map(c => `<span class="pill">${escapeHtml(c)}</span>`).join(' ');
+
+  detail.innerHTML = `
+    <h2>${escapeHtml(s.key)}</h2>
+    <div class="strat-meta">
+      <span class="pill">TF: ${escapeHtml(s.timeframe)}</span>
+      <span class="pill">${escapeHtml(STRAT_FAMILY_LABEL[s.family] || s.family)}</span>
+      ${s.description ? `<span class="pill">${escapeHtml(s.description)}</span>` : ''}
+    </div>
+
+    <div class="strat-section-title">Описание</div>
+    <div class="strat-doc">${escapeHtml(s.doc)}</div>
+
+    ${params ? `<div class="strat-section-title">Индикаторы / выходные колонки</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">${params}</div>` : ''}
+
+    <div class="strat-section-title">Иллюстрация паттерна</div>
+    <div id="strat-svg-host"></div>
+
+    <div class="strat-actions">
+      <button class="btn-primary" onclick="openInBacktest('${s.key}')">Открыть в бэктесте</button>
+    </div>
+  `;
+  document.getElementById('strat-svg-host').innerHTML = drawStrategyExampleSVG(s);
+}
+
+/** Открыть стратегию во вкладке «Бэктест»: переключиться, заполнить селект, проскроллить. */
+function openInBacktest(key) {
+  switchTab('backtest');
+  setTimeout(() => {
+    const sel = document.getElementById('bt-strategy');
+    if (sel) {
+      sel.value = key;
+      sel.dispatchEvent(new Event('change'));
+    }
+    document.getElementById('bt-result')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 50);
+}
+
+/**
+ * Синтетический SVG-пример: рисует ряд свечей под архетип семейства стратегии,
+ * накладывает линию (например, EMA) и помечает вход. Чисто иллюстративно.
+ */
+function drawStrategyExampleSVG(s) {
+  const W = 720, H = 240, PAD = 24;
+  const N = 36;
+  // Семейные генераторы цены (детерминированные, чтобы пример не "прыгал")
+  function gen() {
+    const rng = (function (seed) {
+      let x = seed | 0; return () => { x = (x * 9301 + 49297) % 233280; return x / 233280; };
+    })((s.key || 'x').split('').reduce((a, c) => a + c.charCodeAt(0), 0));
+    const arr = [];
+    let p = 100;
+    for (let i = 0; i < N; i++) {
+      let drift = 0;
+      switch (s.family) {
+        case 'candle':
+          // Затухание тренда → разворотная свеча → откат
+          drift = (i < N * 0.50 ? -0.5 : i < N * 0.56 ? -0.05 : 0.6);
+          break;
+        case 'mean_revert':
+          // Сильный отскок от средней: рост → шип вверх → возврат
+          drift = (i < N * 0.45 ? 0.6 : i < N * 0.55 ? 1.6 : -1.0);
+          break;
+        case 'trend_follow':
+          // Прямой uptrend с откатом ~середины
+          drift = (i > N * 0.40 && i < N * 0.55) ? -0.6 : 0.55;
+          break;
+        case 'breakout':
+          // Боковик → прорыв
+          drift = (i < N * 0.62 ? (rng() - 0.5) * 0.5 : 1.1);
+          break;
+        case 'scalp':
+          // Микро-импульсы вверх с короткими откатами
+          drift = (i % 4 === 0 ? -0.4 : 0.35);
+          break;
+        case 'momentum':
+          drift = Math.sin(i / 5) * 0.6 + 0.25;
+          break;
+        case 'hedge':
+          drift = (rng() - 0.45) * 0.9;
+          break;
+        default:
+          drift = (rng() - 0.5) * 0.8;
+      }
+      const open = p;
+      p += drift + (rng() - 0.5) * 0.6;
+      const close = p;
+      const high = Math.max(open, close) + rng() * 0.5;
+      const low  = Math.min(open, close) - rng() * 0.5;
+      arr.push({ open, high, low, close });
+    }
+    return arr;
+  }
+  const data = gen();
+  const minP = Math.min(...data.map(c => c.low));
+  const maxP = Math.max(...data.map(c => c.high));
+  const range = (maxP - minP) || 1;
+  const cw = (W - PAD * 2) / N;
+  const yOf = (p) => PAD + (1 - (p - minP) / range) * (H - PAD * 2);
+
+  // EMA(9) для иллюстрации
+  const ema = []; const k = 2 / (9 + 1);
+  for (let i = 0; i < N; i++) {
+    const c = data[i].close;
+    ema.push(i === 0 ? c : ema[i-1] + k * (c - ema[i-1]));
+  }
+
+  let svg = `<svg class="strat-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">`;
+  // Фон-сетка
+  for (let g = 1; g < 4; g++) {
+    const y = PAD + (H - PAD * 2) * g / 4;
+    svg += `<line x1="${PAD}" y1="${y}" x2="${W-PAD}" y2="${y}" stroke="rgba(120,120,120,0.10)" />`;
+  }
+  // Свечи
+  for (let i = 0; i < N; i++) {
+    const c = data[i];
+    const x = PAD + i * cw + cw / 2;
+    const up = c.close >= c.open;
+    const col = up ? '#20B26C' : '#EF454A';
+    svg += `<line x1="${x}" y1="${yOf(c.high)}" x2="${x}" y2="${yOf(c.low)}" stroke="${col}" stroke-width="1" />`;
+    const yo = yOf(c.open), yc = yOf(c.close);
+    const top = Math.min(yo, yc), height = Math.max(2, Math.abs(yo - yc));
+    svg += `<rect x="${x - cw*0.35}" y="${top}" width="${cw*0.7}" height="${height}" fill="${col}" />`;
+  }
+  // EMA линия
+  let path = '';
+  for (let i = 0; i < N; i++) {
+    const x = PAD + i * cw + cw / 2;
+    path += (i ? ' L ' : 'M ') + x.toFixed(1) + ' ' + yOf(ema[i]).toFixed(1);
+  }
+  svg += `<path d="${path}" fill="none" stroke="#F7A600" stroke-width="1.5" />`;
+
+  // Точка входа: семейно-зависимая
+  let entryIdx = Math.floor(N * 0.55);
+  if (s.family === 'mean_revert')  entryIdx = Math.floor(N * 0.55);
+  if (s.family === 'trend_follow') entryIdx = Math.floor(N * 0.50);
+  if (s.family === 'breakout')     entryIdx = Math.floor(N * 0.66);
+  if (s.family === 'scalp')        entryIdx = Math.floor(N * 0.40);
+  if (s.family === 'momentum')     entryIdx = Math.floor(N * 0.55);
+  if (s.family === 'candle')       entryIdx = Math.floor(N * 0.55);
+  const ex = PAD + entryIdx * cw + cw / 2;
+  const ec = data[entryIdx].close;
+  // Для свечных и mean-revert — пример SELL у вершины; для остальных — BUY.
+  const isSell = (s.family === 'mean_revert');
+  const arrowY = isSell ? yOf(ec) - 14 : yOf(ec) + 14;
+  const aColor = isSell ? '#EF454A' : '#20B26C';
+  const arrow  = isSell
+    ? `M ${ex} ${arrowY-8} L ${ex-6} ${arrowY+2} L ${ex+6} ${arrowY+2} Z`
+    : `M ${ex} ${arrowY+8} L ${ex-6} ${arrowY-2} L ${ex+6} ${arrowY-2} Z`;
+  svg += `<path d="${arrow}" fill="${aColor}" />`;
+  svg += `<text x="${ex + 10}" y="${arrowY + 4}" fill="${aColor}" font-size="11" font-family="Inter, sans-serif" font-weight="600">${isSell ? 'SELL' : 'BUY'}</text>`;
+
+  // Подпись TF справа сверху
+  svg += `<text x="${W - PAD}" y="${PAD - 4}" text-anchor="end" fill="rgba(255,255,255,0.45)" font-size="10" font-family="JetBrains Mono, monospace">${escapeHtml(s.timeframe)} • ${escapeHtml(s.family)}</text>`;
+  svg += `</svg>`;
+  return svg;
 }
 
 // ─── Role-based visibility & auth bindings ────────────────────────
@@ -2566,6 +3170,140 @@ async function deleteUser(username) {
   await loadUsers();
 }
 
+// ─── Calculator ───────────────────────────────────────────────────
+async function calcLoadSymbols() {
+  try {
+    const r = await fetch('/api/symbols');
+    const d = await r.json();
+    const sel = document.getElementById('calc-symbol');
+    if (!sel) return;
+    const symbols = d.symbols || [];
+    sel.innerHTML = symbols.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+    if (symbols.includes('EURUSDrfd')) sel.value = 'EURUSDrfd';
+    else if (symbols.includes('XAUUSDrfd')) sel.value = 'XAUUSDrfd';
+  } catch (e) {
+    console.error('calcLoadSymbols', e);
+  }
+}
+
+async function calcRun() {
+  const out = document.getElementById('calc-result');
+  if (!out) return;
+  const symbol  = document.getElementById('calc-symbol')?.value;
+  const deposit = parseFloat(document.getElementById('calc-deposit').value);
+  const pct     = parseFloat(document.getElementById('calc-pct').value);
+
+  if (!symbol || !(deposit > 0) || !(pct > 0)) {
+    out.innerHTML = '<div class="card" style="color:var(--text-danger,#e66)">Заполните все поля корректно (положительные значения)</div>';
+    return;
+  }
+
+  out.innerHTML = '<div class="card" style="color:var(--text-muted)">Расчёт...</div>';
+  try {
+    const url = `/api/calc/safe_volume?symbol=${encodeURIComponent(symbol)}`
+              + `&deposit=${deposit}&pct=${pct}`;
+    const r = await fetch(url);
+    const d = await r.json();
+    if (!r.ok) {
+      out.innerHTML = `<div class="card" style="color:var(--text-danger,#e66)">Ошибка: ${escapeHtml(d.detail || r.statusText)}</div>`;
+      return;
+    }
+    calcRender(d);
+  } catch (e) {
+    out.innerHTML = `<div class="card" style="color:var(--text-danger,#e66)">Сбой запроса: ${escapeHtml(String(e))}</div>`;
+  }
+}
+
+function calcRender(d) {
+  const out = document.getElementById('calc-result');
+  if (!out) return;
+  const fmt = (n, p=2) => (typeof n === 'number' && isFinite(n)) ? n.toFixed(p) : '—';
+
+  let warn = '';
+  if (d.reason === 'below_volume_min') {
+    warn += `<div style="margin-top:12px;padding:10px 12px;background:rgba(230,80,80,0.10);border-left:3px solid #e65050;border-radius:4px;font-size:12.5px">
+      «Сырой» объём (<b>${fmt(d.raw_volume, 4)}</b>) меньше минимального лота (${d.volume_min}).
+      Увеличьте депозит или процент.
+    </div>`;
+  } else if (d.reason === 'capped_to_volume_max') {
+    warn += `<div style="margin-top:12px;padding:10px 12px;background:rgba(230,180,40,0.08);border-left:3px solid #e6b428;border-radius:4px;font-size:12.5px">
+      Расчётный объём превысил максимальный (${d.volume_max}) и был обрезан.
+    </div>`;
+  }
+
+  // Подсказки по SL: какая будет потеря при типичных значениях SL в пунктах
+  const slGrid = [10, 20, 50, 100, 200, 500];
+  const slRows = slGrid.map(n => {
+    const loss = d.pip_value_for_trade * n;
+    const dd   = (loss / d.deposit) * 100;
+    return `<tr><td style="padding:3px 10px">${n}</td>
+                <td style="padding:3px 10px;text-align:right">${fmt(loss, 2)} USD</td>
+                <td style="padding:3px 10px;text-align:right;color:var(--text-muted)">${fmt(dd, 2)} %</td></tr>`;
+  }).join('');
+
+  out.innerHTML = `
+    <div class="card">
+      <div class="card-title">${escapeHtml(d.symbol)} — результат</div>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-label">Объём сделки</div>
+          <div class="stat-value">${fmt(d.volume, 2)} лот</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Стоимость 1 пункта</div>
+          <div class="stat-value">${fmt(d.pip_value_for_trade, 2)} USD</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Плечо</div>
+          <div class="stat-value">1:${d.leverage}</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Маржа MT5</div>
+          <div class="stat-value">${d.margin_mt5 !== null ? fmt(d.margin_mt5, 2) + ' ' + escapeHtml(d.account_currency || '') : '—'}</div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;font-size:12.5px;line-height:1.7">
+        <div>
+          <div style="color:var(--text-muted);margin-bottom:4px"><b>Расчёт объёма</b></div>
+          <div>Депозит × % = ${fmt(d.deposit, 2)} × ${fmt(d.pct, 2)}/100 = <b>${fmt(d.margin_share, 2)}</b> USD</div>
+          <div>÷ цена (ask) = ${fmt(d.margin_share, 2)} ÷ ${fmt(d.ask, d.digits)} = <b>${fmt(d.margin_share / d.ask, 4)}</b></div>
+          <div>× плечо = × ${d.leverage} = <b>${fmt(d.margin_share / d.ask * d.leverage, 2)}</b></div>
+          <div>÷ contract_size (${d.contract_size}) = <b>${fmt(d.raw_volume, 4)}</b> лот</div>
+          <div>Округлено к шагу ${d.volume_step} → <b>${fmt(d.volume, 2)}</b> лот</div>
+        </div>
+        <div>
+          <div style="color:var(--text-muted);margin-bottom:4px"><b>Стоимость 1 пункта</b></div>
+          <div>На 1 лот: <b>${fmt(d.pip_value_per_lot_usd, 4)}</b> USD/пункт</div>
+          <div>На ${fmt(d.volume, 2)} лот: <b>${fmt(d.pip_value_for_trade, 2)}</b> USD/пункт</div>
+          <div style="color:var(--text-muted);font-size:11.5px">метод: ${escapeHtml(d.pip_method)}</div>
+        </div>
+        <div>
+          <div style="color:var(--text-muted);margin-bottom:4px"><b>Параметры</b></div>
+          <div>Цена ask: ${fmt(d.ask, d.digits)} &nbsp; Point: ${d.point}</div>
+          <div>Contract: ${d.contract_size}</div>
+          <div>Base/Profit: ${escapeHtml(d.currency_base || '?')}/${escapeHtml(d.currency_profit || '?')}</div>
+          <div>Lot: ${d.volume_min} … ${d.volume_max} (шаг ${d.volume_step})</div>
+        </div>
+      </div>
+
+      <div class="card-title" style="margin-top:18px;font-size:13px">Подсказка по стоп-лоссу (для текущего объёма)</div>
+      <table style="width:100%;font-size:12.5px;border-collapse:collapse;margin-top:6px">
+        <thead>
+          <tr style="color:var(--text-muted)">
+            <th style="padding:3px 10px;text-align:left">SL, пунктов</th>
+            <th style="padding:3px 10px;text-align:right">Потеря</th>
+            <th style="padding:3px 10px;text-align:right">% от депозита</th>
+          </tr>
+        </thead>
+        <tbody>${slRows}</tbody>
+      </table>
+
+      ${warn}
+    </div>
+  `;
+}
+
 // ─── Init ─────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   applyRoleVisibility();
@@ -2576,14 +3314,19 @@ document.addEventListener('DOMContentLoaded', () => {
     t.addEventListener('click', () => {
       switchTab(t.dataset.tab);
       if (t.dataset.tab === 'users' && isAdmin()) loadUsers();
+      if (t.dataset.tab === 'calculator') calcLoadSymbols();
     });
   });
+
+  // Calculator
+  document.getElementById('btn-calc-run')?.addEventListener('click', calcRun);
 
   // Backtest
   document.getElementById('btn-run-bt')?.addEventListener('click', runBacktest);
   document.getElementById('bt-start')?.addEventListener('change', toggleBarsVisibility);
   document.getElementById('bt-end')?.addEventListener('change', toggleBarsVisibility);
   populateBtSymbols();
+  populateBtStrategies();
 
   // Trading streams
   loadStreams();
@@ -2594,6 +3337,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('hist-symbol-filter')?.addEventListener('change', (e) => {
     histSetSymbol(e.target.value);
+  });
+  document.getElementById('hist-only-chart-symbol')?.addEventListener('change', (e) => {
+    histOnlyChartSymbol = !!e.target.checked;
+    // Если активен «только текущий», блокируем явный селект
+    const sel = document.getElementById('hist-symbol-filter');
+    if (sel) sel.disabled = histOnlyChartSymbol;
+    histPage = 0;
+    renderHistory();
   });
 
   // Strategy descriptions — initial render

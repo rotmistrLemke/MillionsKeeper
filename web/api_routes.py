@@ -133,9 +133,11 @@ async def get_history(days: int = 1,
 
 @router.get("/candles")
 async def get_candles(symbol: str, timeframe: str = "H1", bars: int = 500,
+                      date_from: str | None = None, date_to: str | None = None,
                       user: auth.UserRecord = Depends(get_current_user)):
     try:
         import MetaTrader5 as mt5
+        from datetime import datetime, timedelta
         tf_map = {
             "M1":  mt5.TIMEFRAME_M1,
             "M5":  mt5.TIMEFRAME_M5,
@@ -148,8 +150,18 @@ async def get_candles(symbol: str, timeframe: str = "H1", bars: int = 500,
         tf = tf_map.get(timeframe.upper())
         if tf is None:
             raise HTTPException(status_code=400, detail=f"Unknown timeframe: {timeframe}")
-        bars = max(50, min(int(bars), 5000))
-        rates = mt5.copy_rates_from_pos(symbol, tf, 0, bars)
+        # Если задан явный диапазон — берём весь интервал; иначе последние N баров.
+        if date_from and date_to:
+            try:
+                d_from = datetime.strptime(date_from, "%Y-%m-%d")
+                # +1 день, чтобы включить date_to целиком
+                d_to   = datetime.strptime(date_to,   "%Y-%m-%d") + timedelta(days=1)
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=f"Bad date: {e}")
+            rates = mt5.copy_rates_range(symbol, tf, d_from, d_to)
+        else:
+            bars = max(50, min(int(bars), 5000))
+            rates = mt5.copy_rates_from_pos(symbol, tf, 0, bars)
         if rates is None:
             return {"error": f"No data for {symbol}: {mt5.last_error()}"}
         info = mt5.symbol_info(symbol)
@@ -179,6 +191,307 @@ async def get_candles(symbol: str, timeframe: str = "H1", bars: int = 500,
 async def get_symbols(user: auth.UserRecord = Depends(get_current_user)):
     from settings import Dictionary
     return {"symbols": list(Dictionary.symbolTradingStatus.keys())}
+
+
+# ──────────────────────────── Strategies catalog ─────────────────
+# Меташаг: классифицируем стратегию по эвристическому семейству, чтобы
+# фронт мог нарисовать соответствующий синтетический пример.
+_STRATEGY_FAMILY_HINTS = {
+    "candle":        ["candle_reversal", "morning", "evening", "star", "harami", "inside_bar"],
+    "mean_revert":   ["overstretch", "mean_revert", "fibonacci", "rejection"],
+    "trend_follow":  ["pullback", "ema_cross", "triple", "phase", "combined"],
+    "breakout":      ["donchian", "breakout", "sr_bounce"],
+    "scalp":         ["scalp", "sar_adx", "stochastic"],
+    "momentum":      ["macd", "cci", "rsi"],
+    "hedge":         ["hedge", "inverse"],
+}
+
+
+def _family_for(key: str) -> str:
+    k = key.lower()
+    for fam, needles in _STRATEGY_FAMILY_HINTS.items():
+        for n in needles:
+            if n in k:
+                return fam
+    return "custom"
+
+
+@router.get("/strategies")
+async def list_strategies(user: auth.UserRecord = Depends(get_current_user)):
+    """Возвращает каталог стратегий с описаниями (docstring) и параметрами."""
+    import inspect
+    from strategies import STRATEGIES
+
+    items = []
+    for key, cls in STRATEGIES.items():
+        try:
+            inst = cls()
+        except Exception:
+            inst = None
+        mod_doc = (inspect.getmodule(cls).__doc__ or "").strip()
+        cls_doc = (cls.__doc__ or "").strip()
+        if cls_doc.startswith("Helper class"):
+            cls_doc = ""
+        # Параметры конструктора (для "Indicators inputs")
+        params = []
+        try:
+            sig = inspect.signature(cls.__init__)
+            for name, p in sig.parameters.items():
+                if name == "self":
+                    continue
+                params.append({
+                    "name":    name,
+                    "default": p.default if p.default is not inspect._empty else None,
+                    "kind":    str(p.kind),
+                })
+        except (TypeError, ValueError):
+            pass
+
+        items.append({
+            "key":         key,
+            "name":        getattr(cls, "name", key),
+            "description": getattr(cls, "description", "") or "",
+            "timeframe":   getattr(inst, "default_timeframe", None) or getattr(cls, "default_timeframe", "H1"),
+            "indicators":  list(inst.indicator_columns()) if inst else [],
+            "doc":         mod_doc or cls_doc or "(описание отсутствует)",
+            "family":      _family_for(key),
+        })
+
+    items.sort(key=lambda x: (x["family"], x["key"]))
+    return {"strategies": items}
+
+
+# ──────────────────────────── Calculator ─────────────────────────
+# Объём считается через ДОЛЮ ДЕПОЗИТА × ПЛЕЧО.
+# Плечо для каждого инструмента читается из shoulders/marginal-USD.xlsx.
+# Стоимость пункта рассчитывается по правилам:
+#   - quote == USD  →  pip_value = 1 USD на 1 лот
+#   - base  == USD  →  pip_value = 1 / current_price USD на 1 лот
+#   - оба не USD    →  pip_value = baseUSD_price / current_pair_price USD на 1 лот
+
+_BROKER_SUFFIX = "rfd"
+_SHOULDERS_PATH = "shoulders/marginal-USD.xlsx"
+_shoulders_cache = None  # dict: normalized_symbol -> int (leverage)
+
+
+def _normalize_symbol(s: str) -> str:
+    """EUR/USD → EURUSD, EURUSDrfd → EURUSD, eur/usd → EURUSD."""
+    if not s:
+        return ""
+    s = s.upper().replace("/", "").replace(" ", "")
+    if s.endswith(_BROKER_SUFFIX.upper()):
+        s = s[: -len(_BROKER_SUFFIX)]
+    return s
+
+
+def _load_shoulders():
+    """Читает xlsx один раз и возвращает {EURUSD: 32, XAUUSD: 20, ...}."""
+    global _shoulders_cache
+    if _shoulders_cache is not None:
+        return _shoulders_cache
+    import openpyxl
+    table = {}
+    wb = openpyxl.load_workbook(_SHOULDERS_PATH, data_only=True)
+    ws = wb.active
+    for row in ws.iter_rows(values_only=True):
+        if not row or len(row) < 2:
+            continue
+        sym, lev = row[0], row[1]
+        if not sym or not lev:
+            continue
+        sym_n = _normalize_symbol(str(sym))
+        lev_s = str(lev).strip()
+        # формат "1:32" или просто "32"
+        if ":" in lev_s:
+            try:
+                value = int(lev_s.split(":")[1])
+            except (ValueError, IndexError):
+                continue
+        else:
+            try:
+                value = int(float(lev_s))
+            except ValueError:
+                continue
+        if sym_n and value > 0:
+            table[sym_n] = value
+    _shoulders_cache = table
+    return table
+
+
+def _pip_value_per_lot_usd(mt5, symbol: str, info, ask: float) -> tuple[float, str]:
+    """
+    Стоимость 1 пункта (минимальный point из MT5) на 1 лот в долларах США
+    по правилам пользователя. Возвращает (pip_value_usd, описание_способа).
+    """
+    base   = (info.currency_base or "").upper()
+    profit = (info.currency_profit or "").upper()
+    contract = float(info.trade_contract_size)
+    point    = float(info.point)
+
+    # Стоимость пункта в валюте котировки на 1 лот (универсально)
+    pip_in_quote = contract * point
+
+    if profit == "USD":
+        # quote = USD → стоимость в USD напрямую
+        return pip_in_quote, "quote=USD"
+
+    if base == "USD":
+        # base = USD: пересчёт пункта из quote в USD
+        # 1 quote_unit = 1/ask USD  →  pip_in_USD = pip_in_quote / ask
+        if ask <= 0:
+            raise HTTPException(status_code=503, detail="Нет цены для конверсии")
+        return pip_in_quote / ask, f"base=USD, делим на цену пары {ask}"
+
+    # Кросс — ни base, ни quote не USD. Нужна цена baseUSD.
+    cross_sym = base + "USD" + _BROKER_SUFFIX
+    cross_tick = mt5.symbol_info_tick(cross_sym)
+    if cross_tick is None or cross_tick.ask <= 0:
+        # Попробуем без суффикса
+        alt = base + "USD"
+        cross_tick = mt5.symbol_info_tick(alt)
+        if cross_tick is None or cross_tick.ask <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Не нашли курс {base}/USD для конверсии пункта по {symbol}"
+            )
+        cross_sym = alt
+    base_usd = float(cross_tick.ask)
+    if ask <= 0:
+        raise HTTPException(status_code=503, detail="Нет цены для конверсии")
+    # 1 quote = base_usd / ask USD  →  pip_in_USD = pip_in_quote × base_usd / ask
+    return pip_in_quote * base_usd / ask, f"кросс через {cross_sym}={base_usd}, ÷ {ask}"
+
+
+@router.get("/calc/leverages")
+async def get_leverages(user: auth.UserRecord = Depends(get_current_user)):
+    """Список плечей из shoulders/marginal-USD.xlsx — для отладки."""
+    try:
+        return {"leverages": _load_shoulders()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/calc/safe_volume")
+async def calc_safe_volume(symbol: str,
+                           deposit: float,
+                           pct: float,
+                           user: auth.UserRecord = Depends(get_current_user)):
+    """
+    Расчёт по правилу пользователя:
+      lot = deposit × pct/100 / ask × leverage / contract_size
+      где contract_size — из спецификации символа (forex 100000, XAU 100, XAG 5000)
+      Стоимость пункта = pip_value_USD_per_lot × lot   (в USD)
+
+    Плечо берётся из shoulders/marginal-USD.xlsx по нормализованному символу.
+    """
+    try:
+        import math
+        import MetaTrader5 as mt5
+
+        if deposit <= 0 or pct <= 0:
+            raise HTTPException(status_code=400,
+                                detail="deposit и pct должны быть > 0")
+
+        # 1. Выбираем символ в Market Watch
+        if not mt5.symbol_select(symbol, True):
+            err = mt5.last_error()
+            raise HTTPException(status_code=400,
+                                detail=f"Не удалось выбрать {symbol}: {err}")
+
+        info = mt5.symbol_info(symbol)
+        if info is None:
+            raise HTTPException(status_code=404, detail=f"Символ {symbol} не найден")
+
+        tick = mt5.symbol_info_tick(symbol)
+        if tick is None or tick.ask <= 0:
+            raise HTTPException(status_code=503,
+                                detail=f"Нет цены по {symbol}: {mt5.last_error()}")
+        ask = float(tick.ask)
+
+        # 2. Плечо из xlsx
+        shoulders = _load_shoulders()
+        sym_n = _normalize_symbol(symbol)
+        leverage = shoulders.get(sym_n)
+        if leverage is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Плечо для {symbol} (норм. {sym_n}) не найдено в {_SHOULDERS_PATH}"
+            )
+
+        # 3. Объём по формуле пользователя:
+        #    lot = deposit × pct/100 / ask × leverage / contract_size
+        contract = float(info.trade_contract_size)
+        margin_share = deposit * pct / 100.0
+        if ask <= 0:
+            raise HTTPException(status_code=503, detail="Нулевая цена ask")
+        if contract <= 0:
+            raise HTTPException(status_code=500, detail="Нулевой contract_size")
+        raw_volume = margin_share / ask * leverage / contract
+
+        step    = float(info.volume_step) or 0.01
+        vol_min = float(info.volume_min)
+        vol_max = float(info.volume_max)
+
+        volume = math.floor(raw_volume / step) * step
+        volume = round(volume, 8)
+
+        reason = None
+        if volume < vol_min:
+            volume = 0.0
+            reason = "below_volume_min"
+        elif volume > vol_max:
+            volume = vol_max
+            reason = "capped_to_volume_max"
+
+        # 4. Стоимость пункта в USD
+        pip_value_usd_per_lot, pip_method = _pip_value_per_lot_usd(mt5, symbol, info, ask)
+        pip_value_for_trade = pip_value_usd_per_lot * volume
+
+        # 5. Маржа MT5 (для сверки)
+        margin_mt5 = None
+        if volume > 0:
+            m = mt5.order_calc_margin(mt5.ORDER_TYPE_BUY, symbol, volume, ask)
+            if m is not None:
+                margin_mt5 = float(m)
+
+        acc = mt5.account_info()
+        acc_currency = acc.currency if acc else ""
+
+        return {
+            "symbol":           symbol,
+            "symbol_normalized": sym_n,
+            "account_currency": acc_currency,
+            "currency_base":    info.currency_base,
+            "currency_profit":  info.currency_profit,
+
+            "ask":           ask,
+            "digits":        int(info.digits),
+            "point":         float(info.point),
+            "contract_size": contract,
+            "leverage":      leverage,
+
+            "deposit":       deposit,
+            "pct":           pct,
+            "margin_share":  round(margin_share, 2),
+
+            "raw_volume":    round(raw_volume, 6),
+            "volume":        volume,
+            "volume_min":    vol_min,
+            "volume_max":    vol_max,
+            "volume_step":   step,
+
+            "pip_value_per_lot_usd":  round(pip_value_usd_per_lot, 6),
+            "pip_value_for_trade":    round(pip_value_for_trade, 4),
+            "pip_method":             pip_method,
+
+            "margin_mt5":    round(margin_mt5, 2) if margin_mt5 is not None else None,
+
+            "reason": reason,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ──────────────────────────── Indicators ──────────────────────────

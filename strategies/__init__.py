@@ -19,6 +19,10 @@ from strategies.market_phase import MarketPhaseStrategy
 from strategies.combined_a_plus import CombinedAPlusStrategy
 from strategies.ema50_rejection import Ema50RejectionStrategy
 from strategies.ema50_overstretch import Ema50OverstretchStrategy
+from strategies.ema50_overstretch_mtf import Ema50OverstretchMtfStrategy
+from strategies.morning_evening_star import MorningEveningStarStrategy
+from strategies.inside_bar_breakout  import InsideBarBreakoutStrategy
+from strategies.harami_reversal      import HaramiReversalStrategy
 
 STRATEGIES = {
     # H1 внутридневные/среднесрочные
@@ -44,4 +48,9 @@ STRATEGIES = {
     'combined_a_plus':       CombinedAPlusStrategy,
     'ema50_rejection':       Ema50RejectionStrategy,
     'ema50_overstretch':     Ema50OverstretchStrategy,
+    'ema50_overstretch_mtf': Ema50OverstretchMtfStrategy,
+    # Свечные паттерны
+    'morning_evening_star':  MorningEveningStarStrategy,
+    'inside_bar_breakout':   InsideBarBreakoutStrategy,
+    'harami_reversal':       HaramiReversalStrategy,
 }

@@ -3,17 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TradingHouse</title>
+  <title>MillionsKeeper · Algo Trading</title>
+  <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style-bybit.css">
 </head>
 <body>
 
 <!-- ── Header ── -->
 <header>
-  <h1>TradingHouse</h1>
+  <h1 class="brand">
+    <img src="/static/img/logo-mark.svg" alt="" class="brand-mark" width="26" height="26">
+    <span class="brand-text">Millions<b>Keeper</b></span>
+  </h1>
   <div class="header-right">
     <div id="conn-status">
       <div id="conn-dot"></div>
@@ -38,8 +43,9 @@
     <div class="tabs">
       <div class="tab active" data-tab="positions">Торговля</div>
       <div class="tab" data-tab="indicators">Индикаторы</div>
-      <div class="tab" data-tab="history">История</div>
       <div class="tab" data-tab="backtest">Бэктест</div>
+      <div class="tab" data-tab="strategies">Стратегии</div>
+      <div class="tab" data-tab="calculator">Калькулятор</div>
       <div class="tab" data-tab="events">Лог событий</div>
       <div class="tab admin-only" data-tab="users">Пользователи</div>
     </div>
@@ -74,29 +80,6 @@
       <div class="chart-toolbar">
         <div class="toolbar-group">
           <select id="chart-symbol" class="toolbar-select"></select>
-        </div>
-        <div class="toolbar-group">
-          <select id="chart-strategy" class="toolbar-select" style="min-width:220px">
-            <option value="default">MA + MACD + RSI (основная)</option>
-            <option value="sr_bounce">S/R Bounce</option>
-            <option value="ema_pullback">EMA Pullback (50/200)</option>
-            <option value="cci_rsi">CCI + RSI</option>
-            <option value="fibonacci_retracement">Fibonacci Retracement</option>
-            <option value="macd_hist">MACD Histogram</option>
-            <option value="default_hedge">Default + Hedge</option>
-            <option value="default_inverse">Default Inverse</option>
-            <option value="candle_reversal">Candle Reversal</option>
-            <option value="sar_adx">SAR + ADX</option>
-            <option value="donchian_breakout">Donchian Breakout</option>
-            <option value="triple_ema">Triple EMA</option>
-            <option value="mean_revert_ema">Mean Revert 10/20 EMA</option>
-            <option value="ema50_pullback">EMA50 Pullback</option>
-            <option value="ema_triple_touch">EMA 20/50 Triple Touch</option>
-            <option value="market_phase">200 MA + Market Phase</option>
-            <option value="combined_a_plus">Combined A+ (5 факторов)</option>
-            <option value="ema50_rejection">EMA50 Rejection (2×ATR)</option>
-            <option value="ema50_overstretch">EMA50 Overstretch (4.5×ATR фейд)</option>
-          </select>
         </div>
         <div class="toolbar-group tf-buttons" id="chart-tf-buttons">
           <button class="tf-btn" data-tf="M1">1m</button>
@@ -142,42 +125,45 @@
         </div>
       </div>
 
-    </div>
-
-    <!-- History -->
-    <div id="tab-history" class="content">
-      <div class="stats-grid">
-        <div class="stat-box" id="hist-today">
-          <div class="stat-label">Сегодня</div>
-          <div class="stat-value">—</div>
-        </div>
-        <div class="stat-box" id="hist-week">
-          <div class="stat-label">Неделя</div>
-          <div class="stat-value">—</div>
-        </div>
-        <div class="stat-box" id="hist-month">
-          <div class="stat-label">Месяц</div>
-          <div class="stat-value">—</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title hist-deals-head">
-          <span>Сделки</span>
-          <div class="hist-controls">
-            <select id="hist-symbol-filter" class="toolbar-select" title="Фильтр по паре">
-              <option value="">Все пары</option>
-            </select>
-            <div class="hist-period-tabs" id="hist-period-tabs">
-              <button class="hist-period-btn active" data-period="today">Сегодня</button>
-              <button class="hist-period-btn" data-period="week">Неделя</button>
-              <button class="hist-period-btn" data-period="month">Месяц</button>
-            </div>
+      <!-- ── History (объединено с индикаторами) ── -->
+      <div class="hist-section">
+        <div class="stats-grid">
+          <div class="stat-box" id="hist-today">
+            <div class="stat-label">Сегодня</div>
+            <div class="stat-value">—</div>
+          </div>
+          <div class="stat-box" id="hist-week">
+            <div class="stat-label">Неделя</div>
+            <div class="stat-value">—</div>
+          </div>
+          <div class="stat-box" id="hist-month">
+            <div class="stat-label">Месяц</div>
+            <div class="stat-value">—</div>
           </div>
         </div>
-        <div id="hist-deals-table"></div>
-        <div id="hist-pagination" class="bt-pagination"></div>
+
+        <div class="card">
+          <div class="card-title hist-deals-head">
+            <span>История сделок</span>
+            <div class="hist-controls">
+              <label class="hist-only-chart" title="Показывать только сделки по символу графика">
+                <input type="checkbox" id="hist-only-chart-symbol"> только текущий символ
+              </label>
+              <select id="hist-symbol-filter" class="toolbar-select" title="Фильтр по паре">
+                <option value="">Все пары</option>
+              </select>
+              <div class="hist-period-tabs" id="hist-period-tabs">
+                <button class="hist-period-btn active" data-period="today">Сегодня</button>
+                <button class="hist-period-btn" data-period="week">Неделя</button>
+                <button class="hist-period-btn" data-period="month">Месяц</button>
+              </div>
+            </div>
+          </div>
+          <div id="hist-deals-table"></div>
+          <div id="hist-pagination" class="bt-pagination"></div>
+        </div>
       </div>
+
     </div>
 
     <!-- Backtest -->
@@ -282,6 +268,55 @@
       </div>
 
       <div id="bt-result"></div>
+    </div>
+
+    <!-- Strategies catalog -->
+    <div id="tab-strategies" class="content">
+      <div class="strat-layout">
+        <aside class="strat-sidebar">
+          <input type="text" id="strat-search" placeholder="Поиск стратегии…" />
+          <div id="strat-list" class="strat-list">
+            <div style="color:var(--text-muted);padding:12px">Загрузка…</div>
+          </div>
+        </aside>
+        <main id="strat-detail" class="strat-detail">
+          <div style="color:var(--text-muted);padding:24px">Выберите стратегию слева.</div>
+        </main>
+      </div>
+    </div>
+
+    <!-- Calculator -->
+    <div id="tab-calculator" class="content">
+      <div class="card">
+        <div class="card-title">Калькулятор объёма (через плечо)</div>
+        <div class="bt-form">
+          <label>
+            Инструмент
+            <select id="calc-symbol" style="min-width:160px"></select>
+          </label>
+          <label title="Сумма депозита в USD">
+            Депозит (USD)
+            <input id="calc-deposit" type="number" value="5000" min="0" step="1" style="width:120px">
+          </label>
+          <label title="Какой процент депозита аллоцируем под маржу этой сделки">
+            % депозита
+            <input id="calc-pct" type="number" value="15" min="0.01" max="100" step="1" style="width:90px">
+          </label>
+          <button class="btn-primary" id="btn-calc-run">Рассчитать</button>
+        </div>
+        <div class="strategy-desc">
+          Формула: <b>лот = депозит × % / 100 ÷ цена × плечо ÷ contract_size</b>
+          (forex 100&nbsp;000, XAU 100, XAG 5000 — из спецификации MT5).
+          Плечо для каждого инструмента берётся из <code>shoulders/marginal-USD.xlsx</code>.
+          Стоимость пункта вычисляется по правилам:
+          <code>quote=USD → 1×лот</code>;
+          <code>base=USD → лот / цена</code>;
+          <code>кросс → лот × baseUSD / цена пары</code>.
+          На выходе — объём и стоимость 1 пункта, чтобы вы могли решить, какой SL заложить.
+        </div>
+      </div>
+
+      <div id="calc-result"></div>
     </div>
 
     <!-- Events Log -->

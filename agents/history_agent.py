@@ -77,14 +77,21 @@ class HistoryAgent(BaseAgent):
         return comment or "—"
 
     def _load_history(self) -> dict:
-        """Один запрос к MT5 за месяц → локальная нарезка на today/week/month."""
+        """
+        Один запрос к MT5 за 3 месяца → локальная нарезка на today/week/month.
+        Возвращает также raw unix-таймстемпы (`*_ts`) — фронт использует их
+        напрямую, чтобы не страдать от часовых поясов.
+        """
         from datetime import datetime, timedelta
         import MetaTrader5 as mt5
 
         now = datetime.now()
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         week_start  = (today_start - timedelta(days=now.weekday()))
-        month_start = today_start.replace(day=1)
+        # Окно выборки расширено до ~90 дней, чтобы видеть «хвосты» старых
+        # трейдов (linked open→close) для позиций, открытых давно и закрытых
+        # недавно. Бакет `month` теперь = последние 90 дней (rolling).
+        month_start = today_start - timedelta(days=90)
         date_to     = now + timedelta(hours=3)  # запас под MT5 server time
 
         deals = mt5.history_deals_get(month_start, date_to)
@@ -93,19 +100,47 @@ class HistoryAgent(BaseAgent):
         week  = {"profit": 0.0, "deals": []}
         month = {"profit": 0.0, "deals": []}
 
+        def _fmt(dt: datetime) -> str:
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+
         if deals:
+            # Сначала собираем IN-сделки (entry=0) по position_id, чтобы найти
+            # точку входа для каждой закрытой сделки.
+            in_map = {}
+            for d in deals:
+                if getattr(d, "entry", None) == 0 and d.type in (0, 1):
+                    in_map[d.position_id] = d
+
             for d in deals:
                 if d.entry != 1 or d.type not in (0, 1):
                     continue
                 t_dt = datetime.fromtimestamp(d.time)
+
+                in_d = in_map.get(d.position_id)
+                open_time = open_price = position_type = None
+                open_time_ts = None
+                if in_d is not None:
+                    open_time = _fmt(datetime.fromtimestamp(in_d.time))
+                    open_time_ts = int(in_d.time)
+                    open_price = float(in_d.price)
+                    # Реальное направление позиции — из IN-сделки.
+                    position_type = "BUY" if in_d.type == 0 else "SELL"
+
                 item = {
-                    "ticket": d.ticket,
-                    "symbol": d.symbol,
-                    "type":   "BUY" if d.type == 0 else "SELL",
-                    "profit": d.profit,
-                    "volume": d.volume,
-                    "time":   t_dt.strftime("%Y-%m-%d %H:%M:%S"),
-                    "reason": self._deal_reason(d),
+                    "ticket":        d.ticket,
+                    "symbol":        d.symbol,
+                    "type":          "BUY" if d.type == 0 else "SELL",
+                    "profit":        d.profit,
+                    "volume":        d.volume,
+                    "time":          _fmt(t_dt),
+                    "time_ts":       int(d.time),  # raw unix — для совпадения со шкалой свечей
+                    "reason":        self._deal_reason(d),
+                    # Поля для отрисовки линии трейда на графике
+                    "open_time":     open_time,
+                    "open_time_ts":  open_time_ts,
+                    "open_price":    open_price,
+                    "close_price":   float(d.price) if getattr(d, "price", None) is not None else None,
+                    "position_type": position_type,
                 }
                 month["profit"] += d.profit
                 month["deals"].append(item)

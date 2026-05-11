@@ -1,0 +1,33 @@
+<!--
+  MillionsKeeper · Logo Mark (variant B — "MK Monogram")
+  Геометрическая M+K, две золотые «свечи» формируют M, K — стилизована как ключ.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 32" width="40" height="32" role="img" aria-label="MillionsKeeper monogram">
+  <defs>
+    <linearGradient id="mkmGold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#FFD158"/>
+      <stop offset="100%" stop-color="#F7A600"/>
+    </linearGradient>
+  </defs>
+
+  <!-- "M" из 4 геометрических полос (ascending → descending → ascending) -->
+  <g fill="url(#mkmGold)">
+    <!-- левая ножка -->
+    <path d="M2 4  H6  V28 H2 Z"/>
+    <!-- левый внутренний скос (диагональ вверх-вправо) -->
+    <path d="M6 4  L11 4 L17 16 L13 18 Z"/>
+    <!-- правый внутренний скос -->
+    <path d="M17 16 L23 4 L28 4 L21 18 Z" opacity="0.9"/>
+    <!-- правая ножка -->
+    <path d="M24 4 H28 V28 H24 Z"/>
+  </g>
+
+  <!-- "K" как ключ-указатель: вертикальная ось + два луча + бородка -->
+  <g fill="url(#mkmGold)">
+    <rect x="32" y="4"  width="3" height="24" rx="0.5"/>
+    <path d="M35 14 L40 8  L40 12 L37.5 16 L40 20 L40 24 L35 18 Z"/>
+    <!-- бородка ключа (нижний хвост K) -->
+    <rect x="35" y="22" width="2.5" height="2" />
+    <rect x="35" y="25" width="4"   height="2" />
+  </g>
+</svg>
