@@ -624,6 +624,11 @@ function routeEvent(ev) {
     renderBacktestResult(payload);
     return;
   }
+
+  if (type === 'anomaly.opened' || type === 'anomaly.updated' || type === 'anomaly.closed') {
+    Anomalies.onEventStream(ev);
+    return;
+  }
 }
 
 // ─── Render: Agents sidebar ───────────────────────────────────────
@@ -3315,6 +3320,7 @@ document.addEventListener('DOMContentLoaded', () => {
       switchTab(t.dataset.tab);
       if (t.dataset.tab === 'users' && isAdmin()) loadUsers();
       if (t.dataset.tab === 'calculator') calcLoadSymbols();
+      if (t.dataset.tab === 'anomalies') Anomalies.onTabOpened();
     });
   });
 
@@ -3378,3 +3384,253 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initial tab
   switchTab('positions');
 });
+
+// ─── Anomalies module ─────────────────────────────────────────────
+const Anomalies = (() => {
+  'use strict';
+
+  // ── State ──────────────────────────────────────────────────────
+  const _state = {
+    active: new Map(),      // symbol → anomaly object
+    historyOffset: 0,
+    historyExhausted: false,
+    filters: { symbol: '', type: '', period: '' },
+  };
+
+  const HISTORY_LIMIT = 50;
+
+  // ── Helpers ────────────────────────────────────────────────────
+  function _fmtNum(v, dec) {
+    if (v == null || v === '') return '—';
+    return Number(v).toLocaleString('ru-RU', {
+      minimumFractionDigits: dec ?? 2,
+      maximumFractionDigits: dec ?? 2,
+    });
+  }
+
+  function _fmtTs(ts) {
+    if (!ts) return '—';
+    try {
+      const d = new Date(ts);
+      return d.toLocaleString('ru-RU', {
+        day: '2-digit', month: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+      });
+    } catch { return ts; }
+  }
+
+  function _dirClass(types) {
+    if (!types || types.length === 0) return '';
+    const arr = Array.isArray(types) ? types : [types];
+    const up   = arr.some(t => /buy|up|bull|long/i.test(t));
+    const down = arr.some(t => /sell|down|bear|short/i.test(t));
+    if (up && down) return 'mixed';
+    if (up)   return 'up';
+    if (down) return 'down';
+    return 'mixed';
+  }
+
+  function _periodToFrom(period) {
+    if (!period) return null;
+    const now = Date.now();
+    const map = { '1h': 3600, '6h': 21600, '24h': 86400, '7d': 604800 };
+    const sec = map[period];
+    if (!sec) return null;
+    return new Date(now - sec * 1000).toISOString();
+  }
+
+  // ── Render: cards ──────────────────────────────────────────────
+  function _renderCards() {
+    const grid = document.getElementById('anomaly-cards');
+    if (!grid) return;
+    if (_state.active.size === 0) {
+      grid.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Активных аномалий нет</div>';
+      return;
+    }
+    // Sort: most recently opened first
+    const sorted = Array.from(_state.active.values()).sort((a, b) => {
+      return (b.opened_at || '') > (a.opened_at || '') ? 1 : -1;
+    });
+    grid.innerHTML = sorted.map(a => _cardHtml(a)).join('');
+  }
+
+  function _cardHtml(a) {
+    const typesArr = Array.isArray(a.types) ? a.types : (a.types ? [a.types] : []);
+    const dir = _dirClass(typesArr);
+    return `<div class="anomaly-card ${dir}" data-symbol="${a.symbol}">
+  <div class="ac-symbol">${a.symbol || '—'}</div>
+  <div class="ac-types">${typesArr.join(', ') || '—'}</div>
+  <div class="ac-row"><span>Цена</span><span>${_fmtNum(a.price)}</span></div>
+  <div class="ac-row"><span>EMA50</span><span>${_fmtNum(a.ema50)}</span></div>
+  <div class="ac-row"><span>ATR</span><span>${_fmtNum(a.atr)}</span></div>
+  <div class="ac-row"><span>Dist/ATR</span><span>${_fmtNum(a.dist_atr)}</span></div>
+  <div class="ac-row"><span>StochK</span><span>${_fmtNum(a.stoch_k, 1)}</span></div>
+  <div class="ac-row"><span>StochD</span><span>${_fmtNum(a.stoch_d, 1)}</span></div>
+  <div class="ac-time">Открыта: ${_fmtTs(a.opened_at)}</div>
+</div>`;
+  }
+
+  function _updateBadge() {
+    const badge = document.getElementById('anomalies-badge');
+    const count = document.getElementById('anomaly-active-count');
+    const n = _state.active.size;
+    if (badge) {
+      badge.textContent = n;
+      badge.classList.toggle('hidden', n === 0);
+    }
+    if (count) count.textContent = n;
+  }
+
+  // ── Render: history rows ───────────────────────────────────────
+  function _historyRowHtml(item) {
+    const typesArr = Array.isArray(item.types) ? item.types : (item.types ? [item.types] : []);
+    const typesHtml = typesArr.map(t => `<span class="type-badge">${t}</span>`).join(' ');
+    return `<tr>
+  <td>${item.symbol || '—'}</td>
+  <td>${typesHtml || '—'}</td>
+  <td>${_fmtNum(item.price)}</td>
+  <td>${_fmtNum(item.ema50)}</td>
+  <td>${_fmtNum(item.atr)}</td>
+  <td>${_fmtNum(item.dist_atr)}</td>
+  <td>${_fmtNum(item.stoch_k, 1)}</td>
+  <td>${_fmtNum(item.stoch_d, 1)}</td>
+  <td>${_fmtTs(item.opened_at)}</td>
+  <td>${_fmtTs(item.closed_at)}</td>
+</tr>`;
+  }
+
+  // ── API calls ──────────────────────────────────────────────────
+  async function loadActive() {
+    try {
+      const r = await fetch('/api/anomalies/active');
+      if (!r.ok) return;
+      const items = await r.json();
+      _state.active.clear();
+      (Array.isArray(items) ? items : (items.items || [])).forEach(a => {
+        _state.active.set(a.symbol, a);
+      });
+      _renderCards();
+      _updateBadge();
+    } catch (e) {
+      console.warn('[Anomalies] loadActive error:', e);
+    }
+  }
+
+  async function loadHistory(append) {
+    if (!append) {
+      _state.historyOffset = 0;
+      _state.historyExhausted = false;
+    }
+    if (_state.historyExhausted) return;
+
+    const f = _state.filters;
+    const params = new URLSearchParams({
+      limit: HISTORY_LIMIT,
+      offset: _state.historyOffset,
+    });
+    if (f.symbol)  params.set('symbol', f.symbol);
+    if (f.type)    params.set('type',   f.type);
+    const from = _periodToFrom(f.period);
+    if (from)      params.set('from_',  from);
+
+    try {
+      const r = await fetch(`/api/anomalies/history?${params}`);
+      if (!r.ok) return;
+      const data = await r.json();
+      const items = Array.isArray(data) ? data : (data.items || []);
+      const tbody = document.getElementById('anomaly-history-body');
+      if (tbody) {
+        if (!append) tbody.innerHTML = '';
+        items.forEach(item => {
+          tbody.insertAdjacentHTML('beforeend', _historyRowHtml(item));
+        });
+      }
+      _state.historyOffset += items.length;
+      if (items.length < HISTORY_LIMIT) {
+        _state.historyExhausted = true;
+      }
+      const btn = document.getElementById('anomaly-load-more');
+      if (btn) btn.style.display = _state.historyExhausted ? 'none' : '';
+    } catch (e) {
+      console.warn('[Anomalies] loadHistory error:', e);
+    }
+  }
+
+  async function scanNow() {
+    const btn = document.getElementById('anomaly-scan-now');
+    if (btn) btn.disabled = true;
+    try {
+      const r = await fetch('/api/anomalies/scan', { method: 'POST' });
+      const ts = new Date().toLocaleTimeString('ru-RU');
+      const el = document.getElementById('anomaly-last-scan');
+      if (el) el.textContent = ts;
+      if (r.ok) {
+        // Reload active after short delay to let backend process
+        setTimeout(loadActive, 600);
+      }
+    } catch (e) {
+      console.warn('[Anomalies] scanNow error:', e);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  // ── Tab opened ─────────────────────────────────────────────────
+  function onTabOpened() {
+    loadActive();
+    loadHistory(false);
+  }
+
+  // ── WS event handler ───────────────────────────────────────────
+  function onEventStream(ev) {
+    const { type, payload } = ev;
+    if (!payload) return;
+
+    if (type === 'anomaly.opened' || type === 'anomaly.updated') {
+      const sym = payload.symbol;
+      if (!sym) return;
+      const existing = _state.active.get(sym) || {};
+      _state.active.set(sym, { ...existing, ...payload });
+      _renderCards();
+      _updateBadge();
+    }
+
+    if (type === 'anomaly.closed') {
+      const sym = payload.symbol;
+      if (sym) {
+        _state.active.delete(sym);
+        _renderCards();
+        _updateBadge();
+      }
+      // Reload history page 1 to reflect newly closed anomaly
+      loadHistory(false);
+    }
+  }
+
+  // ── Filter change handler ──────────────────────────────────────
+  function _onFilterChange() {
+    _state.filters.symbol = document.getElementById('anomaly-filter-symbol')?.value || '';
+    _state.filters.type   = document.getElementById('anomaly-filter-type')?.value   || '';
+    _state.filters.period = document.getElementById('anomaly-filter-period')?.value || '';
+    loadHistory(false);
+  }
+
+  // ── DOMContentLoaded bindings ──────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('anomaly-scan-now')
+      ?.addEventListener('click', scanNow);
+
+    document.getElementById('anomaly-load-more')
+      ?.addEventListener('click', () => loadHistory(true));
+
+    document.getElementById('anomaly-filter-symbol')
+      ?.addEventListener('change', _onFilterChange);
+    document.getElementById('anomaly-filter-type')
+      ?.addEventListener('change', _onFilterChange);
+    document.getElementById('anomaly-filter-period')
+      ?.addEventListener('change', _onFilterChange);
+  });
+
+  // ── Public API ──────────────────────────────────────────────────
+  return { onTabOpened, onEventStream, loadActive, loadHistory, scanNow };
+})();
