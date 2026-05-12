@@ -3406,6 +3406,16 @@ function calcRender(d) {
     </div>`;
   }
 
+  // Подсказка по SL: какая будет потеря при типичных значениях SL в пунктах
+  const slGrid = [10, 20, 50, 100, 200, 500];
+  const slRows = slGrid.map(n => {
+    const loss = d.pip_value_for_trade * n;
+    const dd   = (loss / d.deposit) * 100;
+    return `<tr><td style="padding:3px 10px">${n}</td>
+                <td style="padding:3px 10px;text-align:right">${fmt(loss, 2)} USD</td>
+                <td style="padding:3px 10px;text-align:right;color:var(--text-muted)">${fmt(dd, 2)} %</td></tr>`;
+  }).join('');
+
   out.innerHTML = `
     <div class="card">
       <div class="card-title">${escapeHtml(d.symbol)} — результат</div>
@@ -3427,6 +3437,18 @@ function calcRender(d) {
           <div class="stat-value">${d.margin_mt5 !== null ? fmt(d.margin_mt5, 2) + ' ' + escapeHtml(d.account_currency || '') : '—'}</div>
         </div>
       </div>
+
+      <div class="card-title" style="margin-top:18px;font-size:13px">Подсказка по стоп-лоссу (для текущего объёма)</div>
+      <table style="width:100%;font-size:12.5px;border-collapse:collapse;margin-top:6px">
+        <thead>
+          <tr style="color:var(--text-muted)">
+            <th style="padding:3px 10px;text-align:left">SL, пунктов</th>
+            <th style="padding:3px 10px;text-align:right">Потеря</th>
+            <th style="padding:3px 10px;text-align:right">% от депозита</th>
+          </tr>
+        </thead>
+        <tbody>${slRows}</tbody>
+      </table>
 
       ${warn}
     </div>
