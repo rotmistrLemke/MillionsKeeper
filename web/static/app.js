@@ -3587,17 +3587,58 @@ const Anomalies = (() => {
   function _cardHtml(a) {
     const typesArr = Array.isArray(a.types) ? a.types : (a.types ? [a.types] : []);
     const dir = _dirClass(typesArr);
-    return `<div class="anomaly-card ${dir}" data-symbol="${a.symbol}">
-  <div class="ac-symbol">${a.symbol || '—'}</div>
-  <div class="ac-types">${typesArr.join(', ') || '—'}</div>
-  <div class="ac-row"><span>Цена</span><span>${_fmtNum(a.price)}</span></div>
-  <div class="ac-row"><span>EMA50</span><span>${_fmtNum(a.ema50)}</span></div>
-  <div class="ac-row"><span>ATR</span><span>${_fmtNum(a.atr)}</span></div>
-  <div class="ac-row"><span>Dist/ATR</span><span>${_fmtNum(a.dist_atr)}</span></div>
-  <div class="ac-row"><span>StochK</span><span>${_fmtNum(a.stoch_k, 1)}</span></div>
-  <div class="ac-row"><span>StochD</span><span>${_fmtNum(a.stoch_d, 1)}</span></div>
-  <div class="ac-time">Открыта: ${_fmtTs(a.opened_at)}</div>
+    const typeBadges = typesArr.map(t => `<span class="ac-type-badge">${t}</span>`).join('') || '<span class="ac-type-badge">—</span>';
+    const infoIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor"/></svg>';
+    const sym = a.symbol || '—';
+    return `<div class="anomaly-card ${dir}" data-symbol="${sym}">
+  <div class="ac-main">
+    <div class="ac-symbol">${sym}</div>
+    <div class="ac-types">${typeBadges}</div>
+  </div>
+  <button class="btn-icon ac-info-btn" title="Подробнее" onclick="Anomalies.showInfo('${sym}')">${infoIcon}</button>
 </div>`;
+  }
+
+  function showInfo(symbol) {
+    const a = _state.active.get(symbol);
+    if (!a) return;
+    const typesArr = Array.isArray(a.types) ? a.types : (a.types ? [a.types] : []);
+    const dir = _dirClass(typesArr);
+    const typeBadges = typesArr.map(t => `<span class="ac-type-badge">${t}</span>`).join(' ') || '—';
+    const row = (k, v) => `<div class="si-row"><span class="si-k">${k}</span><span class="si-v">${v}</span></div>`;
+    const html = `
+      <div class="si-backdrop" onclick="if(event.target===this)Anomalies.closeInfo()">
+        <div class="si-panel ${dir}" role="dialog" aria-label="Информация об аномалии">
+          <div class="si-header">
+            <h3>${symbol}</h3>
+            <button class="btn-icon" onclick="Anomalies.closeInfo()" title="Закрыть" aria-label="Закрыть">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="si-body">
+            ${row('Тип', typeBadges)}
+            ${row('Цена', _fmtNum(a.price, 5))}
+            ${row('EMA50', _fmtNum(a.ema50, 5))}
+            ${row('ATR', _fmtNum(a.atr, 5))}
+            ${row('Dist / ATR', _fmtNum(a.dist_atr, 2))}
+            ${row('Stoch K', _fmtNum(a.stoch_k, 1))}
+            ${row('Stoch D', _fmtNum(a.stoch_d, 1))}
+            ${row('Открыта', _fmtTs(a.opened_at))}
+          </div>
+        </div>
+      </div>
+    `;
+    const wrap = document.createElement('div');
+    wrap.id = 'anomaly-info-modal';
+    wrap.innerHTML = html;
+    document.body.appendChild(wrap);
+    document.addEventListener('keydown', _infoEsc);
+  }
+  function _infoEsc(e) { if (e.key === 'Escape') closeInfo(); }
+  function closeInfo() {
+    const m = document.getElementById('anomaly-info-modal');
+    if (m) m.remove();
+    document.removeEventListener('keydown', _infoEsc);
   }
 
   function _updateBadge() {
@@ -3763,7 +3804,7 @@ const Anomalies = (() => {
   });
 
   // ── Public API ──────────────────────────────────────────────────
-  return { onTabOpened, onEventStream, loadActive, loadHistory, scanNow };
+  return { onTabOpened, onEventStream, loadActive, loadHistory, scanNow, showInfo, closeInfo };
 })();
 
 // ===== Mobile bottom-bar navigation =====

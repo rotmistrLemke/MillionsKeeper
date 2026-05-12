@@ -1195,6 +1195,23 @@ tr:hover td { background: var(--surface2); }
 .st-status-dot.is-on  { background: #10b981; box-shadow: 0 0 8px rgba(16,185,129,0.6); }
 .st-status-dot.is-off { background: rgba(148,163,184,0.5); }
 
+/* Anomalies card title: текст + счётчик в столбик, FAB справа */
+.anomaly-card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.anomaly-title-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.anomaly-title-text > span:first-child { color: var(--text); }
+
 /* Streams card: заголовок и счётчик в столбик, FAB справа */
 .streams-card-title {
   margin-top: 4px;
