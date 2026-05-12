@@ -44,11 +44,24 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
-  height: 52px;
+  padding: 8px 20px;
+  min-height: 60px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+}
+.brand-block {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.brand-sub {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
 }
 header h1 {
   font-size: 15px;
@@ -1168,18 +1181,22 @@ tr:hover td { background: var(--surface2); }
 .user-info {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  margin-left: 14px;
-  padding-left: 14px;
-  border-left: 1px solid var(--border);
+  gap: 10px;
   font-size: 12.5px;
   color: var(--text-muted);
 }
+.user-info-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+  gap: 1px;
+}
 .user-info #user-name { color: var(--text); font-weight: 500; }
 .user-role {
-  padding: 2px 8px;
+  padding: 1px 7px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 10px;
   background: rgba(148,163,184,0.15);
   color: var(--text-muted);
 }
@@ -1187,7 +1204,13 @@ tr:hover td { background: var(--surface2); }
   background: rgba(251,191,36,0.15);
   color: #fbbf24;
 }
-#btn-logout { padding: 2px 9px; font-size: 14px; }
+#btn-logout {
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+#btn-logout svg { display: block; }
 .stream-form-wrap { margin-top: 12px; }
 .stream-form {
   background: var(--bg-panel);
