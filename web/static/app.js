@@ -680,9 +680,13 @@ function renderPositions() {
     const sign = pnl >= 0 ? '+' : '';
     return `
       <div class="pos-card" data-ticket="${p.ticket}">
-        <div class="pos-symbol">${p.symbol}</div>
-        <span class="badge badge-${p.type.toLowerCase()}">${p.type}</span>
-        <span class="pos-vol">${p.volume}</span>
+        <div class="pos-head">
+          <div class="pos-symbol">${p.symbol}</div>
+          <div class="pos-sub">
+            <span class="badge badge-${p.type.toLowerCase()}">${p.type}</span>
+            <span class="pos-vol">${p.volume} лот</span>
+          </div>
+        </div>
         <div class="pos-pnl ${pnlClass}">${sign}${fmt(pnl)}$</div>
         <button class="btn-icon" title="Подробнее" onclick="showPositionInfo(${p.ticket})">${infoIcon}</button>
         <button class="btn-icon btn-icon-danger admin-only" title="Закрыть позицию" onclick="closePosition(${p.ticket},'${p.symbol}')">${closeIcon}</button>
