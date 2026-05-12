@@ -469,18 +469,18 @@ td { font-size: 13px; }
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 8px 6px 14px;
+  padding: 6px 8px 6px 12px;
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: var(--r-pill);
+  border-radius: var(--r-md);
 }
 .user-info #user-name { font-weight: 600; color: var(--text); font-size: 12.5px; }
 .user-role {
   display: inline-flex; align-items: center;
-  height: 16px; padding: 0 7px;
+  height: 16px; padding: 0 6px;
   font-size: 9px; font-weight: 700; letter-spacing: 0.6px;
   text-transform: uppercase;
-  border-radius: var(--r-pill);
+  border-radius: var(--r-xs);
   background: var(--accent-soft);
   color: var(--accent);
 }
