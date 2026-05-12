@@ -1132,6 +1132,7 @@ tr:hover td { background: var(--surface2); }
   padding: 10px;
   border-bottom: 1px solid var(--border);
   font-variant-numeric: tabular-nums;
+  vertical-align: middle;
 }
 .streams-grid tr:last-child td { border-bottom: none; }
 .streams-grid tr:hover td { background: rgba(255,255,255,0.02); }
@@ -1143,9 +1144,14 @@ tr:hover td { background: var(--surface2); }
 .streams-grid .st-actions {
   text-align: right;
   white-space: nowrap;
+  width: 1%;   /* table-layout: auto — колонка сжимается под контент */
 }
-.streams-grid .st-actions button { margin-left: 4px; }
-.streams-grid .st-actions-col { width: 130px; }
+.streams-grid .st-actions > button,
+.streams-grid .st-actions > .st-more-wrap {
+  vertical-align: middle;
+}
+.streams-grid .st-actions > * + * { margin-left: 2px; }
+.streams-grid .st-actions-col { width: 1%; }
 
 .st-status-dot {
   width: 8px; height: 8px; border-radius: 50%;
@@ -1155,7 +1161,7 @@ tr:hover td { background: var(--surface2); }
 .st-status-dot.is-on  { background: #10b981; box-shadow: 0 0 8px rgba(16,185,129,0.6); }
 .st-status-dot.is-off { background: rgba(148,163,184,0.5); }
 
-/* Streams card: отступ перед card-title */
+/* Streams card: заголовок и счётчик в столбик, FAB справа */
 .streams-card-title {
   margin-top: 4px;
   margin-bottom: 14px;
@@ -1164,10 +1170,22 @@ tr:hover td { background: var(--surface2); }
   align-items: center;
   gap: 12px;
 }
+.streams-card-title > span:first-child {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  line-height: 1.2;
+}
+.streams-card-title .streams-count-badge {
+  margin-left: 0;
+}
 
 /* Round FAB-style add button */
 .btn-fab {
-  width: 36px; height: 36px;
+  width: 40px; height: 40px;
+  min-width: 40px; min-height: 40px;
+  flex-shrink: 0;
   padding: 0;
   border-radius: 50%;
   background: var(--accent);
@@ -1177,6 +1195,8 @@ tr:hover td { background: var(--surface2); }
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  box-sizing: border-box;
+  aspect-ratio: 1 / 1;
   transition: transform 0.12s, box-shadow 0.12s, background 0.12s;
   box-shadow: 0 2px 6px rgba(247,166,0,0.35);
 }
