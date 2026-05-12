@@ -483,14 +483,25 @@ tr:hover td { background: var(--surface2); }
 .pos-meta-line {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-.pos-vol {
-  color: var(--text-muted);
-  font-size: 11.5px;
+  gap: 6px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
-  font-family: var(--font-mono);
 }
+.pos-type {
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  font-size: 11.5px;
+}
+.pos-type.type-buy  { color: #20B26C; }
+.pos-type.type-sell { color: #EF454A; }
+.pos-meta-sep { color: var(--text-dim, var(--text-muted)); opacity: 0.5; }
+.pos-points {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.pos-points.pnl-pos { color: #20B26C; }
+.pos-points.pnl-neg { color: #EF454A; }
+.pos-card { cursor: pointer; }
 
 /* P/L пилюля справа */
 .pos-pnl-pill {

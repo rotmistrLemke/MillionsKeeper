@@ -715,30 +715,27 @@ function renderPositions() {
     container.innerHTML = '<div style="color:var(--text-muted);padding:20px">Нет открытых позиций</div>';
     return;
   }
-  const infoIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor"/></svg>';
-  const closeIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>';
   container.innerHTML = state.positions.map(p => {
     const pnl = (p.pnl != null) ? p.pnl : p.pnl_money;
     const pnlClass = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
     const sign = pnl >= 0 ? '+' : '';
-    const pts = p.pnl_points != null ? `${sign}${p.pnl_points} пп` : '';
+    const ptsSign = (p.pnl_points ?? 0) >= 0 ? '+' : '';
+    const ptsClass = (p.pnl_points ?? 0) >= 0 ? 'pnl-pos' : 'pnl-neg';
+    const pts = p.pnl_points != null
+      ? `<span class="pos-points ${ptsClass}">${ptsSign}${p.pnl_points} пп</span>`
+      : '';
     return `
-      <div class="pos-card" data-ticket="${p.ticket}">
+      <div class="pos-card" data-ticket="${p.ticket}" onclick="showPositionInfo(${p.ticket})">
         ${_posIconHtml(p.symbol)}
         <div class="pos-head">
           <div class="pos-symbol">${p.symbol}</div>
           <div class="pos-meta-line">
-            <span class="badge badge-${p.type.toLowerCase()}">${p.type}</span>
-            <span class="pos-vol">${p.volume} лот</span>
+            <span class="pos-type type-${p.type.toLowerCase()}">${p.type}</span>
+            ${pts ? `<span class="pos-meta-sep">·</span>${pts}` : ''}
           </div>
         </div>
         <div class="pos-pnl-pill ${pnlClass}">
           <div class="pnl-amount">${sign}${fmt(pnl)} $</div>
-          ${pts ? `<div class="pnl-points">${pts}</div>` : ''}
-        </div>
-        <div class="pos-actions">
-          <button class="btn-icon" title="Подробнее" onclick="showPositionInfo(${p.ticket})">${infoIcon}</button>
-          <button class="btn-icon btn-icon-danger admin-only" title="Закрыть позицию" onclick="closePosition(${p.ticket},'${p.symbol}')">${closeIcon}</button>
         </div>
       </div>
     `;
