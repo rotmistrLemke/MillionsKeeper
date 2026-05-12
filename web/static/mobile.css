@@ -1,0 +1,35 @@
+/* mobile.css — мобильная адаптация дашборда MillionsKeeper.
+   Все правила внутри @media (max-width: 767.98px) — десктоп не трогается. */
+
+/* === Фундамент === */
+@media (max-width: 767.98px) {
+  html { font-size: 15px; }
+  body { padding-bottom: 64px; }   /* место под нижний tab-bar */
+
+  /* Touch-цели ≥44px по Apple HIG / Material */
+  button, .btn-primary, .btn-secondary, .btn-close,
+  a.btn, select, input[type="button"], input[type="submit"] {
+    min-height: 44px;
+  }
+
+  /* iOS не зумит инпуты при focus, если font-size ≥ 16px */
+  input, select, textarea { font-size: 16px; }
+
+  /* Контейнеры */
+  .container, .content { padding: 12px; }
+
+  /* Любая таблица в фолбэке — горизонтальный скролл, не вылезает */
+  table { display: block; overflow-x: auto; max-width: 100%; }
+
+  /* Верхняя горизонтальная лента табов — скрыта (заменяется нижним tab-bar) */
+  .tabs { display: none !important; }
+
+  /* Header ужимается */
+  .header, header { padding: 8px 12px; }
+}
+
+/* === Нижний tab-bar (виден ТОЛЬКО на мобильном) === */
+.mobile-tabbar { display: none; }
+@media (max-width: 767.98px) {
+  .mobile-tabbar { display: flex; }
+}
