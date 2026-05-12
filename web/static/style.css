@@ -1285,6 +1285,64 @@ tr:hover td { background: var(--surface2); }
 }
 .anomaly-title-text > span:first-child { color: var(--text); }
 
+/* Calculator form: все элементы в одну строку, FAB справа */
+.calc-form {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 12px;
+  align-items: end;
+}
+.calc-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+}
+.calc-form input,
+.calc-form select {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-family: var(--font);
+  font-size: 12.5px;
+  min-height: 34px;
+  box-sizing: border-box;
+  transition: border-color 0.12s;
+}
+.calc-form input:focus,
+.calc-form select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.calc-form select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23848e9c' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 10px 10px;
+  padding-right: 30px;
+}
+.calc-form select::-ms-expand { display: none; }
+.calc-form option {
+  background: var(--surface, #181a20);
+  color: var(--text, #eaecef);
+}
+.calc-form .btn-fab {
+  margin-bottom: 0;
+  align-self: flex-end;
+}
+
 /* Streams card: заголовок и счётчик в столбик, FAB справа */
 .streams-card-title {
   margin-top: 4px;

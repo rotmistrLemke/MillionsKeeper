@@ -320,21 +320,25 @@
     <!-- Calculator -->
     <div id="tab-calculator" class="content">
       <div class="card">
-        <div class="card-title">Калькулятор объёма (через плечо)</div>
-        <div class="bt-form">
+        <div class="card-title">Калькулятор объёма</div>
+        <div class="calc-form">
           <label>
             Инструмент
-            <select id="calc-symbol" style="min-width:160px"></select>
+            <select id="calc-symbol"></select>
           </label>
           <label title="Сумма депозита в USD">
             Депозит (USD)
-            <input id="calc-deposit" type="number" value="5000" min="0" step="1" style="width:120px">
+            <input id="calc-deposit" type="number" value="5000" min="0" step="1">
           </label>
           <label title="Какой процент депозита аллоцируем под маржу этой сделки">
             % депозита
-            <input id="calc-pct" type="number" value="15" min="0.01" max="100" step="1" style="width:90px">
+            <input id="calc-pct" type="number" value="15" min="0.01" max="100" step="1">
           </label>
-          <button class="btn-primary" id="btn-calc-run">Рассчитать</button>
+          <button class="btn-fab" id="btn-calc-run" title="Рассчитать" aria-label="Рассчитать">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="9 6 15 12 9 18"/>
+            </svg>
+          </button>
         </div>
         <div class="strategy-desc">
           Формула: <b>лот = депозит × % / 100 ÷ цена × плечо ÷ contract_size</b>
