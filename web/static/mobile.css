@@ -185,3 +185,27 @@
     flex-wrap: wrap;
   }
 }
+
+/* === Anomalies: мобильная полировка === */
+@media (max-width: 767.98px) {
+  .anomaly-grid {
+    grid-template-columns: 1fr;
+  }
+  .anomaly-filters {
+    flex-wrap: wrap;
+  }
+  .anomaly-filters .toolbar-select {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .anomaly-header {
+    flex-wrap: wrap;
+    font-size: 13px;
+    gap: 12px;
+  }
+  .anomaly-table th,
+  .anomaly-table td {
+    padding: 4px 6px;
+    font-size: 12px;
+  }
+}

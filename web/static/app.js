@@ -3472,13 +3472,14 @@ const Anomalies = (() => {
   }
 
   function _updateBadge() {
-    const badge = document.getElementById('anomalies-badge');
-    const count = document.getElementById('anomaly-active-count');
     const n = _state.active.size;
-    if (badge) {
-      badge.textContent = n;
-      badge.classList.toggle('hidden', n === 0);
+    for (const id of ['anomalies-badge', 'mtab-anomalies-badge']) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.textContent = n;
+      el.classList.toggle('hidden', n === 0);
     }
+    const count = document.getElementById('anomaly-active-count');
     if (count) count.textContent = n;
   }
 
