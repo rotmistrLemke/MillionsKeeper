@@ -719,11 +719,6 @@ function renderPositions() {
     const pnl = (p.pnl != null) ? p.pnl : p.pnl_money;
     const pnlClass = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
     const sign = pnl >= 0 ? '+' : '';
-    const ptsSign = (p.pnl_points ?? 0) >= 0 ? '+' : '';
-    const ptsClass = (p.pnl_points ?? 0) >= 0 ? 'pnl-pos' : 'pnl-neg';
-    const pts = p.pnl_points != null
-      ? `<span class="pos-points ${ptsClass}">${ptsSign}${p.pnl_points} пп</span>`
-      : '';
     return `
       <div class="pos-card" data-ticket="${p.ticket}" onclick="showPositionInfo(${p.ticket})">
         ${_posIconHtml(p.symbol)}
@@ -731,7 +726,6 @@ function renderPositions() {
           <div class="pos-symbol">${p.symbol}</div>
           <div class="pos-meta-line">
             <span class="pos-type type-${p.type.toLowerCase()}">${p.type}</span>
-            ${pts ? `<span class="pos-meta-sep">·</span>${pts}` : ''}
           </div>
         </div>
         <div class="pos-pnl-pill ${pnlClass}">
