@@ -138,7 +138,7 @@ async def main():
         port=port,
         log_level="info",
         loop="asyncio",
-        access_log=False,  # access-логи идут через nginx/Caddy
+        access_log=True,  # временно включено для отладки /api/anomalies/*
     )
     server = uvicorn.Server(config)
 

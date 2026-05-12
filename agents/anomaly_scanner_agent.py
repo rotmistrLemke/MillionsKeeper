@@ -77,6 +77,7 @@ class AnomalyScannerAgent(BaseAgent):
         await self.emit_status(AgentStatus.RUNNING, "scan started")
 
         symbols = list(self._list_symbols())
+        self._logger.info(f"scan_once: {len(symbols)} symbols, active={len(self.active)}")
         seen: set = set()
         for symbol in symbols:
             seen.add(symbol)
@@ -98,6 +99,7 @@ class AnomalyScannerAgent(BaseAgent):
         self.metrics["active_count"] = len(self.active)
         self.metrics["last_scan_sec"] = elapsed
         self.metrics["last_scan_at"] = _now_iso()
+        self._logger.info(f"scan_once: done in {elapsed:.2f}s, active={len(self.active)}, opened_total={self.metrics['opened_total']}, closed_total={self.metrics['closed_total']}")
         await self.emit_status(AgentStatus.IDLE, f"scan done in {elapsed:.2f}s")
 
     async def _apply_result(self, symbol: str, result: DetectResult):
