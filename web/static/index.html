@@ -14,6 +14,17 @@
 </head>
 <body>
 
+<!-- Иконки для mobile tab-bar -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-trade" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0112 0v5l2 3H4l2-3V8zM10 19a2 2 0 004 0" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-calc" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" fill="none" stroke-width="2"/><path d="M8 7h8M7 12h2M11 12h2M15 12h2M7 16h2M11 16h2M15 16h2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-flask" viewBox="0 0 24 24"><path d="M9 3h6v5l5 11a2 2 0 01-2 3H6a2 2 0 01-2-3l5-11V3z" stroke="currentColor" fill="none" stroke-width="2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="18" cy="12" r="1.5" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+
 <!-- ── Header ── -->
 <header>
   <h1 class="brand">
@@ -424,5 +435,30 @@
     document.getElementById('clock').textContent = new Date().toLocaleTimeString('ru-RU');
   }, 1000);
 </script>
+
+<!-- Mobile bottom tab-bar -->
+<nav class="mobile-tabbar" aria-label="Основная навигация">
+  <button class="mtab" data-tab="positions" type="button">
+    <svg class="mtab-icon"><use href="#i-trade"/></svg>
+    <span class="mtab-label">Торговля</span>
+  </button>
+  <button class="mtab" data-tab="anomalies" type="button">
+    <svg class="mtab-icon"><use href="#i-bell"/></svg>
+    <span class="mtab-label">Аномалии</span>
+    <span id="mtab-anomalies-badge" class="mtab-badge hidden">0</span>
+  </button>
+  <button class="mtab" data-tab="calculator" type="button">
+    <svg class="mtab-icon"><use href="#i-calc"/></svg>
+    <span class="mtab-label">Калькулятор</span>
+  </button>
+  <button class="mtab" data-tab="backtest" type="button">
+    <svg class="mtab-icon"><use href="#i-flask"/></svg>
+    <span class="mtab-label">Бэктест</span>
+  </button>
+  <button class="mtab" data-tab="__more" type="button">
+    <svg class="mtab-icon"><use href="#i-more"/></svg>
+    <span class="mtab-label">Ещё</span>
+  </button>
+</nav>
 </body>
 </html>
