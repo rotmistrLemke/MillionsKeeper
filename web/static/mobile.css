@@ -160,3 +160,28 @@
     min-height: 44px;
   }
 }
+
+/* === Indicators: график 60vh + сетка 1-колонкой === */
+@media (max-width: 767.98px) {
+  .chart-container {
+    height: 60vh;
+    min-height: 320px;
+  }
+  .ind-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .ind-row {
+    padding: 8px 10px;
+    font-size: 12px;
+    gap: 8px;
+  }
+  .ind-symbol {
+    width: auto;
+    min-width: 80px;
+    font-size: 12.5px;
+  }
+  .ind-badges {
+    flex-wrap: wrap;
+  }
+}
