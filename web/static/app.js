@@ -1232,6 +1232,11 @@ function toggleStreamMenu(ev, stream_id) {
   const wasOpen = !menu.classList.contains('hidden');
   closeStreamMenus();
   if (!wasOpen) {
+    const btn = ev.currentTarget;
+    const r = btn.getBoundingClientRect();
+    // Меню справа под кнопкой (fixed), привязано к правому краю кнопки.
+    menu.style.top  = (r.bottom + 4) + 'px';
+    menu.style.left = (r.right - 150) + 'px';
     menu.classList.remove('hidden');
     setTimeout(() => document.addEventListener('click', closeStreamMenus, { once: true }), 0);
   }
