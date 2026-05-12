@@ -666,13 +666,43 @@ function fmt(v) {
 }
 
 // ─── Render: Positions ────────────────────────────────────────────
-// Генератор круглой аватарки из символа пары: 2 буквы + цвет от хэша.
+// Маппинг валюты → ISO-код страны для flag-icons.
+const _CURRENCY_TO_FLAG = {
+  USD: 'us', EUR: 'eu', GBP: 'gb', JPY: 'jp', CAD: 'ca', CHF: 'ch',
+  AUD: 'au', NZD: 'nz', CNY: 'cn', CNH: 'cn', RUB: 'ru', SEK: 'se',
+  NOK: 'no', DKK: 'dk', PLN: 'pl', TRY: 'tr', MXN: 'mx', ZAR: 'za',
+  HKD: 'hk', SGD: 'sg', INR: 'in', KRW: 'kr', BRL: 'br', HUF: 'hu',
+  CZK: 'cz', ILS: 'il', THB: 'th',
+};
+// Специальные инструменты — собственный кружок (цвет + символ).
+const _SPECIAL_ICONS = {
+  XAU: { label: 'AU', bg: '#d4a017' },   // золото
+  XAG: { label: 'AG', bg: '#9ea7ad' },   // серебро
+  XPT: { label: 'PT', bg: '#cfd6db' },   // платина
+  XPD: { label: 'PD', bg: '#94a3b8' },   // палладий
+  BTC: { label: '₿',  bg: '#f7931a' },
+  ETH: { label: 'Ξ',  bg: '#627eea' },
+  LTC: { label: 'Ł',  bg: '#345d9d' },
+  XRP: { label: 'X',  bg: '#23292f' },
+};
+
+// Генерирует круглую иконку: флаг базовой валюты, или спец-кружок, или 2-буквенный fallback.
 function _posIconHtml(symbol) {
   const clean = (symbol || '').replace(/rfd|[^A-Za-zА-Яа-я0-9]/g, '').toUpperCase();
-  // Известные сокращения для красивого отображения.
-  const known = { XAUUSD: 'AU', XAGUSD: 'AG', BTCUSD: 'BT', ETHUSD: 'ET' };
-  const label = known[clean] || clean.slice(0, 2) || '??';
-  // Хэш-цвет: HSL с насыщенностью/яркостью фиксированы → читаемый.
+  const base = clean.slice(0, 3);
+
+  const sp = _SPECIAL_ICONS[base];
+  if (sp) {
+    return `<span class="pos-icon pos-icon-special" style="background: ${sp.bg}">${sp.label}</span>`;
+  }
+
+  const flag = _CURRENCY_TO_FLAG[base];
+  if (flag) {
+    return `<span class="pos-icon pos-icon-flag"><span class="fi fi-${flag}"></span></span>`;
+  }
+
+  // Fallback: цвет от хэша + 2 буквы.
+  const label = clean.slice(0, 2) || '??';
   let h = 0;
   for (let i = 0; i < clean.length; i++) h = (h * 31 + clean.charCodeAt(i)) >>> 0;
   const hue = h % 360;
