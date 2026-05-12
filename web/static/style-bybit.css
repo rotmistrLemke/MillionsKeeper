@@ -300,33 +300,15 @@ tbody tr:hover {
 }
 td { font-size: 13px; }
 
-/* ── Position cards: акцентный левый стрип по знаку PnL ── */
+/* ── Position cards (новый стиль: аватарка слева, P/L-пилюля справа) ── */
 .pos-card {
   position: relative;
-  border-radius: var(--r-md);
-  padding: 14px 16px 14px 18px;
-  margin-bottom: 8px;
-  background: var(--surface);
   box-shadow: var(--sh-1);
-  transition: border-color var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
-  overflow: hidden;
+  transition: border-color var(--t-fast), background var(--t-fast), box-shadow var(--t-fast);
 }
-.pos-card::before {
-  content: "";
-  position: absolute;
-  left: 0; top: 0; bottom: 0;
-  width: 3px;
-  background: var(--text-dim);
-  opacity: 0.6;
-}
-.pos-card:has(.pnl-pos)::before { background: var(--green); box-shadow: 0 0 12px var(--green); opacity: 0.85; }
-.pos-card:has(.pnl-neg)::before { background: var(--red);   box-shadow: 0 0 12px var(--red);   opacity: 0.85; }
-.pos-card:hover {
-  border-color: var(--border-strong);
-  transform: translateY(-1px);
-  box-shadow: var(--sh-2);
-}
-.pos-symbol { font-size: 14.5px; letter-spacing: -0.2px; }
+.pos-card::before { content: none; }  /* старый левый стрип отключён */
+.pos-card:hover { box-shadow: var(--sh-2); }
+.pos-symbol { letter-spacing: -0.2px; }
 .pos-pnl { font-size: 16px; letter-spacing: -0.3px; }
 
 /* ── Stats grid (Today/Week/Month) ── */

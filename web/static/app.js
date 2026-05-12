@@ -666,6 +666,19 @@ function fmt(v) {
 }
 
 // ─── Render: Positions ────────────────────────────────────────────
+// Генератор круглой аватарки из символа пары: 2 буквы + цвет от хэша.
+function _posIconHtml(symbol) {
+  const clean = (symbol || '').replace(/rfd|[^A-Za-zА-Яа-я0-9]/g, '').toUpperCase();
+  // Известные сокращения для красивого отображения.
+  const known = { XAUUSD: 'AU', XAGUSD: 'AG', BTCUSD: 'BT', ETHUSD: 'ET' };
+  const label = known[clean] || clean.slice(0, 2) || '??';
+  // Хэш-цвет: HSL с насыщенностью/яркостью фиксированы → читаемый.
+  let h = 0;
+  for (let i = 0; i < clean.length; i++) h = (h * 31 + clean.charCodeAt(i)) >>> 0;
+  const hue = h % 360;
+  return `<span class="pos-icon" style="background: hsl(${hue}, 55%, 38%)">${label}</span>`;
+}
+
 function renderPositions() {
   const container = document.getElementById('positions-list');
   if (!state.positions.length) {
@@ -678,18 +691,25 @@ function renderPositions() {
     const pnl = (p.pnl != null) ? p.pnl : p.pnl_money;
     const pnlClass = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
     const sign = pnl >= 0 ? '+' : '';
+    const pts = p.pnl_points != null ? `${sign}${p.pnl_points} пп` : '';
     return `
       <div class="pos-card" data-ticket="${p.ticket}">
+        ${_posIconHtml(p.symbol)}
         <div class="pos-head">
           <div class="pos-symbol">${p.symbol}</div>
-          <div class="pos-sub">
+          <div class="pos-meta-line">
             <span class="badge badge-${p.type.toLowerCase()}">${p.type}</span>
             <span class="pos-vol">${p.volume} лот</span>
           </div>
         </div>
-        <div class="pos-pnl ${pnlClass}">${sign}${fmt(pnl)}$</div>
-        <button class="btn-icon" title="Подробнее" onclick="showPositionInfo(${p.ticket})">${infoIcon}</button>
-        <button class="btn-icon btn-icon-danger admin-only" title="Закрыть позицию" onclick="closePosition(${p.ticket},'${p.symbol}')">${closeIcon}</button>
+        <div class="pos-pnl-pill ${pnlClass}">
+          <div class="pnl-amount">${sign}${fmt(pnl)} $</div>
+          ${pts ? `<div class="pnl-points">${pts}</div>` : ''}
+        </div>
+        <div class="pos-actions">
+          <button class="btn-icon" title="Подробнее" onclick="showPositionInfo(${p.ticket})">${infoIcon}</button>
+          <button class="btn-icon btn-icon-danger admin-only" title="Закрыть позицию" onclick="closePosition(${p.ticket},'${p.symbol}')">${closeIcon}</button>
+        </div>
       </div>
     `;
   }).join('');
