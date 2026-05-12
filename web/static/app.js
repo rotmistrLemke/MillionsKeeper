@@ -3635,3 +3635,45 @@ const Anomalies = (() => {
   // ── Public API ──────────────────────────────────────────────────
   return { onTabOpened, onEventStream, loadActive, loadHistory, scanNow };
 })();
+
+// ===== Mobile bottom-bar navigation =====
+const MobileNav = (() => {
+  'use strict';
+
+  function _syncActive(tabName) {
+    document.querySelectorAll('.mtab').forEach(b => {
+      b.classList.toggle('active', b.dataset.tab === tabName);
+    });
+  }
+
+  // Обёртка switchTab: после переключения подсвечиваем нижнюю кнопку.
+  const _origSwitchTab = window.switchTab;
+  if (typeof _origSwitchTab === 'function') {
+    window.switchTab = function(name) {
+      _origSwitchTab(name);
+      const inBar = ['positions', 'anomalies', 'calculator', 'backtest'].includes(name);
+      _syncActive(inBar ? name : '__more');
+    };
+  }
+
+  function bind() {
+    document.querySelectorAll('.mtab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const t = btn.dataset.tab;
+        if (t === '__more') {
+          if (typeof MobileSheet !== 'undefined') MobileSheet.open();
+          return;
+        }
+        window.switchTab(t);
+        if (t === 'anomalies'  && typeof Anomalies !== 'undefined') Anomalies.onTabOpened();
+        if (t === 'calculator' && typeof calcLoadSymbols === 'function') calcLoadSymbols();
+      });
+    });
+    const activeTab = document.querySelector('.tab.active')?.dataset.tab || 'positions';
+    _syncActive(['positions','anomalies','calculator','backtest'].includes(activeTab) ? activeTab : '__more');
+  }
+
+  document.addEventListener('DOMContentLoaded', bind);
+
+  return { syncActive: _syncActive };
+})();
