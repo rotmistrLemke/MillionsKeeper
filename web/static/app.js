@@ -672,21 +672,20 @@ function renderPositions() {
     container.innerHTML = '<div style="color:var(--text-muted);padding:20px">Нет открытых позиций</div>';
     return;
   }
+  const infoIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor"/></svg>';
+  const closeIcon = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>';
   container.innerHTML = state.positions.map(p => {
     const pnl = (p.pnl != null) ? p.pnl : p.pnl_money;
     const pnlClass = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
     const sign = pnl >= 0 ? '+' : '';
     return `
-      <div class="pos-card">
+      <div class="pos-card" data-ticket="${p.ticket}">
         <div class="pos-symbol">${p.symbol}</div>
-        <div>
-          <span class="badge badge-${p.type.toLowerCase()}">${p.type}</span>
-          <span class="pos-meta" style="margin-left:8px">${p.volume} лот</span>
-        </div>
-        <div class="pos-meta">Вход: ${p.open_price?.toFixed(5)}</div>
-        <div class="pos-meta">SL: ${p.sl?.toFixed(5) || '—'}</div>
+        <span class="badge badge-${p.type.toLowerCase()}">${p.type}</span>
+        <span class="pos-vol">${p.volume}</span>
         <div class="pos-pnl ${pnlClass}">${sign}${fmt(pnl)}$</div>
-        <button class="btn-close admin-only" onclick="closePosition(${p.ticket},'${p.symbol}')">✕ Закрыть</button>
+        <button class="btn-icon" title="Подробнее" onclick="showPositionInfo(${p.ticket})">${infoIcon}</button>
+        <button class="btn-icon btn-icon-danger admin-only" title="Закрыть позицию" onclick="closePosition(${p.ticket},'${p.symbol}')">${closeIcon}</button>
       </div>
     `;
   }).join('');
@@ -696,6 +695,65 @@ function renderPositions() {
 function closePosition(ticket, symbol) {
   if (!confirm(`Закрыть позицию ${symbol} #${ticket}?`)) return;
   sendCmd({ cmd: 'close_position', ticket, symbol });
+}
+
+// ── Position info modal ──
+function showPositionInfo(ticket) {
+  const p = (state.positions || []).find(x => x.ticket === ticket);
+  if (!p) return;
+  const pnl = (p.pnl != null) ? p.pnl : p.pnl_money;
+  const sign = pnl >= 0 ? '+' : '';
+  const pnlClass = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
+  const openedAt = p.open_time ? new Date(p.open_time * 1000) : null;
+  const duration = openedAt ? _fmtDuration(Date.now() - openedAt.getTime()) : '—';
+  const openedStr = openedAt ? openedAt.toLocaleString('ru-RU') : '—';
+  const row = (k, v) => `<div class="si-row"><span class="si-k">${k}</span><span class="si-v">${v}</span></div>`;
+  const html = `
+    <div class="si-backdrop" onclick="if(event.target===this)closePositionInfo()">
+      <div class="si-panel" role="dialog" aria-label="Информация о позиции">
+        <div class="si-header">
+          <h3>${p.symbol} <span class="badge badge-${p.type.toLowerCase()}" style="margin-left:8px">${p.type}</span></h3>
+          <button class="btn-icon" onclick="closePositionInfo()" title="Закрыть" aria-label="Закрыть">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="si-body">
+          ${row('P/L', `<span class="${pnlClass}">${sign}${fmt(pnl)}$ (${sign}${p.pnl_points ?? '—'} пп)</span>`)}
+          ${row('Объём', `${p.volume} лот`)}
+          ${row('Тикет', `#${p.ticket}`)}
+          ${row('Цена входа', p.open_price?.toFixed(5) ?? '—')}
+          ${row('SL', p.sl > 0 ? p.sl.toFixed(5) : '—')}
+          ${row('Открыта', openedStr)}
+          ${row('Длительность', duration)}
+          ${row('Поток', p.stream_name ? escapeHtml(p.stream_name) : '—')}
+          ${row('Magic', p.magic ?? '—')}
+        </div>
+      </div>
+    </div>
+  `;
+  const wrap = document.createElement('div');
+  wrap.id = 'position-info-modal';
+  wrap.innerHTML = html;
+  document.body.appendChild(wrap);
+  document.addEventListener('keydown', _positionInfoEsc);
+}
+function _positionInfoEsc(e) {
+  if (e.key === 'Escape') closePositionInfo();
+}
+function closePositionInfo() {
+  const m = document.getElementById('position-info-modal');
+  if (m) m.remove();
+  document.removeEventListener('keydown', _positionInfoEsc);
+}
+
+function _fmtDuration(ms) {
+  if (!ms || ms < 0) return '—';
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h > 24) return `${Math.floor(h/24)} д ${h % 24} ч`;
+  if (h > 0) return `${h} ч ${m} мин`;
+  return `${m} мин`;
 }
 
 // ─── Render: Indicators ───────────────────────────────────────────
