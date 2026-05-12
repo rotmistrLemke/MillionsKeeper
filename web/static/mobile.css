@@ -210,15 +210,16 @@
   }
 }
 
-/* === Stream form: одна колонка на мобильном === */
+/* === Stream form на мобильном: оставляем 2 колонки, поджимаем bottom === */
 @media (max-width: 767.98px) {
   .stream-form-grid {
-    grid-template-columns: 1fr;
+    gap: 10px;
   }
   .stream-form-grid .sf-bottom {
     flex-wrap: wrap;
+    gap: 10px;
   }
-  .stream-form-grid .sf-bottom .sf-actions {
+  .stream-form-grid .sf-actions {
     margin-left: auto;
   }
 }
