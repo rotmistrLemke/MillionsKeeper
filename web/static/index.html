@@ -340,16 +340,6 @@
             </svg>
           </button>
         </div>
-        <div class="strategy-desc">
-          Формула: <b>лот = депозит × % / 100 ÷ цена × плечо ÷ contract_size</b>
-          (forex 100&nbsp;000, XAU 100, XAG 5000 — из спецификации MT5).
-          Плечо для каждого инструмента берётся из <code>shoulders/marginal-USD.xlsx</code>.
-          Стоимость пункта вычисляется по правилам:
-          <code>quote=USD → 1×лот</code>;
-          <code>base=USD → лот / цена</code>;
-          <code>кросс → лот × baseUSD / цена пары</code>.
-          На выходе — объём и стоимость 1 пункта, чтобы вы могли решить, какой SL заложить.
-        </div>
       </div>
 
       <div id="calc-result"></div>
