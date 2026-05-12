@@ -34,22 +34,42 @@
   .mobile-tabbar { display: flex; }
 }
 
-/* === CSS нижнего tab-bar === */
+/* === Парящий tab-bar с эффектом liquid glass === */
 @media (max-width: 767.98px) {
+  body { padding-bottom: 84px; }   /* увеличенное место под парящую панель */
+
   .mobile-tabbar {
     position: fixed;
-    left: 0; right: 0; bottom: 0;
+    left: 12px; right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0));
     z-index: 100;
-    height: 56px;
-    background: var(--surface, #181a20);
-    border-top: 1px solid var(--border, #2b3139);
-    padding-bottom: env(safe-area-inset-bottom, 0);
+    height: 60px;
+    /* Liquid-glass: полупрозрачный фон + размытие подложки */
+    background: rgba(24, 26, 32, 0.55);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 22px;
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.45),
+      0 2px 6px rgba(0, 0, 0, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    /* лёгкий блик сверху */
+    overflow: hidden;
+  }
+  .mobile-tabbar::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0));
+    pointer-events: none;
   }
   .mtab {
     flex: 1;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    gap: 2px;
+    gap: 3px;
     background: none; border: none;
     color: var(--text-muted, #848e9c);
     font-size: 10px;
@@ -58,21 +78,36 @@
     position: relative;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s, transform 0.15s;
   }
-  .mtab.active { color: var(--primary, #f0b90b); }
-  .mtab-icon { width: 22px; height: 22px; }
-  .mtab-label { line-height: 1; }
+  .mtab:active { transform: scale(0.94); }
+  .mtab.active {
+    color: var(--primary, #f0b90b);
+  }
+  .mtab.active .mtab-icon {
+    filter: drop-shadow(0 0 6px rgba(240, 185, 11, 0.45));
+  }
+  .mtab-icon { width: 22px; height: 22px; transition: filter 0.15s; }
+  .mtab-label { line-height: 1; letter-spacing: 0.1px; }
   .mtab-badge {
     position: absolute;
-    top: 4px; right: 25%;
+    top: 6px; right: 22%;
     min-width: 16px; height: 16px; padding: 0 4px;
     font-size: 10px; line-height: 16px;
     border-radius: 8px;
     background: var(--red, #ea3943); color: #fff;
     text-align: center;
     box-sizing: border-box;
+    box-shadow: 0 2px 6px rgba(234, 57, 67, 0.5);
   }
   .mtab-badge.hidden { display: none; }
+}
+
+/* Fallback для браузеров без backdrop-filter — делаем фон плотнее */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  @media (max-width: 767.98px) {
+    .mobile-tabbar { background: rgba(24, 26, 32, 0.95); }
+  }
 }
 
 /* === Bottom-sheet "Ещё" === */
