@@ -3695,14 +3695,7 @@ const Anomalies = (() => {
     return `<tr>
   <td>${item.symbol || '—'}</td>
   <td>${typesHtml || '—'}</td>
-  <td>${_fmtNum(item.price)}</td>
-  <td>${_fmtNum(item.ema50)}</td>
-  <td>${_fmtNum(item.atr)}</td>
-  <td>${_fmtNum(item.dist_atr)}</td>
-  <td>${_fmtNum(item.stoch_k, 1)}</td>
-  <td>${_fmtNum(item.stoch_d, 1)}</td>
   <td>${_fmtTs(item.opened_at)}</td>
-  <td>${_fmtTs(item.closed_at)}</td>
 </tr>`;
   }
 
