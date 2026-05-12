@@ -74,3 +74,42 @@
   }
   .mtab-badge.hidden { display: none; }
 }
+
+/* === Bottom-sheet "Ещё" === */
+.sheet-backdrop { display: none; }
+@media (max-width: 767.98px) {
+  .sheet-backdrop {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex; align-items: flex-end;
+  }
+  .sheet-backdrop.hidden { display: none; }
+  .sheet {
+    width: 100%;
+    background: var(--surface, #181a20);
+    border-radius: 14px 14px 0 0;
+    padding: 8px 0 calc(16px + env(safe-area-inset-bottom, 0));
+    animation: sheet-slide-up 0.2s ease;
+  }
+  @keyframes sheet-slide-up {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+  .sheet-handle {
+    width: 40px; height: 4px;
+    margin: 6px auto 10px;
+    background: var(--text-muted, #848e9c);
+    opacity: 0.4;
+    border-radius: 2px;
+  }
+  .sheet-item {
+    display: block; width: 100%;
+    padding: 14px 20px;
+    background: none; border: none;
+    color: var(--text, #eaecef);
+    font-size: 15px; text-align: left;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .sheet-item:active { background: var(--surface2, #2b3139); }
+}

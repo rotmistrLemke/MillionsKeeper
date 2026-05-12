@@ -3677,3 +3677,52 @@ const MobileNav = (() => {
 
   return { syncActive: _syncActive };
 })();
+
+// ===== Mobile "more" bottom-sheet =====
+const MobileSheet = (() => {
+  'use strict';
+
+  function open() {
+    const el = document.getElementById('more-sheet');
+    if (!el) return;
+    el.classList.remove('hidden');
+    el.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function close() {
+    const el = document.getElementById('more-sheet');
+    if (!el) return;
+    el.classList.add('hidden');
+    el.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  function bind() {
+    const el = document.getElementById('more-sheet');
+    if (!el) return;
+
+    el.addEventListener('click', (e) => {
+      if (e.target === el) close();
+    });
+
+    el.querySelectorAll('.sheet-item').forEach(it => {
+      it.addEventListener('click', () => {
+        const t = it.dataset.tab;
+        window.switchTab(t);
+        if (t === 'users' && typeof isAdmin === 'function' && isAdmin()
+            && typeof loadUsers === 'function') {
+          loadUsers();
+        }
+        close();
+      });
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !el.classList.contains('hidden')) close();
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', bind);
+
+  return { open, close };
+})();

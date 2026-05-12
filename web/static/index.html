@@ -460,5 +460,16 @@
     <span class="mtab-label">Ещё</span>
   </button>
 </nav>
+
+<!-- Bottom-sheet "Ещё" -->
+<div id="more-sheet" class="sheet-backdrop hidden" aria-hidden="true">
+  <div class="sheet" role="dialog" aria-label="Дополнительные вкладки">
+    <div class="sheet-handle"></div>
+    <button class="sheet-item" data-tab="indicators" type="button">Индикаторы</button>
+    <button class="sheet-item" data-tab="strategies" type="button">Стратегии</button>
+    <button class="sheet-item" data-tab="events" type="button">Лог событий</button>
+    <button class="sheet-item admin-only" data-tab="users" type="button">Пользователи</button>
+  </div>
+</div>
 </body>
 </html>
