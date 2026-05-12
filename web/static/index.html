@@ -79,10 +79,15 @@
     <div id="tab-positions" class="content active">
 
       <!-- Trading streams -->
-      <div class="card">
-        <div class="card-title card-title-row">
+      <div class="card streams-card">
+        <div class="card-title streams-card-title">
           <span>Потоки торговли <span id="streams-count-badge" class="streams-count-badge"></span></span>
-          <button class="btn-primary admin-only" id="btn-add-stream" onclick="openStreamForm()">+ Добавить поток</button>
+          <button class="btn-fab admin-only" id="btn-add-stream" onclick="openStreamForm()" title="Добавить поток" aria-label="Добавить поток">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+          </button>
         </div>
         <div id="streams-table" class="streams-table">
           <div style="color:var(--text-muted);padding:16px">Загрузка...</div>

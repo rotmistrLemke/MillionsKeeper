@@ -1135,13 +1135,155 @@ tr:hover td { background: var(--surface2); }
 }
 .streams-grid tr:last-child td { border-bottom: none; }
 .streams-grid tr:hover td { background: rgba(255,255,255,0.02); }
-.streams-grid .st-name { font-weight: 600; color: var(--text); }
+.streams-grid .st-name {
+  font-weight: 600; color: var(--text);
+  display: flex; align-items: center; gap: 8px;
+}
 .streams-grid .st-sym  { font-weight: 500; color: var(--accent); }
 .streams-grid .st-actions {
   text-align: right;
   white-space: nowrap;
 }
 .streams-grid .st-actions button { margin-left: 4px; }
+.streams-grid .st-actions-col { width: 130px; }
+
+.st-status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  display: inline-block; flex-shrink: 0;
+  background: var(--text-muted);
+}
+.st-status-dot.is-on  { background: #10b981; box-shadow: 0 0 8px rgba(16,185,129,0.6); }
+.st-status-dot.is-off { background: rgba(148,163,184,0.5); }
+
+/* Streams card: отступ перед card-title */
+.streams-card-title {
+  margin-top: 4px;
+  margin-bottom: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Round FAB-style add button */
+.btn-fab {
+  width: 36px; height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #181a20;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s, background 0.12s;
+  box-shadow: 0 2px 6px rgba(247,166,0,0.35);
+}
+.btn-fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(247,166,0,0.5);
+}
+.btn-fab:disabled {
+  background: var(--surface3, #2b3139);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+.btn-fab svg { display: block; }
+
+/* Icon buttons (info/toggle/more) — без бордера, только hover-фон */
+.btn-icon {
+  width: 30px; height: 30px;
+  padding: 0;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, color 0.12s;
+}
+.btn-icon:hover { background: var(--surface2); color: var(--text); }
+.btn-icon svg { display: block; }
+
+/* Dropdown "more" menu */
+.st-more-wrap { position: relative; display: inline-block; }
+.st-menu {
+  position: absolute;
+  right: 0; top: calc(100% + 4px);
+  z-index: 50;
+  min-width: 150px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+.st-menu.hidden { display: none; }
+.st-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.st-menu button:hover { background: var(--surface2); }
+.st-menu button.danger { color: var(--red, #ea3943); }
+.st-menu button.danger:hover { background: rgba(234,57,67,0.12); }
+
+/* Stream info modal */
+.si-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 300;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.si-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  width: 100%; max-width: 440px;
+  max-height: 80vh;
+  overflow: auto;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+.si-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.si-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.si-body {
+  padding: 8px 16px 16px;
+}
+.si-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.si-row:last-child { border-bottom: none; }
+.si-k { color: var(--text-muted); }
+.si-v { color: var(--text); font-variant-numeric: tabular-nums; }
 .st-state {
   display: inline-block;
   padding: 2px 8px;

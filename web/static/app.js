@@ -1135,33 +1135,29 @@ function renderStreams() {
   }
 
   const rows = streams.map(s => {
-    const vol = Number(s.volume || 0);
-    const volTxt = vol > 0 ? `${vol.toFixed(2)}` : 'авто';
-    const slTxt = Number(s.sl_atr || 0) > 0 ? `${s.sl_atr}×` : '—';
-    const tpTxt = Number(s.tp_atr || 0) > 0 ? `${s.tp_atr}×` : '—';
-    const beTxt = Number(s.breakeven_atr || 0) > 0 ? `${s.breakeven_atr}×` : '—';
-    const trTxt = Number(s.trail_atr || 0) > 0 ? `${s.trail_atr}×` : '—';
-    const dep = Number(s.deposit || 0);
-    const depTxt = dep > 0 ? `$${dep.toLocaleString('ru-RU')}` : '—';
     const stateClass = s.enabled ? 'is-on' : 'is-off';
-    const stateLabel = s.enabled ? 'Вкл' : 'Выкл';
+    const toggleIcon = s.enabled
+      ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>'
+      : '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+    const infoIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor"/></svg>';
+    const moreIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>';
     return `
-      <tr data-stream-id="${s.id}">
-        <td class="st-name">${escapeHtml(s.name)}</td>
-        <td title="${escapeHtml(_strategyLabel(s.strategy))}">${escapeHtml(_strategyLabel(s.strategy))}</td>
+      <tr data-stream-id="${s.id}" class="${stateClass}">
+        <td class="st-name">
+          <span class="st-status-dot ${stateClass}" title="${s.enabled ? 'Активен' : 'Остановлен'}"></span>
+          ${escapeHtml(s.name)}
+        </td>
         <td class="st-sym">${s.symbol}</td>
-        <td>${s.timeframe}</td>
-        <td>${volTxt}</td>
-        <td>${slTxt}</td>
-        <td>${tpTxt}</td>
-        <td title="Breakeven × ATR">${beTxt}</td>
-        <td title="Trailing SL × ATR">${trTxt}</td>
-        <td>${depTxt}</td>
-        <td><span class="st-state ${stateClass}">${stateLabel}</span></td>
-        <td class="st-actions admin-only">
-          <button class="btn-ghost" title="${s.enabled ? 'Выключить' : 'Включить'}" onclick="toggleStream('${s.id}', ${!s.enabled})">${s.enabled ? '⏸' : '▶'}</button>
-          <button class="btn-ghost" title="Редактировать" onclick="openStreamForm('${s.id}')">✎</button>
-          <button class="btn-ghost btn-danger" title="Удалить" onclick="deleteStream('${s.id}')">✕</button>
+        <td class="st-actions">
+          <button class="btn-icon" title="Подробнее" onclick="showStreamInfo('${s.id}')">${infoIcon}</button>
+          <button class="btn-icon admin-only" title="${s.enabled ? 'Остановить' : 'Запустить'}" onclick="toggleStream('${s.id}', ${!s.enabled})">${toggleIcon}</button>
+          <span class="st-more-wrap admin-only">
+            <button class="btn-icon" title="Ещё" onclick="toggleStreamMenu(event, '${s.id}')">${moreIcon}</button>
+            <span class="st-menu hidden" data-stream-id="${s.id}">
+              <button onclick="openStreamForm('${s.id}'); closeStreamMenus();">Редактировать</button>
+              <button class="danger" onclick="deleteStream('${s.id}'); closeStreamMenus();">Удалить</button>
+            </span>
+          </span>
         </td>
       </tr>
     `;
@@ -1172,23 +1168,76 @@ function renderStreams() {
       <thead>
         <tr>
           <th>Название</th>
-          <th>Стратегия</th>
           <th>Пара</th>
-          <th>TF</th>
-          <th>Объём</th>
-          <th>SL</th>
-          <th>TP</th>
-          <th>BE</th>
-          <th>Trail</th>
-          <th>Депозит</th>
-          <th>Статус</th>
-          <th class="admin-only"></th>
+          <th class="st-actions-col"></th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>
   `;
   applyRoleVisibility();
+}
+
+// ── Stream info modal ──
+function showStreamInfo(stream_id) {
+  const s = (state.streams || []).find(x => x.id === stream_id);
+  if (!s) return;
+  const vol = Number(s.volume || 0);
+  const dep = Number(s.deposit || 0);
+  const row = (k, v) => `<div class="si-row"><span class="si-k">${k}</span><span class="si-v">${v}</span></div>`;
+  const html = `
+    <div class="si-backdrop" onclick="if(event.target===this)closeStreamInfo()">
+      <div class="si-panel" role="dialog" aria-label="Информация о потоке">
+        <div class="si-header">
+          <h3>${escapeHtml(s.name)}</h3>
+          <button class="btn-icon" onclick="closeStreamInfo()" title="Закрыть" aria-label="Закрыть">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="si-body">
+          ${row('Статус', `<span class="st-state ${s.enabled?'is-on':'is-off'}">${s.enabled?'Активен':'Остановлен'}</span>`)}
+          ${row('Стратегия', escapeHtml(_strategyLabel(s.strategy)))}
+          ${row('Пара', s.symbol)}
+          ${row('Таймфрейм', s.timeframe)}
+          ${row('Объём', vol > 0 ? vol.toFixed(2) + ' лот' : 'авто')}
+          ${row('Депозит', dep > 0 ? '$' + dep.toLocaleString('ru-RU') : '—')}
+          ${row('SL ATR', Number(s.sl_atr||0) > 0 ? `${s.sl_atr}×` : '—')}
+          ${row('TP ATR', Number(s.tp_atr||0) > 0 ? `${s.tp_atr}×` : '—')}
+          ${row('Breakeven ATR', Number(s.breakeven_atr||0) > 0 ? `${s.breakeven_atr}×` : '—')}
+          ${row('Trailing ATR', Number(s.trail_atr||0) > 0 ? `${s.trail_atr}×` : '—')}
+        </div>
+      </div>
+    </div>
+  `;
+  const wrap = document.createElement('div');
+  wrap.id = 'stream-info-modal';
+  wrap.innerHTML = html;
+  document.body.appendChild(wrap);
+  document.addEventListener('keydown', _streamInfoEsc);
+}
+function _streamInfoEsc(e) {
+  if (e.key === 'Escape') closeStreamInfo();
+}
+function closeStreamInfo() {
+  const m = document.getElementById('stream-info-modal');
+  if (m) m.remove();
+  document.removeEventListener('keydown', _streamInfoEsc);
+}
+
+// ── Stream row "more" dropdown ──
+function toggleStreamMenu(ev, stream_id) {
+  ev.stopPropagation();
+  const menu = document.querySelector(`.st-menu[data-stream-id="${stream_id}"]`);
+  if (!menu) return;
+  const wasOpen = !menu.classList.contains('hidden');
+  closeStreamMenus();
+  if (!wasOpen) {
+    menu.classList.remove('hidden');
+    setTimeout(() => document.addEventListener('click', closeStreamMenus, { once: true }), 0);
+  }
+}
+function closeStreamMenus() {
+  document.querySelectorAll('.st-menu').forEach(m => m.classList.add('hidden'));
 }
 
 function escapeHtml(s) {
