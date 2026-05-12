@@ -1291,10 +1291,10 @@ async function openStreamForm(stream_id) {
     <div class="stream-form">
       <div class="stream-form-title">${titleTxt}</div>
       <div class="stream-form-grid">
-        <label class="col-2">Название
+        <label>Название
           <input id="sf-name" type="text" value="${editing ? escapeHtml(editing.name) : ''}" placeholder="например, XAU H1 скальп">
         </label>
-        <label class="col-2">Стратегия
+        <label>Стратегия
           <select id="sf-strategy">${stratOptions}</select>
         </label>
 
