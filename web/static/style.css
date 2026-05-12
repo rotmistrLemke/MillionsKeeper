@@ -1330,16 +1330,23 @@ tr:hover td { background: var(--surface2); }
   padding: 8px 16px 16px;
 }
 .si-row {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: 12px;
   align-items: center;
   padding: 9px 0;
   border-bottom: 1px solid var(--border);
   font-size: 13px;
 }
 .si-row:last-child { border-bottom: none; }
-.si-k { color: var(--text-muted); }
-.si-v { color: var(--text); font-variant-numeric: tabular-nums; }
+.si-k { color: var(--text-muted); white-space: nowrap; }
+.si-v {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  word-break: break-word;
+  min-width: 0;
+}
 .st-state {
   display: inline-block;
   padding: 2px 8px;
