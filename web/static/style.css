@@ -1339,9 +1339,12 @@ tr:hover td { background: var(--surface2); }
   color: var(--text, #eaecef);
 }
 .calc-form .btn-fab {
-  margin-bottom: 0;
+  width: 34px; height: 34px;
+  min-width: 34px; min-height: 34px;
   align-self: flex-end;
+  margin-bottom: 0;
 }
+.calc-form .btn-fab svg { width: 18px; height: 18px; }
 
 /* Streams card: заголовок и счётчик в столбик, FAB справа */
 .streams-card-title {
