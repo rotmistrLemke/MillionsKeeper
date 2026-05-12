@@ -448,12 +448,16 @@
   </div><!-- .main -->
 </div><!-- .layout -->
 
-<!-- ── Account Bar ── -->
+<!-- ── Account Bar (баланс + open-PnL дельта) ── -->
 <div class="account-bar">
-  <span id="acc-balance">Balance: <b>—</b></span>
-  <span id="acc-equity">Equity: <b>—</b></span>
-  <span id="acc-margin">Margin: <b>—</b></span>
-  <span id="acc-free">Free: <b>—</b></span>
+  <div class="acc-balance-block">
+    <div class="acc-balance-label">Баланс</div>
+    <div class="acc-balance-value">
+      <span id="acc-balance-amount">—</span>
+      <span id="acc-balance-currency" class="acc-currency"></span>
+    </div>
+    <div id="acc-delta" class="acc-delta acc-delta-zero">—</div>
+  </div>
 </div>
 
 <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>

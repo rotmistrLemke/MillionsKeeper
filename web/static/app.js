@@ -654,10 +654,28 @@ function renderAgents() {
 // ─── Render: Account bar ──────────────────────────────────────────
 function renderAccount() {
   const a = state.account;
-  document.getElementById('acc-balance').innerHTML  = `Balance: <b>${fmt(a.balance)} ${a.currency || ''}</b>`;
-  document.getElementById('acc-equity').innerHTML   = `Equity: <b>${fmt(a.equity)}</b>`;
-  document.getElementById('acc-margin').innerHTML   = `Margin: <b>${fmt(a.margin)}</b>`;
-  document.getElementById('acc-free').innerHTML     = `Free: <b>${fmt(a.free_margin)}</b>`;
+  const balance = Number(a.balance || 0);
+  const equity  = Number(a.equity != null ? a.equity : balance);
+  const delta   = equity - balance;             // нереализованный P/L по открытым позициям
+  const pct     = balance > 0 ? (delta / balance) * 100 : 0;
+
+  const amountEl = document.getElementById('acc-balance-amount');
+  const currEl   = document.getElementById('acc-balance-currency');
+  const deltaEl  = document.getElementById('acc-delta');
+
+  if (amountEl) amountEl.textContent = fmt(balance);
+  if (currEl)   currEl.textContent   = a.currency || '';
+
+  if (deltaEl) {
+    const sign = delta > 0 ? '+' : (delta < 0 ? '−' : '');
+    const cls  = delta > 0 ? 'acc-delta-pos' : (delta < 0 ? 'acc-delta-neg' : 'acc-delta-zero');
+    const absD = Math.abs(delta);
+    const absP = Math.abs(pct);
+    deltaEl.className = 'acc-delta ' + cls;
+    deltaEl.textContent = balance > 0
+      ? `${sign}${fmt(absD)} ${a.currency || ''}  ${sign}${absP.toFixed(2)}%`
+      : '—';
+  }
 }
 
 function fmt(v) {

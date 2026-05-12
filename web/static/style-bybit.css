@@ -395,31 +395,10 @@ td { font-size: 13px; }
 .ind-strip-signal { border-radius: var(--r-pill); padding: 4px 10px; letter-spacing: 0.5px; }
 .ind-strip-flat   { border-radius: var(--r-pill); padding: 4px 10px; }
 
-/* ── Account bar: pill-метрики вместо border-separators ── */
+/* ── Account bar: только баланс + дельта ── */
 .account-bar {
   background: linear-gradient(180deg, var(--surface) 0%, var(--bg-elev) 100%);
-  height: 40px;
-  padding: 0 24px;
-  gap: 8px;
   box-shadow: 0 -1px 0 var(--border);
-}
-.account-bar span {
-  margin-right: 0;
-  padding: 4px 12px;
-  border-right: none;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-pill);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
-}
-.account-bar span b {
-  font-size: 12.5px;
-  margin-left: 0;
-  color: var(--text);
-  font-weight: 600;
 }
 
 /* ── Stream form / inputs ── */
@@ -554,7 +533,7 @@ td { font-size: 13px; }
   .tab  { white-space: nowrap; }
   .content { padding: 14px; }
   .card { padding: 14px; }
-  .account-bar { padding: 0 12px; gap: 6px; flex-wrap: wrap; height: auto; padding-top: 8px; padding-bottom: 8px; }
+  .account-bar { padding: 10px 12px; }
 }
 
 /* ── Strategies catalog ──────────────────────────────────────── */
