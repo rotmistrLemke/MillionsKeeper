@@ -1290,49 +1290,56 @@ async function openStreamForm(stream_id) {
   wrap.innerHTML = `
     <div class="stream-form">
       <div class="stream-form-title">${titleTxt}</div>
-      <div class="bt-form">
-        <label>Название
-          <input id="sf-name" type="text" value="${editing ? escapeHtml(editing.name) : ''}" placeholder="например, XAU H1 скальп" style="width:200px">
+      <div class="stream-form-grid">
+        <label class="col-2">Название
+          <input id="sf-name" type="text" value="${editing ? escapeHtml(editing.name) : ''}" placeholder="например, XAU H1 скальп">
         </label>
-        <label>Стратегия
-          <select id="sf-strategy" style="min-width:240px">${stratOptions}</select>
+        <label class="col-2">Стратегия
+          <select id="sf-strategy">${stratOptions}</select>
         </label>
+
         <label>Пара
-          <select id="sf-symbol" style="min-width:130px">${symOptions}</select>
+          <select id="sf-symbol">${symOptions}</select>
         </label>
         <label>Таймфрейм
           <select id="sf-timeframe">${tfOptions}</select>
         </label>
         <label>Объём (0 = авто)
-          <input id="sf-volume" type="number" value="${editing ? editing.volume : 0}" min="0" step="0.01" style="width:100px">
-        </label>
-        <label>SL (×ATR)
-          <input id="sf-sl-atr" type="number" value="${editing ? editing.sl_atr : 0}" min="0" step="0.1" style="width:90px">
-        </label>
-        <label>TP (×ATR)
-          <input id="sf-tp-atr" type="number" value="${editing ? editing.tp_atr : 0}" min="0" step="0.1" style="width:90px">
+          <input id="sf-volume" type="number" value="${editing ? editing.volume : 0}" min="0" step="0.01">
         </label>
         <label title="Выделенный депозит потока. Просадка > 35% блокирует поток до понедельника.">
           Депозит ($)
-          <input id="sf-deposit" type="number" value="${editing ? (editing.deposit || 0) : 0}" min="0" step="100" style="width:110px">
+          <input id="sf-deposit" type="number" value="${editing ? (editing.deposit || 0) : 0}" min="0" step="100">
+        </label>
+
+        <label>SL (×ATR)
+          <input id="sf-sl-atr" type="number" value="${editing ? editing.sl_atr : 0}" min="0" step="0.1">
+        </label>
+        <label>TP (×ATR)
+          <input id="sf-tp-atr" type="number" value="${editing ? editing.tp_atr : 0}" min="0" step="0.1">
         </label>
         <label title="После прохода +N×ATR в нашу сторону двигает SL в точку входа. 0 = выкл.">
           BE (×ATR)
-          <input id="sf-be-atr" type="number" value="${editing ? (editing.breakeven_atr || 0) : 0}" min="0" step="0.1" style="width:90px">
+          <input id="sf-be-atr" type="number" value="${editing ? (editing.breakeven_atr || 0) : 0}" min="0" step="0.1">
         </label>
         <label title="Трейлинг SL по ATR. SL только ужесточается. 0 = выкл.">
           Trail (×ATR)
-          <input id="sf-trail-atr" type="number" value="${editing ? (editing.trail_atr || 0) : 0}" min="0" step="0.1" style="width:90px">
+          <input id="sf-trail-atr" type="number" value="${editing ? (editing.trail_atr || 0) : 0}" min="0" step="0.1">
         </label>
-        <label class="sf-enabled-label">
-          <input id="sf-enabled" type="checkbox" ${!editing || editing.enabled ? 'checked' : ''}>
-          Включён
-        </label>
-        <button class="btn-primary" onclick="submitStreamForm('${editing ? editing.id : ''}')">
-          ${editing ? 'Сохранить' : 'Создать'}
-        </button>
-        <button class="btn-ghost btn-ghost-lg" onclick="closeStreamForm()">Отмена</button>
-        <span id="sf-error" class="sf-error"></span>
+
+        <div class="sf-bottom">
+          <label class="sf-enabled-label">
+            <input id="sf-enabled" type="checkbox" ${!editing || editing.enabled ? 'checked' : ''}>
+            Включён
+          </label>
+          <span id="sf-error" class="sf-error"></span>
+          <div class="sf-actions">
+            <button class="btn-ghost btn-ghost-lg" onclick="closeStreamForm()">Отмена</button>
+            <button class="btn-primary" onclick="submitStreamForm('${editing ? editing.id : ''}')">
+              ${editing ? 'Сохранить' : 'Создать'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   `;

@@ -209,3 +209,17 @@
     font-size: 12px;
   }
 }
+
+/* === Stream form: одна колонка на мобильном === */
+@media (max-width: 767.98px) {
+  .stream-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .stream-form-grid label.col-2 { grid-column: span 1; }
+  .stream-form-grid .sf-bottom {
+    flex-wrap: wrap;
+  }
+  .stream-form-grid .sf-bottom .sf-actions {
+    margin-left: auto;
+  }
+}

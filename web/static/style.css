@@ -1391,35 +1391,100 @@ tr:hover td { background: var(--surface2); }
   justify-content: center;
 }
 #btn-logout svg { display: block; }
-.stream-form-wrap { margin-top: 12px; }
+.stream-form-wrap { margin-top: 14px; }
 .stream-form {
-  background: var(--bg-panel);
+  background: var(--bg-panel, var(--surface));
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px 14px;
+  border-radius: 8px;
+  padding: 16px 18px 18px;
 }
 .stream-form-title {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   color: var(--text-dim);
-  margin-bottom: 10px;
+  margin-bottom: 16px;
+}
+
+/* Grid-форма потока: 4 равные колонки */
+.stream-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px 14px;
+  align-items: end;
+}
+.stream-form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 600;
+  min-width: 0;
+}
+.stream-form-grid label.col-2 { grid-column: span 2; }
+.stream-form-grid input,
+.stream-form-grid select {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font-family: var(--font);
+  font-size: 12.5px;
+  min-height: 34px;
+  box-sizing: border-box;
+  transition: border-color 0.12s;
+}
+.stream-form-grid input:focus,
+.stream-form-grid select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.stream-form-grid input:hover,
+.stream-form-grid select:hover {
+  border-color: var(--border-strong);
+}
+
+/* Нижний ряд: «Включён» слева, ошибка по центру, кнопки справа */
+.stream-form-grid .sf-bottom {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
 }
 .sf-enabled-label {
-  display: inline-flex;
+  display: inline-flex !important;
   flex-direction: row !important;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 13px !important;
   color: var(--text) !important;
   text-transform: none !important;
   letter-spacing: normal !important;
+  font-weight: 500 !important;
+}
+.sf-enabled-label input {
+  width: 16px; height: 16px;
+  margin: 0;
+  cursor: pointer;
 }
 .sf-error {
-  color: #ef4444;
+  color: var(--red, #ef4444);
   font-size: 12px;
-  margin-left: 8px;
-  align-self: center;
+  flex: 1;
+  text-align: center;
+}
+.sf-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
 }
 
 /* Stream tag on position cards */
