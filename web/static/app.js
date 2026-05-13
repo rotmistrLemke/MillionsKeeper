@@ -935,36 +935,31 @@ function renderHistDeals() {
   const totalProfit = sorted.reduce((s, d) => s + (d.profit || 0), 0);
   const totalClass  = totalProfit >= 0 ? 'pnl-pos' : 'pnl-neg';
 
+  const infoIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor"/></svg>';
+  // Сохраняем компактный список в state для info-модалки
+  state._histDealsView = sorted;
   table.innerHTML = `
-    <table>
+    <table class="hist-deals">
       <tr>
-        <th>#</th><th>Время</th><th>Тип</th><th>Символ</th><th>Объём</th><th>Тикет</th><th>Причина</th><th>P&L $</th>
+        <th>Тип</th><th style="text-align:right">P&L $</th><th></th>
       </tr>
       ${page.map((d, i) => {
-        const globalIdx = start + i + 1;
+        const globalIdx = start + i;
         const pc = (d.profit || 0) >= 0 ? 'pnl-pos' : 'pnl-neg';
-        const time = (d.time || '').toString().substring(0, 16);
         const type = d.type || '';
         const sign = (d.profit || 0) >= 0 ? '+' : '';
-        const reason = d.reason || '—';
-        const reasonClass = /^(SL|Stop Out)$/i.test(reason)   ? 'pnl-neg'
-                          : /^TP$/i.test(reason)               ? 'pnl-pos'
-                          : /^(SIGNAL|RSI|MANUAL)$/i.test(reason) ? 'hist-reason-info'
-                          : '';
         return `<tr>
-          <td style="color:var(--text-muted)">${globalIdx}</td>
-          <td>${time}</td>
-          <td><span class="badge badge-${type.toLowerCase()}">${type}</span></td>
-          <td>${d.symbol || ''}</td>
-          <td>${d.volume != null ? d.volume : ''}</td>
-          <td style="color:var(--text-muted)">${d.ticket || ''}</td>
-          <td class="${reasonClass}">${escapeHtml(reason)}</td>
-          <td class="${pc}">${sign}${fmt(d.profit || 0)}$</td>
+          <td><span class="pos-type type-${type.toLowerCase()}">${type}</span></td>
+          <td class="${pc}" style="text-align:right;font-variant-numeric:tabular-nums">${sign}${fmt(d.profit || 0)}$</td>
+          <td style="text-align:right;width:1%">
+            <button class="btn-icon" title="Подробнее" onclick="showTradeInfo(${globalIdx})">${infoIcon}</button>
+          </td>
         </tr>`;
       }).join('')}
       <tr style="border-top:2px solid var(--border);font-weight:600">
-        <td colspan="7" style="text-align:right;color:var(--text-muted)">Итого:</td>
-        <td class="${totalClass}">${totalProfit>=0?'+':''}${fmt(totalProfit)}$</td>
+        <td style="color:var(--text-muted)">Итого:</td>
+        <td class="${totalClass}" style="text-align:right">${totalProfit>=0?'+':''}${fmt(totalProfit)}$</td>
+        <td></td>
       </tr>
     </table>
   `;
@@ -992,6 +987,49 @@ function histGoPage(p) {
   const totalPages = Math.ceil(deals.length / HIST_PER_PAGE);
   histPage = Math.max(0, Math.min(p, totalPages - 1));
   renderHistDeals();
+}
+
+// ── Trade info modal ──
+function showTradeInfo(idx) {
+  const list = state._histDealsView || [];
+  const d = list[idx];
+  if (!d) return;
+  const pnl = d.profit || 0;
+  const sign = pnl >= 0 ? '+' : '';
+  const pnlClass = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
+  const reason = d.reason || '—';
+  const time = (d.time || '').toString().substring(0, 19);
+  const row = (k, v) => `<div class="si-row"><span class="si-k">${k}</span><span class="si-v">${v}</span></div>`;
+  const html = `
+    <div class="si-backdrop" onclick="if(event.target===this)closeTradeInfo()">
+      <div class="si-panel" role="dialog" aria-label="Информация о сделке">
+        <div class="si-header">
+          <h3>${d.symbol || '—'} <span class="pos-type type-${(d.type||'').toLowerCase()}" style="margin-left:8px;font-size:13px">${d.type || ''}</span></h3>
+          <button class="btn-icon" onclick="closeTradeInfo()" title="Закрыть" aria-label="Закрыть">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="si-body">
+          ${row('P/L', `<span class="${pnlClass}">${sign}${fmt(pnl)}$</span>`)}
+          ${row('Время', time || '—')}
+          ${row('Объём', d.volume != null ? d.volume + ' лот' : '—')}
+          ${row('Тикет', d.ticket ? '#' + d.ticket : '—')}
+          ${row('Причина', escapeHtml(reason))}
+        </div>
+      </div>
+    </div>
+  `;
+  const wrap = document.createElement('div');
+  wrap.id = 'trade-info-modal';
+  wrap.innerHTML = html;
+  document.body.appendChild(wrap);
+  document.addEventListener('keydown', _tradeInfoEsc);
+}
+function _tradeInfoEsc(e) { if (e.key === 'Escape') closeTradeInfo(); }
+function closeTradeInfo() {
+  const m = document.getElementById('trade-info-modal');
+  if (m) m.remove();
+  document.removeEventListener('keydown', _tradeInfoEsc);
 }
 
 function histSetPeriod(period) {
