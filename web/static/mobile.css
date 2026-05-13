@@ -30,9 +30,20 @@
   /* Верхняя горизонтальная лента табов — скрыта (заменяется нижним tab-bar) */
   .tabs { display: none !important; }
 
-  /* Account-bar (баланс) на мобильном скрыт — он полностью закрыт парящим
-     tab-bar, и просвечивает через blur, что выглядит как артефакт. */
-  .account-bar { display: none !important; }
+  /* Account-bar на мобильном — под header, до области контента.
+     В body (flex column) переставляем через order: header(0) → balance(1) → layout(2). */
+  header { order: 0; }
+  .account-bar {
+    order: 1;
+    flex-shrink: 0;
+    padding: 12px 16px;
+    border-top: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .layout { order: 2; }
+
+  .acc-balance-value { font-size: 24px; }
+  .acc-balance-label { font-size: 9px; }
 
   /* Header ужимается */
   .header, header { padding: 8px 12px; }
