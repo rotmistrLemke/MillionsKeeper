@@ -1032,6 +1032,59 @@ function closeTradeInfo() {
   document.removeEventListener('keydown', _tradeInfoEsc);
 }
 
+// ── Backtest trade info modal ──
+function showBtTradeInfo(idx) {
+  const trades = state.btTrades || [];
+  const t = trades[idx];
+  if (!t) return;
+  const pnl = t.pnl_money;
+  const pnlClass = (pnl || 0) >= 0 ? 'pnl-pos' : 'pnl-neg';
+  const sign = (pnl || 0) >= 0 ? '+' : '';
+  const ptsSign = (t.pnl_points || 0) >= 0 ? '+' : '';
+  const row = (k, v) => `<div class="si-row"><span class="si-k">${k}</span><span class="si-v">${v}</span></div>`;
+  const stratKey = state.bt_strategy || 'default';
+  const indCols  = (STRATEGY_META[stratKey] || STRATEGY_META.default).indicators || [];
+  const indRows  = indCols.map(ic => {
+    const v = t.indicators?.[ic.col];
+    return row(ic.label, v != null ? Number(v).toFixed(2) : '—');
+  }).join('');
+  const html = `
+    <div class="si-backdrop" onclick="if(event.target===this)closeBtTradeInfo()">
+      <div class="si-panel" role="dialog" aria-label="Информация о сделке">
+        <div class="si-header">
+          <h3>Сделка #${idx + 1} <span class="pos-type type-${(t.type||'').toLowerCase()}" style="margin-left:8px;font-size:13px">${t.type || ''}</span></h3>
+          <button class="btn-icon" onclick="closeBtTradeInfo()" title="Закрыть" aria-label="Закрыть">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="si-body">
+          ${row('P/L', `<span class="${pnlClass}">${sign}${pnl != null ? fmt(pnl) + '$' : '—'}</span>`)}
+          ${row('P/L пункты', `<span class="${pnlClass}">${ptsSign}${(t.pnl_points || 0).toFixed(1)}</span>`)}
+          ${row('Вход', (t.entry_time || '').toString().substring(0, 19) || '—')}
+          ${row('Выход', (t.exit_time || '').toString().substring(0, 19) || '—')}
+          ${row('Цена входа', (t.entry_price || 0).toFixed(5))}
+          ${row('Цена выхода', (t.exit_price || 0).toFixed(5))}
+          ${row('Баров удерж.', t.bars_held != null ? t.bars_held : '—')}
+          ${row('Выход по', escapeHtml(t.exit_reason || '—'))}
+          ${t.balance_after != null ? row('Баланс после', fmt(t.balance_after) + '$') : ''}
+          ${indRows}
+        </div>
+      </div>
+    </div>
+  `;
+  const wrap = document.createElement('div');
+  wrap.id = 'bt-trade-info-modal';
+  wrap.innerHTML = html;
+  document.body.appendChild(wrap);
+  document.addEventListener('keydown', _btTradeInfoEsc);
+}
+function _btTradeInfoEsc(e) { if (e.key === 'Escape') closeBtTradeInfo(); }
+function closeBtTradeInfo() {
+  const m = document.getElementById('bt-trade-info-modal');
+  if (m) m.remove();
+  document.removeEventListener('keydown', _btTradeInfoEsc);
+}
+
 function histSetPeriod(period) {
   histPeriod = period;
   histPage = 0;
@@ -1910,38 +1963,24 @@ function renderBtPage() {
   // colspan for summary "Итого:" = 6 fixed cols + indicator cols + P&L pts col
   const summaryColspan = 7 + indCols.length;
 
+  const infoIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor"/></svg>';
   document.getElementById('bt-trades-table').innerHTML = `
-    <table>
+    <table class="hist-deals">
       <tr>
-        <th>#</th><th>Тип</th><th>Вход</th><th>Выход</th><th>Цена входа</th><th>Цена выхода</th>
-        ${indCols.map(ic => `<th>${ic.label}</th>`).join('')}
-        <th>P&L pts</th><th>P&L $</th>${hasBalance ? '<th>Баланс</th>' : ''}
-        <th>Баров</th><th>Выход по</th>
+        <th>Тип</th><th style="text-align:right">P&L $</th><th></th>
       </tr>
       ${page.map((t, i) => {
-        const globalIdx = start + i + 1;
-        const pc  = t.pnl_points >= 0 ? 'pnl-pos' : 'pnl-neg';
-        const bal = t.balance_after;
-        const prevBal = globalIdx > 1 ? (trades[start + i - 1]?.balance_after ?? bal) : bal;
-        const balClass = bal != null && bal >= prevBal ? 'pnl-pos' : 'pnl-neg';
-        const indCells = indCols.map(ic => {
-          const v = t.indicators?.[ic.col];
-          const s = v != null ? Number(v).toFixed(2) : '—';
-          return `<td style="color:var(--text-muted);font-size:11px">${s}</td>`;
-        }).join('');
+        const globalIdx = start + i;
+        const pc  = (t.pnl_money || 0) >= 0 ? 'pnl-pos' : 'pnl-neg';
+        const type = t.type || '';
+        const pnl  = t.pnl_money;
+        const pnlStr = pnl != null ? (pnl >= 0 ? '+' : '') + fmt(pnl) + '$' : '—';
         return `<tr>
-          <td style="color:var(--text-muted)">${globalIdx}</td>
-          <td><span class="badge badge-${(t.type||'').toLowerCase()}">${t.type}</span></td>
-          <td>${(t.entry_time||'').toString().substring(0,16)}</td>
-          <td>${(t.exit_time||'').toString().substring(0,16)}</td>
-          <td>${(t.entry_price||0).toFixed(5)}</td>
-          <td>${(t.exit_price||0).toFixed(5)}</td>
-          ${indCells}
-          <td class="${pc}">${t.pnl_points>=0?'+':''}${(t.pnl_points||0).toFixed(1)}</td>
-          <td class="${pc}">${t.pnl_money!=null?(t.pnl_money>=0?'+':'')+fmt(t.pnl_money)+'$':'—'}</td>
-          ${hasBalance ? `<td class="${balClass}" style="font-weight:600">${bal!=null?fmt(bal)+'$':'—'}</td>` : ''}
-          <td style="color:var(--text-muted)">${t.bars_held??'—'}</td>
-          <td style="color:var(--text-muted)">${t.exit_reason||''}</td>
+          <td><span class="pos-type type-${type.toLowerCase()}">${type}</span></td>
+          <td class="${pc}" style="text-align:right;font-variant-numeric:tabular-nums">${pnlStr}</td>
+          <td style="text-align:right;width:1%">
+            <button class="btn-icon" title="Подробнее" onclick="showBtTradeInfo(${globalIdx})">${infoIcon}</button>
+          </td>
         </tr>`;
       }).join('')}
       ${hasBalance && btPage === totalPages - 1 ? (() => {
@@ -1952,10 +1991,9 @@ function renderBtPage() {
         const totalPnl = finalBal != null && initBal != null ? finalBal - initBal : null;
         const balClass = totalPnl >= 0 ? 'pnl-pos' : 'pnl-neg';
         return `<tr style="border-top:2px solid var(--border);font-weight:600">
-          <td colspan="${summaryColspan}" style="text-align:right;color:var(--text-muted)">Итого:</td>
-          <td class="${balClass}">${totalPnl!=null?(totalPnl>=0?'+':'')+fmt(totalPnl)+'$':'—'}</td>
-          <td class="${balClass}" style="font-weight:700">${finalBal!=null?fmt(finalBal)+'$':'—'}</td>
-          <td colspan="2"></td>
+          <td style="color:var(--text-muted)">Итого:</td>
+          <td class="${balClass}" style="text-align:right">${totalPnl!=null?(totalPnl>=0?'+':'')+fmt(totalPnl)+'$':'—'}</td>
+          <td></td>
         </tr>`;
       })() : ''}
     </table>
