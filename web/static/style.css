@@ -1072,13 +1072,13 @@ tr:hover td { background: var(--surface2); }
   background: var(--surface, #181a20);
   color: var(--text, #eaecef);
 }
-/* Кнопка запуска: круглая, в ряду с инпутами */
+/* Кнопка запуска: круглая, сидит сразу после последнего инпута */
 .bt-form .bt-run-btn {
   width: 40px; height: 40px;
   min-width: 40px; min-height: 40px;
   align-self: end;
   margin-bottom: -3px;
-  justify-self: end;
+  justify-self: start;
 }
 .bt-form .bt-run-btn svg { width: 18px; height: 18px; }
 
@@ -1099,10 +1099,10 @@ tr:hover td { background: var(--surface2); }
 .btn-primary:hover { background: var(--accent-hover); }
 .btn-primary:active { transform: translateY(1px); }
 
-/* ── Stats grid ── */
+/* ── Stats grid: по 2 панели в строку ── */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 8px;
   margin-bottom: 12px;
 }
