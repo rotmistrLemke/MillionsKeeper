@@ -30,6 +30,10 @@
   /* Верхняя горизонтальная лента табов — скрыта (заменяется нижним tab-bar) */
   .tabs { display: none !important; }
 
+  /* Account-bar (баланс) на мобильном скрыт — он полностью закрыт парящим
+     tab-bar, и просвечивает через blur, что выглядит как артефакт. */
+  .account-bar { display: none !important; }
+
   /* Header ужимается */
   .header, header { padding: 8px 12px; }
 }
