@@ -1015,12 +1015,12 @@ tr:hover td { background: var(--surface2); }
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 
-/* ── Backtest form ── */
+/* ── Backtest form — grid 4 колонки, чтобы все элементы выстраивались ровно ── */
 .bt-form {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  align-items: flex-end;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px 14px;
+  align-items: end;
   margin-bottom: 4px;
 }
 .bt-form label {
@@ -1032,16 +1032,21 @@ tr:hover td { background: var(--surface2); }
   text-transform: uppercase;
   letter-spacing: 0.8px;
   font-weight: 600;
+  min-width: 0;
 }
+.bt-form label.col-full { grid-column: 1 / -1; }
+.bt-form label.col-2    { grid-column: span 2; }
 .bt-form input, .bt-form select {
+  width: 100%;
   background: var(--surface2);
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 4px;
-  padding: 8px 10px;
+  padding: 8px 12px;
   font-family: var(--font);
   font-size: 12.5px;
   min-height: 34px;
+  box-sizing: border-box;
   transition: border-color 0.12s;
 }
 .bt-form input:focus, .bt-form select:focus {
@@ -1051,6 +1056,31 @@ tr:hover td { background: var(--surface2); }
 .bt-form input:hover, .bt-form select:hover {
   border-color: var(--border-strong);
 }
+/* Кастомная стрелка select */
+.bt-form select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23848e9c' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 10px 10px;
+  padding-right: 30px;
+}
+.bt-form select::-ms-expand { display: none; }
+.bt-form option {
+  background: var(--surface, #181a20);
+  color: var(--text, #eaecef);
+}
+/* Кнопка запуска: круглая, в ряду с инпутами */
+.bt-form .bt-run-btn {
+  width: 40px; height: 40px;
+  min-width: 40px; min-height: 40px;
+  align-self: end;
+  margin-bottom: -3px;
+  justify-self: end;
+}
+.bt-form .bt-run-btn svg { width: 18px; height: 18px; }
 
 .btn-primary {
   background: var(--accent);

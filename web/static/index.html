@@ -205,7 +205,7 @@
       <div class="card">
         <div class="card-title">Параметры бэктеста</div>
         <div class="bt-form">
-          <label>
+          <label class="col-full">
             Стратегия
             <select id="bt-strategy" onchange="onBtStrategyChange()">
               <option value="default">MA + MACD + RSI (основная)</option>
@@ -231,9 +231,10 @@
               <option value="ema50_overstretch">EMA50 Overstretch (4.5×ATR фейд)</option>
             </select>
           </label>
+
           <label>
             Символ
-            <select id="bt-symbol" style="min-width:130px">
+            <select id="bt-symbol">
               <option value="XAUUSDrfd" selected>XAUUSDrfd</option>
             </select>
           </label>
@@ -259,42 +260,49 @@
             </select>
           </label>
           <label>
+            Депозит ($)
+            <input id="bt-deposit" type="number" value="10000">
+          </label>
+
+          <label>
             Дата начала
-            <input id="bt-start" type="date" style="width:140px">
+            <input id="bt-start" type="date">
           </label>
           <label>
             Дата окончания
-            <input id="bt-end" type="date" style="width:140px">
-          </label>
-          <label>
-            Депозит ($)
-            <input id="bt-deposit" type="number" value="10000" style="width:100px">
+            <input id="bt-end" type="date">
           </label>
           <label title="Спред в пунктах символа. Списывается с PnL каждой сделки и сдвигает цену входа.">
             Спред (пункты)
-            <input id="bt-spread" type="number" value="0" min="0" step="1" style="width:90px">
+            <input id="bt-spread" type="number" value="0" min="0" step="1">
           </label>
           <label>
             Объём (лот, 0 = авто)
-            <input id="bt-volume" type="number" value="0" min="0" step="0.01" style="width:100px">
+            <input id="bt-volume" type="number" value="0" min="0" step="0.01">
           </label>
+
           <label>
             SL (×ATR, 0 = выкл)
-            <input id="bt-sl-atr" type="number" value="0" min="0" step="0.1" style="width:90px">
+            <input id="bt-sl-atr" type="number" value="0" min="0" step="0.1">
           </label>
           <label>
             TP (×ATR, 0 = выкл)
-            <input id="bt-tp-atr" type="number" value="0" min="0" step="0.1" style="width:90px">
+            <input id="bt-tp-atr" type="number" value="0" min="0" step="0.1">
           </label>
           <label title="После прохода +N×ATR в нашу сторону двигает SL в точку входа. 0 = выкл.">
             BE (×ATR, 0 = выкл)
-            <input id="bt-be-atr" type="number" value="0" min="0" step="0.1" style="width:90px">
+            <input id="bt-be-atr" type="number" value="0" min="0" step="0.1">
           </label>
           <label title="Трейлинг SL: для BUY не ближе (high − N×ATR), для SELL не дальше (low + N×ATR). SL только ужесточается. 0 = выкл.">
             Trail (×ATR, 0 = выкл)
-            <input id="bt-trail-atr" type="number" value="0" min="0" step="0.1" style="width:90px">
+            <input id="bt-trail-atr" type="number" value="0" min="0" step="0.1">
           </label>
-          <button class="btn-primary" id="btn-run-bt">▶ Запустить</button>
+
+          <button class="btn-fab bt-run-btn col-full" id="btn-run-bt" title="Запустить бэктест" aria-label="Запустить бэктест" style="justify-self:end">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </button>
         </div>
         <div id="bt-strategy-desc" class="strategy-desc"></div>
       </div>
