@@ -311,10 +311,10 @@ td { font-size: 13px; }
 .pos-symbol { letter-spacing: -0.2px; }
 .pos-pnl { font-size: 16px; letter-spacing: -0.3px; }
 
-/* ── Stats grid (Today/Week/Month) ── */
+/* ── Stats grid: по 2 панели в линию ── */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   margin-bottom: 14px;
 }
