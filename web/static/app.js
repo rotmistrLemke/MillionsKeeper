@@ -1967,7 +1967,10 @@ function renderBtPage() {
   document.getElementById('bt-trades-table').innerHTML = `
     <table class="hist-deals">
       <tr>
-        <th>Тип</th><th style="text-align:right">P&L $</th><th></th>
+        <th>Тип</th>
+        <th style="text-align:right">P&L $</th>
+        ${hasBalance ? '<th style="text-align:right">Баланс</th>' : ''}
+        <th></th>
       </tr>
       ${page.map((t, i) => {
         const globalIdx = start + i;
@@ -1975,9 +1978,13 @@ function renderBtPage() {
         const type = t.type || '';
         const pnl  = t.pnl_money;
         const pnlStr = pnl != null ? (pnl >= 0 ? '+' : '') + fmt(pnl) + '$' : '—';
+        const bal = t.balance_after;
+        const prevBal = globalIdx > 0 ? (trades[globalIdx - 1]?.balance_after ?? bal) : bal;
+        const balClass = bal != null && bal >= prevBal ? 'pnl-pos' : 'pnl-neg';
         return `<tr>
           <td><span class="pos-type type-${type.toLowerCase()}">${type}</span></td>
           <td class="${pc}" style="text-align:right;font-variant-numeric:tabular-nums">${pnlStr}</td>
+          ${hasBalance ? `<td class="${balClass}" style="text-align:right;font-variant-numeric:tabular-nums;font-weight:600">${bal!=null?fmt(bal)+'$':'—'}</td>` : ''}
           <td style="text-align:right;width:1%">
             <button class="btn-icon" title="Подробнее" onclick="showBtTradeInfo(${globalIdx})">${infoIcon}</button>
           </td>
@@ -1993,6 +2000,7 @@ function renderBtPage() {
         return `<tr style="border-top:2px solid var(--border);font-weight:600">
           <td style="color:var(--text-muted)">Итого:</td>
           <td class="${balClass}" style="text-align:right">${totalPnl!=null?(totalPnl>=0?'+':'')+fmt(totalPnl)+'$':'—'}</td>
+          <td class="${balClass}" style="text-align:right;font-weight:700">${finalBal!=null?fmt(finalBal)+'$':'—'}</td>
           <td></td>
         </tr>`;
       })() : ''}

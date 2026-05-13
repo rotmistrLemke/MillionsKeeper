@@ -1819,3 +1819,6 @@ input[type="checkbox"] {
   background: var(--accent-soft);
   color: var(--accent-hover);
 }
+
+/* График сделок бэктеста — скрыт (по запросу) */
+#bt-chart-card { display: none !important; }
