@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MillionsKeeper — Unit Economics Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0B0E11;
+  --bg-elev:#0E1116;
+  --surface:#17181F;
+  --surface2:#1E2026;
+  --surface3:#2B2F36;
+  --border:#2B2F36;
+  --border-strong:#363B44;
+  --text:#EAECEF;
+  --text-muted:#848E9C;
+  --text-dim:#5E6673;
+  --accent:#F7A600;
+  --accent-hover:#FFBD1B;
+  --accent-soft:rgba(247,166,0,0.12);
+  --green:#20B26C;
+  --green-soft:rgba(32,178,108,0.12);
+  --red:#EF454A;
+  --red-soft:rgba(239,69,74,0.12);
+  --yellow:#F0B90B;
+  --blue:#4A90E2;
+  --font:'Inter','IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono','SF Mono','Consolas',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font);
+  font-feature-settings:'tnum' 1,'cv11' 1;
+  -webkit-font-smoothing:antialiased;
+}
+body{
+  min-height:100vh;
+  padding:24px;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(247,166,0,0.05), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 100%, rgba(32,178,108,0.03), transparent),
+    var(--bg);
+  font-size:13px;
+}
+.dashboard{max-width:1480px;margin:0 auto}
+
+/* Header */
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 22px;margin-bottom:18px;
+  border:1px solid var(--border);border-radius:10px;
+  background:linear-gradient(180deg, var(--bg-elev) 0%, var(--surface) 100%);
+  box-shadow:0 1px 0 var(--border), 0 6px 16px rgba(0,0,0,0.25);
+  position:relative;
+}
+.header::after{
+  content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
+  background:linear-gradient(90deg, transparent, rgba(247,166,0,0.35) 35%, rgba(247,166,0,0.35) 65%, transparent);
+  opacity:0.5;pointer-events:none;
+}
+.brand{display:flex;align-items:center;gap:14px}
+.logo{
+  width:42px;height:42px;border-radius:8px;
+  background:linear-gradient(180deg,#FFC83D 0%,#F7A600 100%);
+  display:grid;place-items:center;font-weight:800;color:#1a1200;font-size:20px;
+  filter:drop-shadow(0 0 12px rgba(247,166,0,0.4));
+  font-family:var(--font);
+}
+.brand h1{font-size:18px;font-weight:700;letter-spacing:-0.2px;color:var(--text)}
+.brand h1 span{
+  background:linear-gradient(180deg,#FFC83D 0%,#F7A600 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  font-weight:800;
+}
+.brand .sub{font-size:10px;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;margin-top:3px;font-weight:500}
+.header .meta{text-align:right;font-size:11px;color:var(--text-muted)}
+.header .meta b{color:var(--accent);font-weight:600}
+
+/* KPI cards */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:18px}
+.kpi{
+  border:1px solid var(--border);border-radius:10px;
+  background:var(--surface);
+  padding:14px 16px;position:relative;overflow:hidden;
+  transition:border-color 200ms, transform 200ms;
+}
+.kpi:hover{border-color:var(--border-strong);transform:translateY(-1px)}
+.kpi::before{
+  content:"";position:absolute;top:0;left:0;width:3px;height:100%;
+  background:linear-gradient(180deg,var(--accent),transparent);
+}
+.kpi.green::before{background:linear-gradient(180deg,var(--green),transparent)}
+.kpi.red::before{background:linear-gradient(180deg,var(--red),transparent)}
+
+.kpi .label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px;font-weight:500}
+.kpi .value{font-size:26px;font-weight:700;color:var(--text);line-height:1;font-family:var(--font);letter-spacing:-0.5px}
+.kpi .value .unit{font-size:13px;color:var(--accent);font-weight:600;margin-left:4px;letter-spacing:0}
+.kpi.green .value .unit{color:var(--green)}
+.kpi .delta{font-size:11px;color:var(--green);margin-top:6px;display:flex;align-items:center;gap:4px;font-weight:500}
+.kpi .delta.bad{color:var(--red)}
+.kpi .hint{font-size:10px;color:var(--text-dim);margin-top:4px}
+
+/* Grid */
+.grid{display:grid;gap:14px;margin-bottom:14px}
+.grid-2{grid-template-columns:1.4fr 1fr}
+.grid-3{grid-template-columns:1fr 1fr 1fr}
+.grid-2b{grid-template-columns:1fr 1.4fr}
+
+.panel{
+  border:1px solid var(--border);border-radius:10px;
+  background:var(--surface);
+  padding:18px;
+  position:relative;
+}
+.panel h3{
+  font-size:12px;font-weight:600;color:var(--text);
+  text-transform:uppercase;letter-spacing:1.2px;
+  margin-bottom:4px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.panel h3 .tag{
+  font-size:10px;color:var(--accent);font-weight:500;
+  letter-spacing:1px;background:var(--accent-soft);
+  padding:3px 8px;border-radius:4px;border:1px solid rgba(247,166,0,0.2);
+  text-transform:none;
+}
+.panel h3 .tag.green{color:var(--green);background:var(--green-soft);border-color:rgba(32,178,108,0.25)}
+.panel .desc{font-size:11px;color:var(--text-muted);margin-bottom:14px}
+.chart-wrap{position:relative;height:240px}
+.chart-wrap.tall{height:280px}
+.chart-wrap.short{height:180px}
+
+/* Table */
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{
+  text-align:left;font-size:10px;color:var(--text-muted);
+  text-transform:uppercase;letter-spacing:1px;
+  padding:8px 8px;border-bottom:1px solid var(--border);font-weight:500;
+}
+td{padding:9px 8px;border-bottom:1px solid rgba(43,47,54,0.6);color:var(--text)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(247,166,0,0.025)}
+td.num{text-align:right;font-variant-numeric:tabular-nums;color:var(--text);font-weight:600;font-family:var(--font-mono);font-size:11.5px}
+td .pct{color:var(--green);font-size:11px;font-weight:600}
+td .pct.bad{color:var(--red)}
+td .pct.neutral{color:var(--accent)}
+
+/* Channel bars */
+.channel{margin-bottom:11px}
+.channel-head{display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px}
+.channel-head .name{color:var(--text)}
+.channel-head .val{color:var(--accent);font-weight:700;font-variant-numeric:tabular-nums;font-family:var(--font-mono)}
+.bar{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;border:1px solid var(--border)}
+.bar-fill{
+  height:100%;
+  background:linear-gradient(90deg,#F7A600,#FFC83D);
+  border-radius:3px;
+  box-shadow:0 0 6px rgba(247,166,0,0.4);
+}
+
+/* Milestones */
+.milestone{
+  display:grid;grid-template-columns:55px 1fr auto auto;gap:14px;
+  align-items:center;padding:11px 0;
+  border-bottom:1px solid rgba(43,47,54,0.6);
+}
+.milestone:last-child{border-bottom:none}
+.milestone .m{font-size:10px;color:var(--text-muted);font-weight:600;letter-spacing:1px}
+.milestone .meaning{font-size:11.5px;color:var(--text-muted)}
+.milestone .clients{font-size:14px;color:var(--text);font-weight:700;font-variant-numeric:tabular-nums;font-family:var(--font-mono);min-width:55px;text-align:right}
+.milestone .mrr{font-size:14px;color:var(--green);font-weight:700;font-variant-numeric:tabular-nums;font-family:var(--font-mono);min-width:75px;text-align:right}
+
+/* Stat blocks */
+.stat-row{display:flex;justify-content:space-between;margin-top:14px;gap:12px}
+.stat-row .stat{flex:1;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px}
+.stat .stat-label{color:var(--text-muted);font-size:10px;letter-spacing:1px;text-transform:uppercase;font-weight:500}
+.stat .stat-value{color:var(--accent);font-weight:700;font-size:18px;margin-top:4px;font-family:var(--font-mono)}
+.stat.green .stat-value{color:var(--green)}
+.stat.neutral .stat-value{color:var(--text)}
+
+/* Footer */
+.footer{
+  margin-top:18px;padding:14px 20px;
+  border:1px solid var(--border);border-radius:10px;
+  background:var(--bg-elev);
+  display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text-muted);
+}
+.footer .legend{display:flex;gap:18px}
+.footer .legend span{display:flex;align-items:center;gap:6px}
+.footer .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px rgba(247,166,0,0.6)}
+.footer .dot.green{background:var(--green);box-shadow:0 0 8px rgba(32,178,108,0.6)}
+
+@media (max-width:1200px){
+  .kpi-row{grid-template-columns:repeat(3,1fr)}
+  .grid-2,.grid-2b,.grid-3{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="dashboard">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="brand">
+      <div class="logo">M</div>
+      <div>
+        <h1>Millions<span>Keeper</span></h1>
+        <div class="sub">Unit Economics Dashboard</div>
+      </div>
+    </div>
+    <div class="meta">
+      Сценарий: <b>Base</b> &nbsp;·&nbsp; Модель: <b>SaaS A</b> &nbsp;·&nbsp; Дата: <b>2026-05-14</b>
+    </div>
+  </div>
+
+  <!-- TOP KPI -->
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="label">ARPU</div>
+      <div class="value">$59<span class="unit">/мес</span></div>
+      <div class="hint">Trader 60% + Pro 40%</div>
+    </div>
+    <div class="kpi green">
+      <div class="label">LTV (gross)</div>
+      <div class="value">$832</div>
+      <div class="delta">▲ 16.6 мес жизни</div>
+    </div>
+    <div class="kpi">
+      <div class="label">CAC</div>
+      <div class="value">$42</div>
+      <div class="hint">средневзвешенный</div>
+    </div>
+    <div class="kpi green">
+      <div class="label">LTV / CAC</div>
+      <div class="value">19.8<span class="unit">x</span></div>
+      <div class="delta">▲ норма ≥ 3x</div>
+    </div>
+    <div class="kpi green">
+      <div class="label">Payback</div>
+      <div class="value">0.84<span class="unit">мес</span></div>
+      <div class="delta">▲ &lt; 1 месяца</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Break-even</div>
+      <div class="value">10<span class="unit">клиентов</span></div>
+      <div class="hint">при fixed $455/мес</div>
+    </div>
+  </div>
+
+  <!-- ROW 1: Growth + Milestones -->
+  <div class="grid grid-2">
+    <div class="panel">
+      <h3>Прогноз роста выручки <span class="tag">24 МЕСЯЦА · BASE</span></h3>
+      <div class="desc">MRR / ARR при +15–20 новых клиентах в месяц и churn 6%</div>
+      <div class="chart-wrap tall"><canvas id="growthChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <h3>Milestone-таргеты <span class="tag green">PLAN</span></h3>
+      <div class="desc">От break-even до $35k MRR</div>
+      <div class="milestone"><div class="m">МЕС 3</div><div class="meaning">Break-even, валидация</div><div class="clients">10</div><div class="mrr">$590</div></div>
+      <div class="milestone"><div class="m">МЕС 6</div><div class="meaning">Подработка-уровень</div><div class="clients">35</div><div class="mrr">$2.1k</div></div>
+      <div class="milestone"><div class="m">МЕС 9</div><div class="meaning">Замена средней ЗП</div><div class="clients">80</div><div class="mrr">$4.7k</div></div>
+      <div class="milestone"><div class="m">МЕС 12</div><div class="meaning">Side-business</div><div class="clients">150</div><div class="mrr">$8.8k</div></div>
+      <div class="milestone"><div class="m">МЕС 18</div><div class="meaning">Можно нанимать</div><div class="clients">350</div><div class="mrr">$20.6k</div></div>
+      <div class="milestone"><div class="m">МЕС 24</div><div class="meaning">Полноценный бизнес</div><div class="clients">600</div><div class="mrr">$35.4k</div></div>
+    </div>
+  </div>
+
+  <!-- ROW 2 -->
+  <div class="grid grid-3">
+    <div class="panel">
+      <h3>CAC по каналам <span class="tag">$ / клиент</span></h3>
+      <div class="desc">Средневзвешенный таргет ~$42</div>
+      <div style="margin-top:16px">
+        <div class="channel"><div class="channel-head"><span class="name">YouTube (органика)</span><span class="val">$20</span></div><div class="bar"><div class="bar-fill" style="width:13%"></div></div></div>
+        <div class="channel"><div class="channel-head"><span class="name">Forex форумы / MyFXBook</span><span class="val">$10</span></div><div class="bar"><div class="bar-fill" style="width:7%"></div></div></div>
+        <div class="channel"><div class="channel-head"><span class="name">Реферальная программа</span><span class="val">$30</span></div><div class="bar"><div class="bar-fill" style="width:20%"></div></div></div>
+        <div class="channel"><div class="channel-head"><span class="name">Telegram реклама</span><span class="val">$60</span></div><div class="bar"><div class="bar-fill" style="width:40%"></div></div></div>
+        <div class="channel"><div class="channel-head"><span class="name">Google Ads (forex EA)</span><span class="val">$115</span></div><div class="bar"><div class="bar-fill" style="width:76%"></div></div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Микс тарифов <span class="tag">ARPU $59</span></h3>
+      <div class="desc">Распределение платящей базы</div>
+      <div class="chart-wrap"><canvas id="mixChart"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <h3>Структура fixed-costs <span class="tag">$455/МЕС</span></h3>
+      <div class="desc">Месячный burn в bootstrap-режиме</div>
+      <table>
+        <thead><tr><th>Статья</th><th style="text-align:right">$/мес</th><th style="text-align:right">%</th></tr></thead>
+        <tbody>
+          <tr><td>Маркетинг (мин.)</td><td class="num">$300</td><td class="num"><span class="pct neutral">66%</span></td></tr>
+          <tr><td>Юр. + бухгалтерия</td><td class="num">$80</td><td class="num"><span class="pct neutral">18%</span></td></tr>
+          <tr><td>Сервер (API+DB+worker)</td><td class="num">$40</td><td class="num"><span class="pct neutral">9%</span></td></tr>
+          <tr><td>Платёжный процессинг</td><td class="num">$20</td><td class="num"><span class="pct neutral">4%</span></td></tr>
+          <tr><td>Домен / SSL / monitor</td><td class="num">$15</td><td class="num"><span class="pct neutral">3%</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ROW 3 -->
+  <div class="grid grid-2b">
+    <div class="panel">
+      <h3>Lifetime cash injection <span class="tag">EARLY-BIRD</span></h3>
+      <div class="desc">Разовая продажа $499 первым 50 клиентам</div>
+      <div class="chart-wrap"><canvas id="lifetimeChart"></canvas></div>
+      <div class="stat-row">
+        <div class="stat green"><div class="stat-label">Cash за 3 мес</div><div class="stat-value">$24,950</div></div>
+        <div class="stat green"><div class="stat-label">Покрытие fixed</div><div class="stat-value">4.5×</div></div>
+        <div class="stat neutral"><div class="stat-label">Лимит выпуска</div><div class="stat-value">100 шт</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Чувствительность модели <span class="tag">RISK MAP</span></h3>
+      <div class="desc">Что происходит с LTV и LTV/CAC при изменении параметров</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Сценарий</th>
+            <th style="text-align:right">Churn</th>
+            <th style="text-align:right">ARPU</th>
+            <th style="text-align:right">CAC</th>
+            <th style="text-align:right">LTV</th>
+            <th style="text-align:right">LTV/CAC</th>
+            <th style="text-align:right">Статус</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Base</td><td class="num">6%</td><td class="num">$59</td><td class="num">$42</td><td class="num">$832</td><td class="num"><span class="pct">19.8×</span></td><td class="num"><span class="pct">здоровый</span></td></tr>
+          <tr><td>Высокий churn</td><td class="num">12%</td><td class="num">$59</td><td class="num">$42</td><td class="num">$416</td><td class="num"><span class="pct">9.9×</span></td><td class="num"><span class="pct">ок</span></td></tr>
+          <tr><td>Дорогой маркетинг</td><td class="num">6%</td><td class="num">$59</td><td class="num">$150</td><td class="num">$832</td><td class="num"><span class="pct neutral">5.5×</span></td><td class="num"><span class="pct neutral">ок</span></td></tr>
+          <tr><td>Слабый продукт</td><td class="num">20%</td><td class="num">$59</td><td class="num">$42</td><td class="num">$250</td><td class="num"><span class="pct bad">5.9×</span></td><td class="num"><span class="pct bad">опасно</span></td></tr>
+          <tr><td>Сниженный чек</td><td class="num">6%</td><td class="num">$30</td><td class="num">$42</td><td class="num">$423</td><td class="num"><span class="pct neutral">10.0×</span></td><td class="num"><span class="pct neutral">ок</span></td></tr>
+          <tr><td>Кризис-сценарий</td><td class="num">20%</td><td class="num">$30</td><td class="num">$80</td><td class="num">$127</td><td class="num"><span class="pct bad">1.6×</span></td><td class="num"><span class="pct bad">убыток</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="legend">
+      <span><span class="dot"></span> Accent · Revenue</span>
+      <span><span class="dot green"></span> Green · Health metrics</span>
+      <span style="color:var(--text-dim)">Все суммы в USD, без налогов</span>
+    </div>
+    <div>MillionsKeeper Analytics · Bootstrap mode</div>
+  </div>
+
+</div>
+
+<script>
+Chart.defaults.color='#848E9C';
+Chart.defaults.borderColor='rgba(43,47,54,0.6)';
+Chart.defaults.font.family="'Inter',system-ui,sans-serif";
+Chart.defaults.font.size=11;
+
+const accentGrad=(ctx,h)=>{
+  const g=ctx.createLinearGradient(0,0,0,h);
+  g.addColorStop(0,'rgba(247,166,0,0.45)');
+  g.addColorStop(1,'rgba(247,166,0,0.02)');
+  return g;
+};
+
+// Growth chart
+const gctx=document.getElementById('growthChart').getContext('2d');
+new Chart(gctx,{
+  type:'line',
+  data:{
+    labels:['М3','М6','М9','М12','М15','М18','М21','М24'],
+    datasets:[
+      {
+        label:'MRR ($)',
+        data:[590,2100,4700,8800,14200,20600,27800,35400],
+        borderColor:'#F7A600',
+        backgroundColor:accentGrad(gctx,280),
+        borderWidth:2.5,
+        fill:true,
+        tension:0.35,
+        pointBackgroundColor:'#F7A600',
+        pointBorderColor:'#0B0E11',
+        pointBorderWidth:2,
+        pointRadius:4,
+        pointHoverRadius:6,
+        yAxisID:'y'
+      },
+      {
+        label:'Клиенты',
+        data:[10,35,80,150,240,350,470,600],
+        borderColor:'#20B26C',
+        backgroundColor:'transparent',
+        borderWidth:1.5,
+        borderDash:[5,4],
+        tension:0.3,
+        pointRadius:3,
+        pointBackgroundColor:'#20B26C',
+        pointBorderColor:'#0B0E11',
+        pointBorderWidth:1,
+        yAxisID:'y1'
+      }
+    ]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{
+      legend:{position:'top',align:'end',labels:{color:'#EAECEF',boxWidth:10,boxHeight:10,padding:14,font:{size:11,weight:'500'}}},
+      tooltip:{
+        backgroundColor:'#17181F',borderColor:'#363B44',borderWidth:1,padding:10,
+        titleColor:'#F7A600',bodyColor:'#EAECEF',titleFont:{weight:'600'}
+      }
+    },
+    scales:{
+      x:{grid:{display:false},ticks:{color:'#5E6673'}},
+      y:{position:'left',grid:{color:'rgba(43,47,54,0.5)'},ticks:{color:'#848E9C',callback:v=>'$'+(v/1000).toFixed(0)+'k'}},
+      y1:{position:'right',grid:{display:false},ticks:{color:'#5E6673'}}
+    }
+  }
+});
+
+// Mix donut
+const mctx=document.getElementById('mixChart').getContext('2d');
+new Chart(mctx,{
+  type:'doughnut',
+  data:{
+    labels:['Trader $39','Pro $99','Lifetime'],
+    datasets:[{
+      data:[60,35,5],
+      backgroundColor:['#F7A600','#FFC83D','#20B26C'],
+      borderColor:'#17181F',
+      borderWidth:3,
+      hoverOffset:8
+    }]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    cutout:'68%',
+    plugins:{
+      legend:{position:'bottom',labels:{color:'#EAECEF',boxWidth:10,boxHeight:10,padding:12,font:{size:11}}},
+      tooltip:{
+        backgroundColor:'#17181F',borderColor:'#363B44',borderWidth:1,
+        titleColor:'#F7A600',bodyColor:'#EAECEF',
+        callbacks:{label:c=>c.label+': '+c.parsed+'%'}
+      }
+    }
+  }
+});
+
+// Lifetime cumulative cash
+const lctx=document.getElementById('lifetimeChart').getContext('2d');
+new Chart(lctx,{
+  type:'bar',
+  data:{
+    labels:['М1','М2','М3','М4','М5','М6'],
+    datasets:[
+      {
+        label:'Lifetime cash',
+        data:[10000,8500,6500,0,0,0],
+        backgroundColor:'rgba(247,166,0,0.75)',
+        borderRadius:4,
+        stack:'s'
+      },
+      {
+        label:'MRR (накопит.)',
+        data:[590,1290,2100,3050,4250,5800],
+        backgroundColor:'rgba(32,178,108,0.7)',
+        borderRadius:4,
+        stack:'s'
+      }
+    ]
+  },
+  options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{
+      legend:{position:'top',align:'end',labels:{color:'#EAECEF',boxWidth:10,boxHeight:10,padding:12,font:{size:11}}},
+      tooltip:{backgroundColor:'#17181F',borderColor:'#363B44',borderWidth:1,titleColor:'#F7A600',bodyColor:'#EAECEF'}
+    },
+    scales:{
+      x:{grid:{display:false},ticks:{color:'#5E6673'},stacked:true},
+      y:{grid:{color:'rgba(43,47,54,0.5)'},ticks:{color:'#848E9C',callback:v=>'$'+(v/1000).toFixed(0)+'k'},stacked:true}
+    }
+  }
+});
+</script>
+</body>
+</html>

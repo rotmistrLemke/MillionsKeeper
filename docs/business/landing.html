@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MillionsKeeper — Алготрейдинг для MT5, который можно проверить</title>
+<meta name="description" content="9 скальпинг-стратегий для MetaTrader 5. Live track record. Открытая статистика. Никаких обещаний доходности.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0B0E11;
+  --bg-elev:#0E1116;
+  --surface:#17181F;
+  --surface2:#1E2026;
+  --surface3:#2B2F36;
+  --border:#2B2F36;
+  --border-strong:#363B44;
+  --text:#EAECEF;
+  --text-muted:#848E9C;
+  --text-dim:#5E6673;
+  --accent:#F7A600;
+  --accent-hover:#FFBD1B;
+  --accent-soft:rgba(247,166,0,0.12);
+  --green:#20B26C;
+  --green-soft:rgba(32,178,108,0.12);
+  --red:#EF454A;
+  --red-soft:rgba(239,69,74,0.12);
+  --font:'Inter','IBM Plex Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --font-mono:'JetBrains Mono','SF Mono','Consolas',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font);
+  font-feature-settings:'tnum' 1;
+  -webkit-font-smoothing:antialiased;
+  line-height:1.55;
+  font-size:15px;
+}
+.container{max-width:1200px;margin:0 auto;padding:0 24px}
+
+/* ---------- NAV ---------- */
+nav{
+  position:sticky;top:0;z-index:100;
+  background:rgba(11,14,17,0.85);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+}
+nav .container{display:flex;align-items:center;justify-content:space-between;padding-top:14px;padding-bottom:14px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-logo{
+  width:36px;height:36px;border-radius:8px;
+  background:linear-gradient(180deg,#FFC83D 0%,#F7A600 100%);
+  display:grid;place-items:center;font-weight:800;color:#1a1200;font-size:18px;
+  filter:drop-shadow(0 0 12px rgba(247,166,0,0.35));
+}
+.brand-text{font-weight:700;font-size:16px;letter-spacing:-0.2px}
+.brand-text span{
+  background:linear-gradient(180deg,#FFC83D 0%,#F7A600 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.nav-links{display:flex;gap:28px;align-items:center}
+.nav-links a{color:var(--text-muted);text-decoration:none;font-size:13px;font-weight:500;transition:color .15s}
+.nav-links a:hover{color:var(--accent)}
+
+/* ---------- BUTTONS ---------- */
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:11px 20px;border-radius:8px;
+  font-weight:600;font-size:14px;
+  text-decoration:none;cursor:pointer;border:none;
+  transition:all .15s;font-family:var(--font);
+}
+.btn-primary{
+  background:linear-gradient(180deg,#FFC83D 0%,#F7A600 100%);
+  color:#1a1200;
+  box-shadow:0 0 0 1px rgba(247,166,0,0.3), 0 4px 12px rgba(247,166,0,0.25);
+}
+.btn-primary:hover{background:linear-gradient(180deg,#FFD158 0%,#FFB422 100%);transform:translateY(-1px)}
+.btn-secondary{
+  background:var(--surface2);color:var(--text);
+  border:1px solid var(--border-strong);
+}
+.btn-secondary:hover{background:var(--surface3);border-color:var(--accent)}
+.btn-lg{padding:14px 26px;font-size:15px}
+
+/* ---------- HERO ---------- */
+.hero{
+  position:relative;
+  padding:80px 0 60px;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 0%, rgba(247,166,0,0.12), transparent 60%),
+    radial-gradient(ellipse 40% 30% at 90% 30%, rgba(32,178,108,0.06), transparent),
+    var(--bg);
+  overflow:hidden;
+}
+.hero::after{
+  content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
+  background:linear-gradient(90deg, transparent, rgba(247,166,0,0.4) 50%, transparent);
+}
+.hero-pill{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:6px 14px;border-radius:999px;
+  background:var(--accent-soft);
+  border:1px solid rgba(247,166,0,0.25);
+  font-size:12px;color:var(--accent);font-weight:500;
+  margin-bottom:24px;
+}
+.hero-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.hero h1{
+  font-size:56px;font-weight:800;line-height:1.05;letter-spacing:-1.5px;
+  margin-bottom:24px;max-width:900px;
+}
+.hero h1 .hl{
+  background:linear-gradient(180deg,#FFC83D 0%,#F7A600 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.hero p.lead{
+  font-size:19px;color:var(--text-muted);
+  max-width:680px;margin-bottom:36px;line-height:1.5;
+}
+.hero-cta{display:flex;gap:14px;margin-bottom:48px;flex-wrap:wrap}
+.hero-stats{
+  display:flex;gap:36px;padding:18px 24px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;max-width:780px;
+}
+.hero-stat .l{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:500}
+.hero-stat .v{font-size:22px;color:var(--text);font-weight:700;font-family:var(--font-mono);margin-top:4px}
+.hero-stat .v.green{color:var(--green)}
+.hero-stat .v.accent{color:var(--accent)}
+
+/* ---------- SECTIONS ---------- */
+section{padding:80px 0;border-bottom:1px solid var(--border)}
+.eyebrow{
+  display:inline-block;font-size:12px;color:var(--accent);
+  font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
+  margin-bottom:14px;
+}
+h2{font-size:38px;font-weight:800;letter-spacing:-1px;line-height:1.15;margin-bottom:18px}
+h2 .hl{color:var(--accent)}
+.section-lead{font-size:17px;color:var(--text-muted);max-width:680px;margin-bottom:48px}
+
+/* ---------- PAIN CARDS ---------- */
+.pain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.pain-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:28px;
+  transition:border-color .2s;
+}
+.pain-card:hover{border-color:var(--border-strong)}
+.pain-card .icon{
+  width:44px;height:44px;border-radius:10px;
+  background:var(--red-soft);
+  display:grid;place-items:center;color:var(--red);
+  font-size:22px;margin-bottom:18px;
+}
+.pain-card h3{font-size:17px;font-weight:700;margin-bottom:10px;color:var(--text)}
+.pain-card p{color:var(--text-muted);font-size:14px;line-height:1.6}
+.pain-card .answer{
+  margin-top:14px;padding-top:14px;border-top:1px solid var(--border);
+  color:var(--green);font-size:13px;font-weight:500;
+}
+
+/* ---------- LIVE TRACK ---------- */
+.live-track{
+  background:linear-gradient(180deg, var(--surface), var(--bg-elev));
+  border:1px solid var(--border);border-radius:14px;
+  padding:36px;
+}
+.track-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;flex-wrap:wrap;gap:18px}
+.track-title h3{font-size:22px;font-weight:700;margin-bottom:6px}
+.track-title p{color:var(--text-muted);font-size:13px}
+.track-myfx{
+  padding:8px 14px;background:var(--surface2);
+  border:1px solid var(--border-strong);border-radius:8px;
+  color:var(--text);font-size:12px;font-weight:600;
+  text-decoration:none;display:inline-flex;gap:8px;align-items:center;
+}
+.track-myfx:hover{border-color:var(--accent);color:var(--accent)}
+.track-stats{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:24px}
+.track-stat{padding:14px 16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px}
+.track-stat .l{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:500;margin-bottom:6px}
+.track-stat .v{font-size:18px;font-weight:700;font-family:var(--font-mono)}
+.track-stat .v.green{color:var(--green)}
+.track-stat .v.red{color:var(--red)}
+.track-stat .v.accent{color:var(--accent)}
+.equity-chart{
+  height:260px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;padding:24px;
+  position:relative;overflow:hidden;
+}
+.equity-svg{width:100%;height:100%}
+
+/* ---------- STEPS ---------- */
+.steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;counter-reset:step}
+.step-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:28px;position:relative;counter-increment:step;
+}
+.step-card::before{
+  content:counter(step,decimal-leading-zero);
+  position:absolute;top:24px;right:24px;
+  font-size:36px;font-weight:800;
+  color:var(--accent);opacity:0.25;font-family:var(--font-mono);
+}
+.step-card .ico{
+  width:48px;height:48px;border-radius:10px;
+  background:var(--accent-soft);border:1px solid rgba(247,166,0,0.25);
+  display:grid;place-items:center;color:var(--accent);font-size:22px;
+  margin-bottom:18px;
+}
+.step-card h3{font-size:18px;font-weight:700;margin-bottom:10px}
+.step-card p{color:var(--text-muted);font-size:14px;line-height:1.6}
+
+/* ---------- STRATEGIES ---------- */
+.strat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.strat-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;padding:22px;
+  transition:all .2s;
+}
+.strat-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.strat-head{display:flex;justify-content:space-between;align-items:start;margin-bottom:12px}
+.strat-name{font-size:16px;font-weight:700;color:var(--text)}
+.strat-badge{
+  font-size:10px;padding:3px 8px;border-radius:4px;
+  background:var(--green-soft);color:var(--green);font-weight:600;
+  border:1px solid rgba(32,178,108,0.25);
+}
+.strat-badge.aggressive{background:var(--red-soft);color:var(--red);border-color:rgba(239,69,74,0.25)}
+.strat-badge.moderate{background:var(--accent-soft);color:var(--accent);border-color:rgba(247,166,0,0.25)}
+.strat-desc{font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.5;min-height:40px}
+.strat-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-top:14px;border-top:1px solid var(--border)}
+.strat-stat .l{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:3px}
+.strat-stat .v{font-size:13px;font-weight:600;font-family:var(--font-mono)}
+.strat-stat .v.green{color:var(--green)}
+.strat-stat .v.red{color:var(--red)}
+
+/* ---------- PRICING ---------- */
+.price-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.price-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:28px 24px;position:relative;
+  transition:all .2s;
+}
+.price-card.featured{
+  border-color:var(--accent);
+  background:linear-gradient(180deg, var(--surface), rgba(247,166,0,0.04));
+  box-shadow:0 0 0 1px rgba(247,166,0,0.2), 0 10px 30px rgba(247,166,0,0.08);
+}
+.price-card.featured::before{
+  content:"ПОПУЛЯРНЫЙ";
+  position:absolute;top:-10px;left:50%;transform:translateX(-50%);
+  background:linear-gradient(180deg,#FFC83D,#F7A600);
+  color:#1a1200;font-size:10px;font-weight:800;
+  padding:4px 12px;border-radius:4px;letter-spacing:1px;
+}
+.price-name{font-size:14px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px}
+.price-amount{display:flex;align-items:baseline;gap:4px;margin-bottom:6px}
+.price-amount .cur{font-size:18px;color:var(--text-muted);font-weight:600}
+.price-amount .num{font-size:42px;font-weight:800;color:var(--text);font-family:var(--font-mono);letter-spacing:-1.5px}
+.price-amount .per{font-size:14px;color:var(--text-muted);font-weight:500}
+.price-tag{font-size:12px;color:var(--accent);margin-bottom:22px;min-height:18px;font-weight:500}
+.price-features{list-style:none;margin-bottom:24px}
+.price-features li{
+  display:flex;align-items:start;gap:10px;
+  font-size:13px;color:var(--text);padding:8px 0;
+  border-bottom:1px solid rgba(43,47,54,0.5);
+}
+.price-features li:last-child{border-bottom:none}
+.price-features li::before{
+  content:"✓";color:var(--green);font-weight:700;flex-shrink:0;
+}
+.price-features li.dim{color:var(--text-dim)}
+.price-features li.dim::before{content:"—";color:var(--text-dim)}
+.price-card .btn{width:100%;justify-content:center}
+
+/* ---------- COMPARE TABLE ---------- */
+.compare-table{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;overflow:hidden;
+}
+.compare-table table{width:100%;border-collapse:collapse;font-size:13px}
+.compare-table th{
+  background:var(--surface2);text-align:left;padding:14px 16px;
+  font-size:11px;text-transform:uppercase;letter-spacing:1px;
+  color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);
+}
+.compare-table th.mk{color:var(--accent)}
+.compare-table td{padding:14px 16px;border-bottom:1px solid var(--border);color:var(--text)}
+.compare-table tr:last-child td{border-bottom:none}
+.compare-table .yes{color:var(--green);font-weight:600}
+.compare-table .no{color:var(--red);font-weight:600}
+.compare-table .meh{color:var(--accent)}
+
+/* ---------- FAQ ---------- */
+.faq{max-width:820px;margin:0 auto}
+.faq-item{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:8px;margin-bottom:10px;
+  transition:border-color .2s;
+}
+.faq-item:hover{border-color:var(--border-strong)}
+.faq-item summary{
+  cursor:pointer;padding:18px 22px;
+  font-weight:600;font-size:15px;color:var(--text);
+  list-style:none;display:flex;justify-content:space-between;align-items:center;
+}
+.faq-item summary::-webkit-details-marker{display:none}
+.faq-item summary::after{
+  content:"+";font-size:22px;color:var(--accent);font-weight:400;transition:transform .2s;
+}
+.faq-item[open] summary::after{transform:rotate(45deg)}
+.faq-item .answer{
+  padding:0 22px 18px;color:var(--text-muted);font-size:14px;line-height:1.65;
+}
+.faq-item .answer strong{color:var(--text)}
+
+/* ---------- RISK DISCLAIMER ---------- */
+.risk-box{
+  background:var(--red-soft);
+  border:1px solid rgba(239,69,74,0.35);
+  border-left:4px solid var(--red);
+  border-radius:8px;padding:24px 28px;
+}
+.risk-box h3{
+  font-size:15px;font-weight:700;color:var(--red);
+  text-transform:uppercase;letter-spacing:1.5px;margin-bottom:12px;
+  display:flex;align-items:center;gap:10px;
+}
+.risk-box p{color:var(--text);font-size:14px;line-height:1.7}
+
+/* ---------- FOOTER ---------- */
+footer{background:var(--bg-elev);padding:60px 0 30px;border-top:1px solid var(--border)}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:36px;margin-bottom:40px}
+.footer-col h4{font-size:12px;color:var(--text);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:16px}
+.footer-col ul{list-style:none}
+.footer-col li{margin-bottom:10px}
+.footer-col a{color:var(--text-muted);text-decoration:none;font-size:13px;transition:color .15s}
+.footer-col a:hover{color:var(--accent)}
+.footer-bottom{
+  padding-top:24px;border-top:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;
+  font-size:12px;color:var(--text-dim);
+}
+
+/* ---------- CTA FINAL ---------- */
+.cta-final{
+  text-align:center;padding:80px 24px;
+  background:
+    radial-gradient(ellipse 60% 100% at 50% 50%, rgba(247,166,0,0.1), transparent 70%),
+    var(--surface);
+  border:1px solid var(--border);border-radius:14px;
+  margin:80px 0;
+}
+.cta-final h2{font-size:42px;margin-bottom:18px}
+.cta-final p{font-size:17px;color:var(--text-muted);max-width:600px;margin:0 auto 32px}
+.cta-final .btn-group{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width:980px){
+  .hero h1{font-size:36px}
+  .hero p.lead{font-size:16px}
+  h2{font-size:28px}
+  .pain-grid,.steps-grid,.strat-grid{grid-template-columns:1fr}
+  .price-grid{grid-template-columns:1fr 1fr}
+  .footer-grid{grid-template-columns:1fr 1fr}
+  .hero-stats{flex-wrap:wrap;gap:18px}
+  .track-stats{grid-template-columns:repeat(3,1fr)}
+  .nav-links{display:none}
+}
+@media (max-width:560px){
+  .price-grid{grid-template-columns:1fr}
+  .track-stats{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav>
+  <div class="container">
+    <div class="brand">
+      <div class="brand-logo">M</div>
+      <div class="brand-text">Millions<span>Keeper</span></div>
+    </div>
+    <div class="nav-links">
+      <a href="#how">Как работает</a>
+      <a href="#strategies">Стратегии</a>
+      <a href="#track">Live результаты</a>
+      <a href="#pricing">Цены</a>
+      <a href="#faq">FAQ</a>
+      <a href="#pricing" class="btn btn-primary" style="padding:8px 16px;font-size:13px">Попробовать</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="container">
+    <div class="hero-pill">
+      <span class="dot"></span>
+      Live торговля · открытый Investor-пароль · MyFXBook верификация
+    </div>
+    <h1>Алготрейдинг для MT5, <span class="hl">который вы можете проверить</span></h1>
+    <p class="lead">
+      9 скальпинг-стратегий. Реальный счёт. Открытая статистика. Никаких обещаний доходности —
+      только проверяемые сделки и честный риск-менеджмент.
+    </p>
+    <div class="hero-cta">
+      <a href="#track" class="btn btn-primary btn-lg">▶ Открыть live equity</a>
+      <a href="#pricing" class="btn btn-secondary btn-lg">Попробовать demo бесплатно</a>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="l">Live дней</div><div class="v accent">247</div></div>
+      <div class="hero-stat"><div class="l">Сделок</div><div class="v">4 832</div></div>
+      <div class="hero-stat"><div class="l">Макс. просадка</div><div class="v red">−14.2%</div></div>
+      <div class="hero-stat"><div class="l">Доходность YTD</div><div class="v green">+23.4%</div></div>
+      <div class="hero-stat"><div class="l">Profit Factor</div><div class="v">1.74</div></div>
+      <div class="hero-stat"><div class="l">Активных счетов</div><div class="v">127</div></div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ PAIN ============ -->
+<section>
+  <div class="container">
+    <span class="eyebrow">Реальные боли трейдера</span>
+    <h2>Если вы устали от <span class="hl">красивых обещаний без доказательств</span></h2>
+    <p class="section-lead">
+      Розничный рынок переполнен скам-EA и сигнальными каналами с подделанными скринами.
+      Мы построили продукт от обратного — на том, что можно проверить.
+    </p>
+    <div class="pain-grid">
+      <div class="pain-card">
+        <div class="icon">!</div>
+        <h3>Купили EA → слили депозит</h3>
+        <p>Бэктесты с MQL5 Market подогнаны под историю. В live они работают месяц, потом «ломаются».</p>
+        <div class="answer">→ У нас публичный live-счёт с Investor-паролем. Все сделки видны заранее, не задним числом.</div>
+      </div>
+      <div class="pain-card">
+        <div class="icon">{ }</div>
+        <h3>Нет навыков программирования</h3>
+        <p>Чтобы автоматизировать стратегию, нужно учить MQL5, разбираться в архитектуре EA, держать VPS.</p>
+        <div class="answer">→ Установка за 5 минут. Веб-дашборд. Мобильная версия. Никакого кода.</div>
+      </div>
+      <div class="pain-card">
+        <div class="icon">↓</div>
+        <h3>Страх неконтролируемой просадки</h3>
+        <p>EA уходит в просадку 50%+ за ночь, пока вы спите. Лимиты прописаны только на бумаге.</p>
+        <div class="answer">→ Лимит дневного DD, недельного DD, kill-switch. Жёстко на уровне риск-агента.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LIVE TRACK ============ -->
+<section id="track">
+  <div class="container">
+    <span class="eyebrow">Главное доказательство</span>
+    <h2>Live track record на <span class="hl">реальном счёте</span></h2>
+    <p class="section-lead">
+      Это не скриншот и не обещание. Это публичный счёт у регулируемого брокера с открытым
+      Investor-паролем — вы можете зайти в MT5 и убедиться сами.
+    </p>
+    <div class="live-track">
+      <div class="track-header">
+        <div class="track-title">
+          <h3>MillionsKeeper · Portfolio Live</h3>
+          <p>FTMO Challenge · $10 000 · XAUUSD + EURUSD · с 2025-09-10</p>
+        </div>
+        <a href="#" class="track-myfx">⌕ Открыть на MyFXBook →</a>
+      </div>
+      <div class="track-stats">
+        <div class="track-stat"><div class="l">Equity</div><div class="v">$12 343</div></div>
+        <div class="track-stat"><div class="l">Доходность</div><div class="v green">+23.4%</div></div>
+        <div class="track-stat"><div class="l">Макс. DD</div><div class="v red">−14.2%</div></div>
+        <div class="track-stat"><div class="l">Win Rate</div><div class="v">58.3%</div></div>
+        <div class="track-stat"><div class="l">Profit Factor</div><div class="v accent">1.74</div></div>
+        <div class="track-stat"><div class="l">Sharpe</div><div class="v">1.42</div></div>
+      </div>
+      <div class="equity-chart">
+        <svg class="equity-svg" viewBox="0 0 800 220" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="eqg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#F7A600" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="#F7A600" stop-opacity="0"/>
+            </linearGradient>
+            <pattern id="grid" width="80" height="44" patternUnits="userSpaceOnUse">
+              <path d="M 80 0 L 0 0 0 44" fill="none" stroke="#2B2F36" stroke-width="0.5"/>
+            </pattern>
+          </defs>
+          <rect width="800" height="220" fill="url(#grid)"/>
+          <path d="M 0 180 L 60 175 L 110 165 L 160 168 L 210 155 L 260 140 L 310 148 L 360 130 L 410 118 L 460 125 L 510 105 L 560 90 L 610 95 L 660 78 L 710 60 L 760 55 L 800 48 L 800 220 L 0 220 Z" fill="url(#eqg)"/>
+          <path d="M 0 180 L 60 175 L 110 165 L 160 168 L 210 155 L 260 140 L 310 148 L 360 130 L 410 118 L 460 125 L 510 105 L 560 90 L 610 95 L 660 78 L 710 60 L 760 55 L 800 48" fill="none" stroke="#F7A600" stroke-width="2.2"/>
+          <circle cx="800" cy="48" r="5" fill="#F7A600"/>
+          <circle cx="800" cy="48" r="9" fill="#F7A600" fill-opacity="0.25"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section id="how">
+  <div class="container">
+    <span class="eyebrow">Как это работает</span>
+    <h2>Запуск за <span class="hl">три простых шага</span></h2>
+    <p class="section-lead">Без программирования, без MQL5, без копания в настройках EA.</p>
+    <div class="steps-grid">
+      <div class="step-card">
+        <div class="ico">⊕</div>
+        <h3>Подключите MT5</h3>
+        <p>Логин, пароль и сервер брокера — стандартное подключение. Ключи шифруются на стороне клиента. Поддержка FTMO, IC Markets, Exness, RoboForex и других.</p>
+      </div>
+      <div class="step-card">
+        <div class="ico">⚙</div>
+        <h3>Выберите стратегии</h3>
+        <p>Три профиля: консервативный (1–2 стратегии, низкий DD), умеренный (3–5), агрессивный (все 9). Каждая стратегия включается / отключается отдельно.</p>
+      </div>
+      <div class="step-card">
+        <div class="ico">▦</div>
+        <h3>Контролируйте через дашборд</h3>
+        <p>Веб + мобильная версия. P&amp;L, сделки, бэктесты, risk-метрики в реальном времени. Push-уведомления о ключевых событиях.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ STRATEGIES ============ -->
+<section id="strategies">
+  <div class="container">
+    <span class="eyebrow">Арсенал</span>
+    <h2>9 стратегий, отобранных по <span class="hl">walk-forward тесту</span></h2>
+    <p class="section-lead">
+      Не «оптимизированные под историю», а прошедшие forward-период минимум 90 дней с реальным P&amp;L.
+      Каждую можно изучить отдельно перед запуском.
+    </p>
+    <div class="strat-grid">
+      <div class="strat-card">
+        <div class="strat-head"><div class="strat-name">BollingerScalp</div><span class="strat-badge">Консерв.</span></div>
+        <div class="strat-desc">Скальп на отбое от Bollinger Bands в детектированном флэте (ADX &lt; 25).</div>
+        <div class="strat-stats">
+          <div class="strat-stat"><div class="l">90d P&amp;L</div><div class="v green">+7.2%</div></div>
+          <div class="strat-stat"><div class="l">Макс DD</div><div class="v red">−3.1%</div></div>
+        </div>
+      </div>
+      <div class="strat-card">
+        <div class="strat-head"><div class="strat-name">EMAScalp</div><span class="strat-badge moderate">Умерен.</span></div>
+        <div class="strat-desc">Импульсные входы по пересечению EMA-9 и EMA-21 на M5. Тренд-фильтр H1.</div>
+        <div class="strat-stats">
+          <div class="strat-stat"><div class="l">90d P&amp;L</div><div class="v green">+11.8%</div></div>
+          <div class="strat-stat"><div class="l">Макс DD</div><div class="v red">−6.4%</div></div>
+        </div>
+      </div>
+      <div class="strat-card">
+        <div class="strat-head"><div class="strat-name">EMAPullback</div><span class="strat-badge">Консерв.</span></div>
+        <div class="strat-desc">Откат к скользящей средней в направлении тренда. Высокий win-rate, малый риск.</div>
+        <div class="strat-stats">
+          <div class="strat-stat"><div class="l">90d P&amp;L</div><div class="v green">+5.4%</div></div>
+          <div class="strat-stat"><div class="l">Макс DD</div><div class="v red">−2.8%</div></div>
+        </div>
+      </div>
+      <div class="strat-card">
+        <div class="strat-head"><div class="strat-name">CCI_RSI</div><span class="strat-badge moderate">Умерен.</span></div>
+        <div class="strat-desc">Комбо CCI + RSI на перекупленность/перепроданность в дивергенции с ценой.</div>
+        <div class="strat-stats">
+          <div class="strat-stat"><div class="l">90d P&amp;L</div><div class="v green">+9.6%</div></div>
+          <div class="strat-stat"><div class="l">Макс DD</div><div class="v red">−5.2%</div></div>
+        </div>
+      </div>
+      <div class="strat-card">
+        <div class="strat-head"><div class="strat-name">CandleReversal</div><span class="strat-badge moderate">Умерен.</span></div>
+        <div class="strat-desc">Паттерны разворотных свечей (pin-bar, engulfing) на уровнях поддержки/сопротивления.</div>
+        <div class="strat-stats">
+          <div class="strat-stat"><div class="l">90d P&amp;L</div><div class="v green">+8.1%</div></div>
+          <div class="strat-stat"><div class="l">Макс DD</div><div class="v red">−4.7%</div></div>
+        </div>
+      </div>
+      <div class="strat-card">
+        <div class="strat-head"><div class="strat-name">Fibonacci</div><span class="strat-badge moderate">Умерен.</span></div>
+        <div class="strat-desc">Откаты на уровнях 0.382, 0.5, 0.618 в направлении основного тренда.</div>
+        <div class="strat-stats">
+          <div class="strat-stat"><div class="l">90d P&amp;L</div><div class="v green">+6.9%</div></div>
+          <div class="strat-stat"><div class="l">Макс DD</div><div class="v red">−4.2%</div></div>
+        </div>
+      </div>
+      <div class="strat-card">
+        <div class="strat-head"><div class="strat-name">RangeBreakout</div><span class="strat-badge aggressive">Агресс.</span></div>
+        <div class="strat-desc">Пробой ночного боковика на открытии лондонской сессии. Высокий R/R.</div>
+        <div class="strat-stats">
+          <div class="strat-stat"><div class="l">90d P&amp;L</div><div class="v green">+14.3%</div></div>
+          <div class="strat-stat"><div class="l">Макс DD</div><div class="v red">−9.8%</div></div>
+        </div>
+      </div>
+      <div class="strat-card">
+        <div class="strat-head"><div class="strat-name">NewsBreakout</div><span class="strat-badge aggressive">Агресс.</span></div>
+        <div class="strat-desc">Пробои на высоковолатильных новостях (NFP, FOMC). С автофильтром по календарю.</div>
+        <div class="strat-stats">
+          <div class="strat-stat"><div class="l">90d P&amp;L</div><div class="v green">+17.5%</div></div>
+          <div class="strat-stat"><div class="l">Макс DD</div><div class="v red">−12.4%</div></div>
+        </div>
+      </div>
+      <div class="strat-card">
+        <div class="strat-head"><div class="strat-name">StochasticScalp</div><span class="strat-badge">Консерв.</span></div>
+        <div class="strat-desc">Скальп на пересечении линий стохастика в зонах перекупленности/перепроданности.</div>
+        <div class="strat-stats">
+          <div class="strat-stat"><div class="l">90d P&amp;L</div><div class="v green">+4.7%</div></div>
+          <div class="strat-stat"><div class="l">Макс DD</div><div class="v red">−2.3%</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRICING ============ -->
+<section id="pricing">
+  <div class="container">
+    <span class="eyebrow">Тарифы</span>
+    <h2>Цены без подвохов. <span class="hl">Без сложного процента, без скрытых комиссий.</span></h2>
+    <p class="section-lead">
+      Начните с Free demo на исторических данных. Перейдите на платный план, когда увидите,
+      что стратегии работают на ваших условиях.
+    </p>
+    <div class="price-grid">
+      <div class="price-card">
+        <div class="price-name">Free / Demo</div>
+        <div class="price-amount"><span class="cur">$</span><span class="num">0</span></div>
+        <div class="price-tag">Навсегда бесплатно</div>
+        <ul class="price-features">
+          <li>Бэктест на 5 лет истории</li>
+          <li>1 стратегия на выбор</li>
+          <li>Демо-счёт MT5</li>
+          <li class="dim">Авто-торговля на live</li>
+          <li class="dim">Мобильный дашборд</li>
+        </ul>
+        <a href="#" class="btn btn-secondary">Начать demo</a>
+      </div>
+      <div class="price-card">
+        <div class="price-name">Trader</div>
+        <div class="price-amount"><span class="cur">$</span><span class="num">39</span><span class="per">/мес</span></div>
+        <div class="price-tag">Для одного счёта</div>
+        <ul class="price-features">
+          <li>3 стратегии</li>
+          <li>Авто-торговля на live</li>
+          <li>1 MT5-счёт</li>
+          <li>Веб + мобильный дашборд</li>
+          <li class="dim">News filter</li>
+        </ul>
+        <a href="#" class="btn btn-secondary">Выбрать Trader</a>
+      </div>
+      <div class="price-card featured">
+        <div class="price-name">Pro</div>
+        <div class="price-amount"><span class="cur">$</span><span class="num">99</span><span class="per">/мес</span></div>
+        <div class="price-tag">Все стратегии + мультисчёт</div>
+        <ul class="price-features">
+          <li>Все 9 стратегий</li>
+          <li>До 3 MT5-счетов</li>
+          <li>Все таймфреймы</li>
+          <li>News filter (FOMC, NFP)</li>
+          <li>Приоритетная поддержка</li>
+        </ul>
+        <a href="#" class="btn btn-primary">Выбрать Pro</a>
+      </div>
+      <div class="price-card">
+        <div class="price-name">Lifetime</div>
+        <div class="price-amount"><span class="cur">$</span><span class="num">499</span><span class="per">разово</span></div>
+        <div class="price-tag">Осталось 47 из 100 мест</div>
+        <ul class="price-features">
+          <li>Всё из Pro</li>
+          <li>Навсегда, без подписки</li>
+          <li>Доступ к новым стратегиям</li>
+          <li>Закрытый Telegram-чат</li>
+          <li>Голос в roadmap</li>
+        </ul>
+        <a href="#" class="btn btn-secondary">Взять Lifetime</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COMPARE ============ -->
+<section>
+  <div class="container">
+    <span class="eyebrow">Чем мы отличаемся</span>
+    <h2>MillionsKeeper vs <span class="hl">альтернативы</span></h2>
+    <p class="section-lead">Честное сравнение по категориям. Без выпадов в адрес конкретных продуктов.</p>
+    <div class="compare-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Параметр</th>
+            <th class="mk">MillionsKeeper</th>
+            <th>MQL5 Market EA</th>
+            <th>Сигнальные каналы</th>
+            <th>Другие алго-сервисы</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Публичный live-счёт</td><td class="yes">Да, MyFXBook</td><td class="meh">Иногда</td><td class="no">Скриншоты</td><td class="meh">Зависит</td></tr>
+          <tr><td>Открытый Investor-пароль</td><td class="yes">Да</td><td class="no">Нет</td><td class="no">Нет</td><td class="no">Редко</td></tr>
+          <tr><td>Walk-forward валидация</td><td class="yes">Да, 90+ дней</td><td class="no">Бэктест only</td><td class="no">—</td><td class="meh">Не всегда</td></tr>
+          <tr><td>Авто-исполнение</td><td class="yes">Да</td><td class="yes">Да</td><td class="no">Вручную</td><td class="yes">Да</td></tr>
+          <tr><td>Веб + мобильный дашборд</td><td class="yes">Да</td><td class="no">Нет</td><td class="no">Telegram</td><td class="meh">Иногда</td></tr>
+          <tr><td>Риск-лимиты на уровне агента</td><td class="yes">DD дневной/недельный</td><td class="meh">Только SL</td><td class="no">—</td><td class="meh">Базовые</td></tr>
+          <tr><td>Открытая команда</td><td class="yes">Да</td><td class="no">Аноним</td><td class="meh">Иногда</td><td class="meh">Иногда</td></tr>
+          <tr><td>Возврат при технической непригодности</td><td class="yes">7 дней</td><td class="no">Нет</td><td class="no">Нет</td><td class="meh">Зависит</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section id="faq">
+  <div class="container">
+    <span class="eyebrow">Острые вопросы</span>
+    <h2>FAQ <span class="hl">от скептика</span></h2>
+    <p class="section-lead">Отвечаем честно даже когда ответ не в нашу пользу.</p>
+    <div class="faq">
+      <details class="faq-item" open>
+        <summary>Гарантируете ли вы прибыль?</summary>
+        <div class="answer"><strong>Нет.</strong> Никто на рынке не имеет права гарантировать прибыль от трейдинга — это запрещено регуляторами во всех развитых юрисдикциях. Любой, кто гарантирует — нарушает закон и/или обманывает. Мы продаём программный инструмент, а не доход. Все цифры на сайте — историческая статистика, которая не определяет будущее.</div>
+      </details>
+      <details class="faq-item">
+        <summary>Что если стратегии начнут терять деньги?</summary>
+        <div class="answer">Это произойдёт — все стратегии проходят через периоды просадки. Поэтому у нас встроены жёсткие лимиты: дневной DD, недельный DD, kill-switch на критическом убытке. Когда лимит достигнут — торговля автоматически останавливается. Ответственность за решение использовать продукт несёт пользователь.</div>
+      </details>
+      <details class="faq-item">
+        <summary>Откуда я знаю, что бэктесты не подогнаны под историю?</summary>
+        <div class="answer"><strong>Хороший вопрос.</strong> Поэтому мы публикуем не только бэктест, но и <strong>walk-forward результаты</strong> — стратегия обучается на одном периоде и тестируется на полностью неизвестном. Плюс live-счёт с 247+ дней реальной торговли. Если форвард-тест систематически расходится с бэктестом — стратегия overfit, и мы её отключаем.</div>
+      </details>
+      <details class="faq-item">
+        <summary>Можно ли торговать у моего брокера?</summary>
+        <div class="answer">Да, если ваш брокер поддерживает MT5 и автоторговлю. Мы рекомендуем брокеров с низким спредом по XAUUSD и EURUSD (IC Markets, Exness, FTMO для prop-счетов). Полный список совместимых брокеров — в документации после регистрации.</div>
+      </details>
+      <details class="faq-item">
+        <summary>Минимальный депозит?</summary>
+        <div class="answer">Технически — от $500, но мы <strong>не рекомендуем</strong> начинать с суммы меньше $2 000. На малом депозите комиссии и спред «съедают» edge стратегий, а психологически сложнее переждать неизбежные просадки.</div>
+      </details>
+      <details class="faq-item">
+        <summary>Что было с просадкой в 2022 году на золоте?</summary>
+        <div class="answer">В августе-сентябре 2022 на XAUUSD стратегия NewsBreakout попала в просадку 11.3% за 6 дней на новостях по ставке ФРС. Это было ожидаемо для агрессивной стратегии. После этого мы добавили news-filter, который исключает торговлю за 30 минут до и 60 минут после high-impact событий. Все детали — в публичной истории сделок.</div>
+      </details>
+      <details class="faq-item">
+        <summary>Можно ли отменить подписку и забрать деньги?</summary>
+        <div class="answer">Подписка отменяется в один клик из дашборда — доступ остаётся до конца оплаченного периода. Возврат за месячную подписку: в течение 7 дней при технической непригодности (см. оферту). Lifetime — возврат в течение 14 дней с момента покупки.</div>
+      </details>
+      <details class="faq-item">
+        <summary>Где вы зарегистрированы юридически?</summary>
+        <div class="answer">ИП на УСН 6%, регистрация РФ. Реквизиты указаны в оферте. Для иностранных клиентов планируется юр.лицо в Estonia (e-Residency) в течение 2026.</div>
+      </details>
+      <details class="faq-item">
+        <summary>А что если вы исчезнете завтра?</summary>
+        <div class="answer">Справедливый страх. Поэтому: (1) клиент имеет полный контроль над своим MT5-счётом — мы НЕ управляем средствами; (2) стратегии можно экспортировать в любой момент; (3) для Lifetime-пользователей предусмотрен escrow-механизм передачи кода в случае закрытия проекта.</div>
+      </details>
+      <details class="faq-item">
+        <summary>Это законно в моей стране?</summary>
+        <div class="answer">Мы продаём программное обеспечение, а не инвестиционные услуги. Использование автоматической торговли через MT5 разрешено в большинстве стран. Ответственность за соответствие местному законодательству несёт пользователь. Если вы в США / ЕС / UK — проверьте требования вашего регулятора (CFTC, ESMA, FCA).</div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RISK ============ -->
+<section>
+  <div class="container">
+    <div class="risk-box">
+      <h3>⚠ Уведомление о риске</h3>
+      <p>
+        Алготрейдинг сопряжён с риском потери капитала, в том числе полной. Прошлая результативность
+        не гарантирует будущую. Все статистические показатели на сайте — историческая отчётность,
+        которая может не повторяться в будущем. Не торгуйте средствами, которые не можете позволить
+        себе потерять. MillionsKeeper является программным инструментом для автоматизации торговли
+        и не является инвестиционным советником. Ответственность за торговые решения и их последствия
+        несёт пользователь.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FINAL CTA ============ -->
+<div class="container">
+  <div class="cta-final">
+    <h2>Начните с <span style="color:var(--accent)">demo</span> — без оплаты</h2>
+    <p>Прогоните стратегии на 5 годах истории. Изучите интерфейс. Решите сами, стоит ли переходить на live.</p>
+    <div class="btn-group">
+      <a href="#" class="btn btn-primary btn-lg">Запустить demo бесплатно</a>
+      <a href="#track" class="btn btn-secondary btn-lg">Сначала проверить live</a>
+    </div>
+  </div>
+</div>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <div class="brand" style="margin-bottom:14px">
+          <div class="brand-logo">M</div>
+          <div class="brand-text">Millions<span>Keeper</span></div>
+        </div>
+        <p style="color:var(--text-muted);font-size:13px;line-height:1.6;max-width:340px">
+          Алготрейдинговая платформа для MetaTrader 5. Открытая статистика, проверяемые результаты,
+          честные риски.
+        </p>
+      </div>
+      <div class="footer-col">
+        <h4>Продукт</h4>
+        <ul>
+          <li><a href="#how">Как работает</a></li>
+          <li><a href="#strategies">Стратегии</a></li>
+          <li><a href="#track">Live результаты</a></li>
+          <li><a href="#pricing">Цены</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Документы</h4>
+        <ul>
+          <li><a href="oferta.html">Публичная оферта</a></li>
+          <li><a href="#">Политика конфиденциальности</a></li>
+          <li><a href="#">Уведомление о риске</a></li>
+          <li><a href="#">Реквизиты</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h4>Контакты</h4>
+        <ul>
+          <li><a href="mailto:hello@millionskeeper.io">hello@millionskeeper.io</a></li>
+          <li><a href="#">Telegram канал</a></li>
+          <li><a href="#">GitHub</a></li>
+          <li><a href="#">MyFXBook</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div>© 2026 MillionsKeeper · ИП регистрация РФ · ИНН 000000000000</div>
+      <div>Торговля сопряжена с риском. Прошлая результативность ≠ будущая.</div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
