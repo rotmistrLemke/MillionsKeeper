@@ -27,16 +27,17 @@
     <symbol id="i-strategy" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" fill="none" stroke-width="2"/><circle cx="12" cy="12" r="5" stroke="currentColor" fill="none" stroke-width="2"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></symbol>
     <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9"  cy="8" r="3.2" stroke="currentColor" fill="none" stroke-width="2"/><circle cx="17" cy="9" r="2.6" stroke="currentColor" fill="none" stroke-width="2"/><path d="M2.5 20c.6-3.4 3.4-5.5 6.5-5.5s5.9 2.1 6.5 5.5" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"/><path d="M16 14.6c2.5.2 4.6 2 5 5.4" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"/></symbol>
     <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6" stroke="currentColor" fill="none" stroke-width="2"/><path d="M4 20c1-4 4-6 8-6s7 2 8 6" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" fill="none" stroke-width="2"/><polyline points="12 7 12 12 16 14" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   </defs>
 </svg>
 
 <!-- ── Header ── -->
 <header>
   <div class="brand-block">
-    <h1 class="brand">
+    <a href="/" class="brand" title="Обновить" onclick="event.preventDefault(); window.location.reload();">
       <img src="/static/img/logo-mark.svg" alt="" class="brand-mark" width="26" height="26">
       <span class="brand-text">Millions<b>Keeper</b></span>
-    </h1>
+    </a>
   </div>
   <div class="header-right">
     <div class="user-menu">
@@ -90,6 +91,7 @@
       <div class="tab" data-tab="backtest"><svg class="tab-icon"><use href="#i-flask"/></svg><span>Бэктест</span></div>
       <div class="tab" data-tab="strategies"><svg class="tab-icon"><use href="#i-strategy"/></svg><span>Стратегии</span></div>
       <div class="tab" data-tab="calculator"><svg class="tab-icon"><use href="#i-calc"/></svg><span>Калькулятор</span></div>
+      <div class="tab" data-tab="history"><svg class="tab-icon"><use href="#i-history"/></svg><span>История позиций</span></div>
       <div class="tab" data-tab="events"><svg class="tab-icon"><use href="#i-users"/></svg><span>Сотрудники</span></div>
       <div class="tab" data-tab="anomalies"><svg class="tab-icon"><use href="#i-bell"/></svg><span>Аномалии</span> <span id="anomalies-badge" class="badge hidden">0</span></div>
       <div class="tab admin-only" data-tab="users"><svg class="tab-icon"><use href="#i-user"/></svg><span>Пользователи</span></div>
@@ -120,6 +122,44 @@
         <div class="card-title">Открытые позиции</div>
         <div id="positions-list">
           <div style="color:var(--text-muted);padding:16px">Загрузка...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- История позиций -->
+    <div id="tab-history" class="content">
+      <div class="hist-section">
+        <div class="stats-grid">
+          <div class="stat-box" id="hist-today">
+            <div class="stat-label">Сегодня</div>
+            <div class="stat-value">—</div>
+          </div>
+          <div class="stat-box" id="hist-week">
+            <div class="stat-label">Неделя</div>
+            <div class="stat-value">—</div>
+          </div>
+          <div class="stat-box" id="hist-month">
+            <div class="stat-label">Месяц</div>
+            <div class="stat-value">—</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title hist-deals-head">
+            <span>История сделок</span>
+            <div class="hist-controls">
+              <select id="hist-symbol-filter" class="toolbar-select" title="Фильтр по паре">
+                <option value="">Все пары</option>
+              </select>
+              <div class="hist-period-tabs" id="hist-period-tabs">
+                <button class="hist-period-btn active" data-period="today">Сегодня</button>
+                <button class="hist-period-btn" data-period="week">Неделя</button>
+                <button class="hist-period-btn" data-period="month">Месяц</button>
+              </div>
+            </div>
+          </div>
+          <div id="hist-deals-table"></div>
+          <div id="hist-pagination" class="bt-pagination"></div>
         </div>
       </div>
     </div>
@@ -431,6 +471,7 @@
   <div class="sheet" role="dialog" aria-label="Дополнительные вкладки">
     <div class="sheet-handle"></div>
     <button class="sheet-item" data-tab="strategies" type="button"><svg class="sheet-icon"><use href="#i-strategy"/></svg><span>Стратегии</span></button>
+    <button class="sheet-item" data-tab="history" type="button"><svg class="sheet-icon"><use href="#i-history"/></svg><span>История позиций</span></button>
     <button class="sheet-item" data-tab="events" type="button"><svg class="sheet-icon"><use href="#i-users"/></svg><span>Сотрудники</span></button>
     <button class="sheet-item admin-only" data-tab="users" type="button"><svg class="sheet-icon"><use href="#i-user"/></svg><span>Пользователи</span></button>
   </div>

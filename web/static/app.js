@@ -948,7 +948,7 @@ function renderHistDeals() {
   table.innerHTML = `
     <table class="hist-deals">
       <tr>
-        <th>Тип</th><th style="text-align:right">P&L $</th><th></th>
+        <th>Инструмент</th><th>Тип</th><th style="text-align:right">P&L $</th><th></th>
       </tr>
       ${page.map((d, i) => {
         const globalIdx = start + i;
@@ -956,6 +956,7 @@ function renderHistDeals() {
         const type = d.type || '';
         const sign = (d.profit || 0) >= 0 ? '+' : '';
         return `<tr>
+          <td class="hist-sym">${escapeHtml(d.symbol || '—')}</td>
           <td><span class="pos-type type-${type.toLowerCase()}">${type}</span></td>
           <td class="${pc}" style="text-align:right;font-variant-numeric:tabular-nums">${sign}${fmt(d.profit || 0)}$</td>
           <td style="text-align:right;width:1%">
@@ -964,7 +965,7 @@ function renderHistDeals() {
         </tr>`;
       }).join('')}
       <tr style="border-top:2px solid var(--border);font-weight:600">
-        <td style="color:var(--text-muted)">Итого:</td>
+        <td colspan="2" style="color:var(--text-muted)">Итого:</td>
         <td class="${totalClass}" style="text-align:right">${totalProfit>=0?'+':''}${fmt(totalProfit)}$</td>
         <td></td>
       </tr>
@@ -1131,15 +1132,15 @@ function escapeHtml(s) {
 
 // Профили "сотрудников" — человеческое имя, должность и эмодзи-аватар
 const AGENT_PROFILES = {
-  MarketData:      { display: 'Марк',     role: 'Аналитик рынка',     emoji: '📡' },
-  Indicator:       { display: 'Иннокентий', role: 'Технический аналитик', emoji: '📊' },
-  Signal:          { display: 'Сигизмунд', role: 'Сигнальщик',        emoji: '🎯' },
-  Execution:       { display: 'Емельян',  role: 'Исполнитель ордеров', emoji: '⚡' },
+  MarketData:      { display: 'Нелли',     role: 'Аналитик рынка',     emoji: '📡' },
+  Indicator:       { display: 'Павел', role: 'Технический аналитик', emoji: '📊' },
+  Signal:          { display: 'Андрей', role: 'Контроль сигналов',        emoji: '🎯' },
+  Execution:       { display: 'Кирилл',  role: 'Исполнение ордеров', emoji: '⚡' },
   PosMon:          { display: 'Полина',   role: 'Контроль позиций',    emoji: '👁' },
-  History:         { display: 'Хирон',    role: 'Архивариус',          emoji: '📚' },
-  Backtest:        { display: 'Барсук',   role: 'Лаборант',            emoji: '🧪' },
-  Account:         { display: 'Аркадий',  role: 'Бухгалтер',           emoji: '💼' },
-  AnomalyScanner:  { display: 'Аномалия', role: 'Детектив',            emoji: '🔍' },
+  History:         { display: 'Юлия',    role: 'Архив позиций',          emoji: '📚' },
+  Backtest:        { display: 'Екатерина',   role: 'Тестировщик стратегий',            emoji: '🧪' },
+  Account:         { display: 'Савелий',  role: 'Бухгалтер',           emoji: '💼' },
+  AnomalyScanner:  { display: 'София', role: 'Поиск аномалий',            emoji: '🔍' },
 };
 function _agentProfile(name) {
   return AGENT_PROFILES[name] || { display: name, role: '', emoji: '🤖' };
@@ -3072,17 +3073,10 @@ const chartModule = (() => {
 
 // ─── Tabs ─────────────────────────────────────────────────────────
 function switchTab(name) {
-  // Совместимость: старая вкладка 'history' теперь живёт внутри 'indicators'
-  if (name === 'history') name = 'indicators';
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
   document.querySelectorAll('.content').forEach(c => c.classList.toggle('active', c.id === `tab-${name}`));
-  if (name === 'indicators') {
-    chartModule.activate();
-    // Подсветить историю и нарисовать маркеры на графике
+  if (name === 'history') {
     try { renderHistory(); } catch {}
-    try { chartModule.refreshMarkers && chartModule.refreshMarkers(); } catch {}
-  } else {
-    chartModule.deactivate();
   }
   if (name === 'strategies') {
     try { loadStrategiesTab(); } catch (e) { console.warn('strategies load failed:', e); }
@@ -3951,15 +3945,20 @@ const Anomalies = (() => {
     } catch { return ts; }
   }
 
+  function _normTypes(types) {
+    const raw = Array.isArray(types)
+      ? types
+      : (typeof types === 'string' ? types.split(/[,\s]+/) : []);
+    return raw.map(s => String(s).trim()).filter(Boolean);
+  }
+
   function _dirClass(types) {
-    if (!types || types.length === 0) return '';
-    const arr = Array.isArray(types) ? types : [types];
-    const set = new Set(arr);
-    const up   = set.has('EMA_FAR_UP')   || set.has('STOCH_OB');
-    const down = set.has('EMA_FAR_DOWN') || set.has('STOCH_OS');
-    if (up && down) return 'mixed';
-    if (up)   return 'up';
-    if (down) return 'down';
+    const arr = _normTypes(types);
+    if (arr.length === 0) return '';
+    if (arr.length >= 2)  return 'multi';
+    const t = arr[0];
+    if (t === 'STOCH_OB' || t === 'STOCH_OS') return 'up';     // зелёный
+    if (t === 'EMA_FAR_UP' || t === 'EMA_FAR_DOWN') return 'mixed'; // жёлтый
     return '';
   }
 
@@ -3988,15 +3987,17 @@ const Anomalies = (() => {
   }
 
   function _cardHtml(a) {
-    const typesArr = Array.isArray(a.types) ? a.types : (a.types ? [a.types] : []);
+    const typesArr = _normTypes(a.types);
     const dir = _dirClass(typesArr);
-    const typeBadges = typesArr.map(t => `<span class="ac-type-badge">${t}</span>`).join('') || '<span class="ac-type-badge">—</span>';
+    const typeBadges = typesArr.length
+      ? typesArr.map(t => `<span class="ac-type-badge type-${t}">${t}</span>`).join('')
+      : '<span class="ac-type-badge">—</span>';
     const infoIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><line x1="12" y1="11" x2="12" y2="16"/><circle cx="12" cy="8" r="0.6" fill="currentColor"/></svg>';
     const sym = a.symbol || '—';
     return `<div class="anomaly-card ${dir}" data-symbol="${sym}">
   <div class="ac-main">
     <div class="ac-symbol">${sym}</div>
-    <div class="ac-types">${typeBadges}</div>
+    <div class="ac-types" data-count="${typesArr.length}">${typeBadges}</div>
   </div>
   <button class="btn-icon ac-info-btn" title="Подробнее" onclick="Anomalies.showInfo('${sym}')">${infoIcon}</button>
 </div>`;
@@ -4005,9 +4006,11 @@ const Anomalies = (() => {
   function showInfo(symbol) {
     const a = _state.active.get(symbol);
     if (!a) return;
-    const typesArr = Array.isArray(a.types) ? a.types : (a.types ? [a.types] : []);
+    const typesArr = _normTypes(a.types);
     const dir = _dirClass(typesArr);
-    const typeBadges = typesArr.map(t => `<span class="ac-type-badge">${t}</span>`).join(' ') || '—';
+    const typeBadges = typesArr.length
+      ? `<span class="ac-types" data-count="${typesArr.length}">${typesArr.map(t => `<span class="ac-type-badge type-${t}">${t}</span>`).join(' ')}</span>`
+      : '—';
     const row = (k, v) => `<div class="si-row"><span class="si-k">${k}</span><span class="si-v">${v}</span></div>`;
     const html = `
       <div class="si-backdrop" onclick="if(event.target===this)Anomalies.closeInfo()">
@@ -4062,7 +4065,7 @@ const Anomalies = (() => {
       ? item.types
       : (typeof item.types === 'string' ? item.types.split(/[,\s]+/) : []);
     const typesArr = rawTypes.map(s => String(s).trim()).filter(Boolean);
-    const typesHtml = `<div class="type-stack">${
+    const typesHtml = `<div class="type-stack" data-count="${typesArr.length}">${
       typesArr.map(t => `<span class="type-badge type-${t}">${t}</span>`).join('')
     }</div>`;
     return `<tr>

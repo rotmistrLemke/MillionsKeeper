@@ -30,6 +30,22 @@
   header::after { display: none; }
   .account-bar { box-shadow: none; }
 
+  /* История сделок: компактные фильтры — без принудительной touch-высоты */
+  .hist-controls .toolbar-select,
+  .hist-controls .hist-period-btn,
+  .hist-controls .hist-period-tabs { min-height: 0; }
+  .hist-controls .toolbar-select {
+    box-sizing: border-box;
+    height: 34px;
+    line-height: 1;
+    font-size: 13px;
+    width: 100px;
+    padding: 8px 22px 8px 10px;
+    vertical-align: middle;
+  }
+  .hist-controls .hist-period-tabs { height: 34px; width: 200px; }
+  .hist-controls .hist-period-btn { height: 34px; font-size: 12px; }
+
   /* Бэктест: даты не влезают на телефоне — компактные инпуты + сетка 2 кол. */
   .bt-form { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .bt-form label.col-2 { grid-column: auto; }
