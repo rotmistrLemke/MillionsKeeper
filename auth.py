@@ -65,6 +65,7 @@ class UserRecord:
     role: str                 # admin | user
     created_at: str           # ISO
     updated_at: str           # ISO
+    avatar: str = ""          # data: URL или пусто
 
     def to_public(self) -> dict:
         """Безопасное представление для REST — без пароля."""
@@ -73,6 +74,7 @@ class UserRecord:
             "role":       self.role,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "avatar":     self.avatar,
         }
 
 
@@ -117,7 +119,8 @@ class UserRegistry:
         return rec
 
     def update(self, username: str, *, password: Optional[str] = None,
-               role: Optional[str] = None) -> UserRecord:
+               role: Optional[str] = None,
+               avatar: Optional[str] = None) -> UserRecord:
         username = (username or "").strip().lower()
         with self._lock:
             rec = self._users.get(username)
@@ -134,6 +137,12 @@ class UserRegistry:
                 if len(password) < 6:
                     raise ValueError("Пароль должен быть не короче 6 символов")
                 rec.password_hash = _pwd_ctx.hash(password)
+            if avatar is not None:
+                if avatar and not avatar.startswith("data:image/"):
+                    raise ValueError("Аватар должен быть data:image/...")
+                if len(avatar) > 300_000:
+                    raise ValueError("Аватар слишком большой (макс ~220 КБ после base64)")
+                rec.avatar = avatar
             rec.updated_at = datetime.now(timezone.utc).isoformat()
         save()
         return rec
@@ -196,6 +205,7 @@ def load() -> None:
                     role=str(d.get("role", ROLE_USER)),
                     created_at=str(d.get("created_at") or datetime.now(timezone.utc).isoformat()),
                     updated_at=str(d.get("updated_at") or datetime.now(timezone.utc).isoformat()),
+                    avatar=str(d.get("avatar") or ""),
                 )
                 registry._users[rec.username] = rec
             except (KeyError, ValueError, TypeError) as e:

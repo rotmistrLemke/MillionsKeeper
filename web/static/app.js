@@ -504,8 +504,13 @@ function sendCmd(cmd) {
 function setConnStatus(ok) {
   const dot = document.getElementById('conn-dot');
   const txt = document.getElementById('conn-text');
-  dot.className = ok ? 'connected' : '';
-  txt.textContent = ok ? 'Connected' : 'Disconnected';
+  if (dot) dot.className = ok ? 'connected' : '';
+  if (txt) txt.textContent = ok ? 'Connected' : 'Disconnected';
+  const avatar = document.getElementById('user-avatar-btn');
+  if (avatar) {
+    avatar.classList.toggle('is-connected', !!ok);
+    avatar.title = ok ? 'Connected' : 'Disconnected';
+  }
 }
 
 // ─── Message Handlers ─────────────────────────────────────────────
@@ -664,7 +669,7 @@ function renderAccount() {
   const deltaEl  = document.getElementById('acc-delta');
 
   if (amountEl) amountEl.textContent = fmt(balance);
-  if (currEl)   currEl.textContent   = a.currency || '';
+  if (currEl)   currEl.textContent   = '';
 
   if (deltaEl) {
     const sign = delta > 0 ? '+' : (delta < 0 ? '−' : '');
@@ -673,7 +678,7 @@ function renderAccount() {
     const absP = Math.abs(pct);
     deltaEl.className = 'acc-delta ' + cls;
     deltaEl.textContent = balance > 0
-      ? `${sign}${fmt(absD)} ${a.currency || ''}  ${sign}${absP.toFixed(2)}%`
+      ? `${sign}${fmt(absD)}  ${sign}${absP.toFixed(2)}%`
       : '—';
   }
 }
@@ -900,6 +905,8 @@ function refreshHistSymbolFilter() {
 }
 
 function renderHistory() {
+  const today = document.getElementById('hist-today');
+  if (!today) return;  // вкладка "Индикаторы" удалена — рендерить нечего
   refreshHistSymbolFilter();
   const todayP = _histProfitFor('today');
   const weekP  = _histProfitFor('week');
@@ -907,7 +914,7 @@ function renderHistory() {
   const todayN = _histDealsFor('today').length;
   const weekN  = _histDealsFor('week').length;
   const monthN = _histDealsFor('month').length;
-  document.getElementById('hist-today').innerHTML = `<div class="stat-label">Сегодня · ${todayN}</div><div class="stat-value ${todayP>=0?'pnl-pos':'pnl-neg'}">${todayP>=0?'+':''}${fmt(todayP)}$</div>`;
+  today.innerHTML = `<div class="stat-label">Сегодня · ${todayN}</div><div class="stat-value ${todayP>=0?'pnl-pos':'pnl-neg'}">${todayP>=0?'+':''}${fmt(todayP)}$</div>`;
   document.getElementById('hist-week').innerHTML  = `<div class="stat-label">Неделя · ${weekN}</div><div class="stat-value ${weekP>=0?'pnl-pos':'pnl-neg'}">${weekP>=0?'+':''}${fmt(weekP)}$</div>`;
   document.getElementById('hist-month').innerHTML = `<div class="stat-label">Месяц · ${monthN}</div><div class="stat-value ${monthP>=0?'pnl-pos':'pnl-neg'}">${monthP>=0?'+':''}${fmt(monthP)}$</div>`;
   renderHistDeals();
@@ -1122,6 +1129,22 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
+// Профили "сотрудников" — человеческое имя, должность и эмодзи-аватар
+const AGENT_PROFILES = {
+  MarketData:      { display: 'Марк',     role: 'Аналитик рынка',     emoji: '📡' },
+  Indicator:       { display: 'Иннокентий', role: 'Технический аналитик', emoji: '📊' },
+  Signal:          { display: 'Сигизмунд', role: 'Сигнальщик',        emoji: '🎯' },
+  Execution:       { display: 'Емельян',  role: 'Исполнитель ордеров', emoji: '⚡' },
+  PosMon:          { display: 'Полина',   role: 'Контроль позиций',    emoji: '👁' },
+  History:         { display: 'Хирон',    role: 'Архивариус',          emoji: '📚' },
+  Backtest:        { display: 'Барсук',   role: 'Лаборант',            emoji: '🧪' },
+  Account:         { display: 'Аркадий',  role: 'Бухгалтер',           emoji: '💼' },
+  AnomalyScanner:  { display: 'Аномалия', role: 'Детектив',            emoji: '🔍' },
+};
+function _agentProfile(name) {
+  return AGENT_PROFILES[name] || { display: name, role: '', emoji: '🤖' };
+}
+
 function renderLog() {
   const container = document.getElementById('agent-log-panels');
   if (!container) return;
@@ -1147,23 +1170,37 @@ function renderLog() {
       panel.className = 'agent-log-panel';
       panel.dataset.agent = name;
       panel.innerHTML = `
-        <div class="agent-log-header">
+        <button class="agent-log-header" type="button" aria-expanded="false">
+          <span class="agent-log-avatar"></span>
           <div class="agent-log-title-row">
             <span class="agent-log-status-dot"></span>
             <span class="agent-log-name"></span>
+            <span class="agent-log-role"></span>
             <span class="agent-log-count"></span>
+            <svg class="agent-log-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
           </div>
-          <div class="agent-log-desc"></div>
-        </div>
-        <div class="agent-log-body"></div>`;
+        </button>
+        <div class="agent-log-body" hidden></div>`;
       container.appendChild(panel);
+      // Toggle open on header click
+      panel.querySelector('.agent-log-header').addEventListener('click', () => {
+        const isOpen = panel.classList.toggle('open');
+        const body = panel.querySelector('.agent-log-body');
+        const hdr  = panel.querySelector('.agent-log-header');
+        if (isOpen) { body.removeAttribute('hidden'); hdr.setAttribute('aria-expanded', 'true'); }
+        else        { body.setAttribute('hidden', '');  hdr.setAttribute('aria-expanded', 'false'); }
+      });
     }
 
+    const profile = _agentProfile(name);
     panel.querySelector('.agent-log-status-dot').className =
       'agent-log-status-dot ' + (info.status || 'idle');
-    panel.querySelector('.agent-log-name').textContent  = name;
-    panel.querySelector('.agent-log-count').textContent = `${lines.length} событий`;
-    panel.querySelector('.agent-log-desc').textContent  = info.description || '';
+    panel.querySelector('.agent-log-avatar').textContent = profile.emoji;
+    panel.querySelector('.agent-log-name').textContent   = profile.display;
+    panel.querySelector('.agent-log-role').textContent   = profile.role;
+    panel.querySelector('.agent-log-count').textContent  = `${lines.length}`;
 
     const body = panel.querySelector('.agent-log-body');
     const prevScrollTop    = body.scrollTop;
@@ -3295,6 +3332,54 @@ function applyRoleVisibility() {
     roleEl.textContent = admin ? 'admin' : 'user';
     roleEl.classList.toggle('is-admin', admin);
   }
+
+  if (AUTH_USER) {
+    const uname = AUTH_USER.username || '';
+    const initials = (uname.match(/[\p{L}\p{N}]/gu) || []).slice(0, 2).join('').toUpperCase() || '?';
+    const initEl = document.getElementById('user-avatar-initials');
+    const avatar = document.getElementById('user-avatar-btn');
+    if (avatar) {
+      avatar.classList.toggle('is-admin', admin);
+      avatar.setAttribute('aria-label', `${uname} (${admin ? 'admin' : 'user'})`);
+      let imgEl = avatar.querySelector('img.user-avatar-img');
+      if (AUTH_USER.avatar) {
+        if (!imgEl) {
+          imgEl = document.createElement('img');
+          imgEl.className = 'user-avatar-img';
+          imgEl.alt = '';
+          avatar.insertBefore(imgEl, avatar.firstChild);
+        }
+        imgEl.src = AUTH_USER.avatar;
+        if (initEl) initEl.style.display = 'none';
+      } else {
+        if (imgEl) imgEl.remove();
+        if (initEl) { initEl.style.display = ''; initEl.textContent = initials; }
+      }
+    } else if (initEl) {
+      initEl.textContent = initials;
+    }
+    const menuName = document.getElementById('user-menu-name');
+    const menuRole = document.getElementById('user-menu-role');
+    if (menuName) menuName.textContent = uname;
+    if (menuRole) {
+      menuRole.textContent = admin ? 'admin' : 'user';
+      menuRole.classList.toggle('is-admin', admin);
+    }
+  }
+}
+
+function toggleUserMenu(force) {
+  const btn = document.getElementById('user-avatar-btn');
+  const pop = document.getElementById('user-menu-popup');
+  if (!btn || !pop) return;
+  const willOpen = typeof force === 'boolean' ? force : pop.hasAttribute('hidden');
+  if (willOpen) {
+    pop.removeAttribute('hidden');
+    btn.setAttribute('aria-expanded', 'true');
+  } else {
+    pop.setAttribute('hidden', '');
+    btn.setAttribute('aria-expanded', 'false');
+  }
 }
 
 // ─── Users tab (admin only) ───────────────────────────────────────
@@ -3318,27 +3403,43 @@ function renderUsers() {
   }
   const rows = users.map(u => {
     const isSelf = AUTH_USER && u.username === AUTH_USER.username;
+    const initials = (u.username.match(/[\p{L}\p{N}]/gu) || []).slice(0, 2).join('').toUpperCase() || '?';
+    const avatarHtml = u.avatar
+      ? `<img src="${escapeHtml(u.avatar)}" alt="">`
+      : `<span class="user-row-initials">${escapeHtml(initials)}</span>`;
+    const uname = escapeHtml(u.username);
     return `
       <tr>
-        <td class="st-name">${escapeHtml(u.username)}</td>
-        <td><span class="st-state ${u.role === 'admin' ? 'is-on' : 'is-off'}">${u.role}</span></td>
-        <td style="color:var(--text-muted);font-size:11.5px">${(u.created_at||'').substring(0,10)}</td>
-        <td class="st-actions">
-          <button class="btn-ghost" title="Сменить пароль" onclick="changeUserPassword('${escapeHtml(u.username)}')">🔑</button>
-          <button class="btn-ghost" title="Сменить роль" onclick="toggleUserRole('${escapeHtml(u.username)}', '${u.role}')">${u.role === 'admin' ? '▼' : '▲'}</button>
-          <button class="btn-ghost btn-danger" title="${isSelf ? 'Нельзя удалить себя' : 'Удалить'}" ${isSelf ? 'disabled' : ''} onclick="deleteUser('${escapeHtml(u.username)}')">✕</button>
+        <td class="user-row-avatar-cell">
+          <button class="user-row-avatar ${u.role === 'admin' ? 'is-admin' : ''}" title="Сменить аватар" onclick="changeUserAvatar('${uname}')">
+            ${avatarHtml}
+            ${u.role === 'admin' ? '<svg class="user-row-crown" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7l4 3 5-6 5 6 4-3-2 12H5L3 7z" fill="currentColor"/></svg>' : ''}
+          </button>
+        </td>
+        <td class="user-row-name">${uname}</td>
+        <td class="user-row-role"><span class="st-state ${u.role === 'admin' ? 'is-on' : 'is-off'}">${u.role}</span></td>
+        <td class="user-row-actions">
+          <button class="btn-ghost user-actions-toggle" type="button" title="Действия" aria-label="Действия"
+                  data-username="${uname}" data-role="${u.role}" data-self="${isSelf ? '1' : '0'}"
+                  onclick="openUserActionsMenu(event)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <circle cx="12" cy="5"  r="1.8"/>
+              <circle cx="12" cy="12" r="1.8"/>
+              <circle cx="12" cy="19" r="1.8"/>
+            </svg>
+          </button>
         </td>
       </tr>
     `;
   }).join('');
   box.innerHTML = `
-    <table class="streams-grid">
+    <table class="users-grid">
       <thead>
         <tr>
+          <th class="users-col-avatar"></th>
           <th>Логин</th>
           <th>Роль</th>
-          <th>Создан</th>
-          <th></th>
+          <th class="users-col-actions"></th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -3346,29 +3447,190 @@ function renderUsers() {
   `;
 }
 
+// ── Floating-меню действий (рендерится в body, не клипуется .content) ──
+const _ICONS = {
+  avatar:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>',
+  key:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.85 12.15 19 4"/><path d="m18 5 2 2"/><path d="m15 8 2 2"/></svg>',
+  shield:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8.5-8 9-4.5-.5-8-4-8-9V6l8-3z"/></svg>',
+  arrowDn:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><polyline points="19 12 12 19 5 12"/></svg>',
+  trash:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>',
+};
+
+function _ensureFloatingMenu() {
+  let menu = document.getElementById('user-actions-floating');
+  if (!menu) {
+    menu = document.createElement('div');
+    menu.id = 'user-actions-floating';
+    menu.className = 'user-actions-menu';
+    menu.setAttribute('role', 'menu');
+    menu.hidden = true;
+    document.body.appendChild(menu);
+  }
+  return menu;
+}
+
+function closeUserActionsMenus() {
+  const m = document.getElementById('user-actions-floating');
+  if (m) m.hidden = true;
+  document.querySelectorAll('.user-actions-toggle[aria-expanded="true"]')
+    .forEach(b => b.setAttribute('aria-expanded', 'false'));
+}
+
+function openUserActionsMenu(ev) {
+  ev.stopPropagation();
+  const btn = ev.currentTarget;
+  const uname = btn.dataset.username;
+  const role  = btn.dataset.role;
+  const isSelf = btn.dataset.self === '1';
+  const menu = _ensureFloatingMenu();
+
+  if (!menu.hidden && menu.dataset.user === uname) { closeUserActionsMenus(); return; }
+  menu.dataset.user = uname;
+
+  const roleAction = role === 'admin'
+    ? { icon: _ICONS.arrowDn, label: 'Сделать user' }
+    : { icon: _ICONS.shield,  label: 'Сделать admin' };
+
+  menu.innerHTML = `
+    <button class="user-actions-item" type="button" role="menuitem" data-act="avatar">
+      <span class="user-actions-icon">${_ICONS.avatar}</span><span>Сменить аватар</span>
+    </button>
+    <button class="user-actions-item" type="button" role="menuitem" data-act="password">
+      <span class="user-actions-icon">${_ICONS.key}</span><span>Сменить пароль</span>
+    </button>
+    <button class="user-actions-item" type="button" role="menuitem" data-act="role">
+      <span class="user-actions-icon">${roleAction.icon}</span><span>${roleAction.label}</span>
+    </button>
+    <div class="user-actions-sep"></div>
+    <button class="user-actions-item is-danger" type="button" role="menuitem" data-act="delete" ${isSelf ? 'disabled' : ''} title="${isSelf ? 'Нельзя удалить себя' : ''}">
+      <span class="user-actions-icon">${_ICONS.trash}</span><span>Удалить</span>
+    </button>`;
+  menu.onclick = (e) => {
+    const item = e.target.closest('.user-actions-item');
+    if (!item || item.disabled) return;
+    const act = item.dataset.act;
+    closeUserActionsMenus();
+    if (act === 'avatar')   changeUserAvatar(uname);
+    if (act === 'password') changeUserPassword(uname);
+    if (act === 'role')     toggleUserRole(uname, role);
+    if (act === 'delete')   deleteUser(uname);
+  };
+
+  menu.hidden = false;
+  btn.setAttribute('aria-expanded', 'true');
+
+  // Позиционируем под кнопкой, прижимаясь правым краем.
+  const r = btn.getBoundingClientRect();
+  const menuW = menu.offsetWidth;
+  let left = Math.max(8, r.right - menuW);
+  let top  = r.bottom + 6;
+  // Если меню не помещается снизу — открываем над кнопкой.
+  if (top + menu.offsetHeight > window.innerHeight - 8) {
+    top = Math.max(8, r.top - menu.offsetHeight - 6);
+  }
+  menu.style.left = left + 'px';
+  menu.style.top  = top  + 'px';
+}
+
+document.addEventListener('click', (e) => {
+  const m = document.getElementById('user-actions-floating');
+  if (!m || m.hidden) return;
+  if (m.contains(e.target)) return;
+  if (e.target.closest('.user-actions-toggle')) return;
+  closeUserActionsMenus();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeUserActionsMenus();
+});
+window.addEventListener('scroll', closeUserActionsMenus, true);
+window.addEventListener('resize', closeUserActionsMenus);
+
+// Аватар: открыть файл, ресайз 128×128, сохранить как data: URL.
+async function changeUserAvatar(username) {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/png,image/jpeg,image/webp';
+  input.onchange = async () => {
+    const f = input.files?.[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) { alert('Файл больше 5 МБ — выберите меньше.'); return; }
+    try {
+      const dataUrl = await _resizeImageToDataUrl(f, 128);
+      const isSelf = AUTH_USER && username.toLowerCase() === AUTH_USER.username.toLowerCase();
+      const url = (isAdmin())
+        ? `/api/users/${encodeURIComponent(username)}`
+        : `/api/me/avatar`;
+      const r = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar: dataUrl }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        alert(d.detail || 'Ошибка загрузки аватара');
+        return;
+      }
+      const data = await r.json().catch(() => ({}));
+      // Если меняем себе — обновляем шапку.
+      if (AUTH_USER && username.toLowerCase() === AUTH_USER.username.toLowerCase()) {
+        AUTH_USER.avatar = data.user?.avatar || dataUrl;
+        try { localStorage.setItem('th_user', JSON.stringify(AUTH_USER)); } catch {}
+        applyRoleVisibility();
+      }
+      if (isAdmin()) await loadUsers();
+    } catch (e) {
+      alert('Не удалось обработать изображение: ' + (e?.message || e));
+    }
+  };
+  input.click();
+}
+
+function _resizeImageToDataUrl(file, size) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(img.naturalWidth, img.naturalHeight);
+      const sx = (img.naturalWidth  - s) / 2;
+      const sy = (img.naturalHeight - s) / 2;
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, sx, sy, s, s, 0, 0, size, size);
+      resolve(canvas.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = () => reject(new Error('Не удалось прочитать изображение'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 function openUserForm() {
   const wrap = document.getElementById('user-form-wrap');
   if (!wrap) return;
   wrap.hidden = false;
   wrap.innerHTML = `
-    <div class="stream-form">
-      <div class="stream-form-title">Новый пользователь</div>
-      <div class="bt-form">
-        <label>Логин
-          <input id="uf-username" type="text" style="width:160px">
+    <div class="user-form">
+      <div class="user-form-title">Новый пользователь</div>
+      <div class="user-form-grid">
+        <label class="user-form-field">
+          <span class="user-form-label">Логин</span>
+          <input id="uf-username" type="text" autocomplete="off">
         </label>
-        <label>Пароль
-          <input id="uf-password" type="password" style="width:160px">
+        <label class="user-form-field">
+          <span class="user-form-label">Пароль</span>
+          <input id="uf-password" type="password" autocomplete="new-password">
         </label>
-        <label>Роль
+        <label class="user-form-field">
+          <span class="user-form-label">Роль</span>
           <select id="uf-role">
             <option value="user" selected>user</option>
             <option value="admin">admin</option>
           </select>
         </label>
-        <button class="btn-primary" onclick="submitUserForm()">Создать</button>
-        <button class="btn-ghost btn-ghost-lg" onclick="closeUserForm()">Отмена</button>
-        <span id="uf-error" class="sf-error"></span>
+      </div>
+      <div class="user-form-error" id="uf-error"></div>
+      <div class="user-form-actions">
+        <button class="btn-ghost" type="button" onclick="closeUserForm()">Отмена</button>
+        <button class="btn-primary" type="button" onclick="submitUserForm()">Создать</button>
       </div>
     </div>
   `;
@@ -3561,6 +3823,28 @@ function calcRender(d) {
 document.addEventListener('DOMContentLoaded', () => {
   applyRoleVisibility();
   document.getElementById('btn-logout')?.addEventListener('click', logout);
+  document.getElementById('btn-change-avatar')?.addEventListener('click', () => {
+    if (!AUTH_USER) return;
+    toggleUserMenu(false);
+    changeUserAvatar(AUTH_USER.username);
+  });
+
+  // User avatar menu
+  const avatarBtn = document.getElementById('user-avatar-btn');
+  const userMenu = document.getElementById('user-menu-popup');
+  if (avatarBtn && userMenu) {
+    avatarBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleUserMenu();
+    });
+    document.addEventListener('click', (e) => {
+      if (userMenu.hasAttribute('hidden')) return;
+      if (!userMenu.contains(e.target) && e.target !== avatarBtn) toggleUserMenu(false);
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !userMenu.hasAttribute('hidden')) toggleUserMenu(false);
+    });
+  }
 
   // Tabs
   document.querySelectorAll('.tab').forEach(t => {
@@ -3662,7 +3946,7 @@ const Anomalies = (() => {
       const d = new Date(ts);
       return d.toLocaleString('ru-RU', {
         day: '2-digit', month: '2-digit',
-        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour: '2-digit', minute: '2-digit',
       });
     } catch { return ts; }
   }
@@ -3774,8 +4058,13 @@ const Anomalies = (() => {
 
   // ── Render: history rows ───────────────────────────────────────
   function _historyRowHtml(item) {
-    const typesArr = Array.isArray(item.types) ? item.types : (item.types ? [item.types] : []);
-    const typesHtml = typesArr.map(t => `<span class="type-badge">${t}</span>`).join(' ');
+    const rawTypes = Array.isArray(item.types)
+      ? item.types
+      : (typeof item.types === 'string' ? item.types.split(/[,\s]+/) : []);
+    const typesArr = rawTypes.map(s => String(s).trim()).filter(Boolean);
+    const typesHtml = `<div class="type-stack">${
+      typesArr.map(t => `<span class="type-badge type-${t}">${t}</span>`).join('')
+    }</div>`;
     return `<tr>
   <td>${item.symbol || '—'}</td>
   <td>${typesHtml || '—'}</td>

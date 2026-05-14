@@ -234,19 +234,6 @@ header h1.brand::before { content: none; }
 }
 .btn-ghost:hover { background: var(--surface3); border-color: var(--border-strong); }
 
-/* logout button — мини иконка */
-.user-info .btn-ghost {
-  width: 32px; height: 32px;
-  padding: 0;
-  display: inline-grid;
-  place-items: center;
-  border-radius: var(--r-sm);
-  color: var(--text-muted);
-  transition: color var(--t-fast), border-color var(--t-fast), background var(--t-fast);
-}
-.user-info .btn-ghost svg { width: 18px; height: 18px; display: block; }
-.user-info .btn-ghost:hover { color: var(--red); border-color: rgba(239,69,74,0.4); background: var(--red-soft); }
-
 .btn-close {
   border-radius: var(--r-sm);
   background: transparent;
@@ -427,25 +414,18 @@ td { font-size: 13px; }
   box-shadow: var(--sh-accent-glow);
 }
 
-/* ── User pill (header right) ── */
-.user-info {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 8px 6px 12px;
+/* ── User avatar (bybit override) ── */
+.user-avatar {
   background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
+  border-color: var(--border);
 }
-.user-info #user-name { font-weight: 600; color: var(--text); font-size: 12.5px; }
-.user-role {
-  display: inline-flex; align-items: center;
-  height: 16px; padding: 0 6px;
-  font-size: 9px; font-weight: 700; letter-spacing: 0.6px;
-  text-transform: uppercase;
-  border-radius: var(--r-xs);
-  background: var(--accent-soft);
-  color: var(--accent);
+.user-avatar.is-connected {
+  border-color: var(--green);
+  animation: avatarPulseGreen 2.4s ease-in-out infinite;
+}
+@keyframes avatarPulseGreen {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(34,197,94,0.15), 0 0 10px rgba(34,197,94,0.30); }
+  50%      { box-shadow: 0 0 0 2px rgba(34,197,94,0.20), 0 0 16px rgba(34,197,94,0.55); }
 }
 
 /* ── Scrollbar — фирменный жёлтый при hover ── */
@@ -786,11 +766,30 @@ td { font-size: 13px; }
   white-space: nowrap;
 }
 .anomaly-table td {
-  padding: 7px 10px;
+  padding: 28px 10px;
   border-bottom: 1px solid var(--border);
   color: var(--text);
   white-space: nowrap;
+  font-size: 13px;
+  vertical-align: middle;
+  line-height: 1.6;
 }
+/* Колонка типов — каждый чип в своей строке (stack) */
+.anomaly-table td:nth-child(2) {
+  white-space: normal;
+  min-width: 140px;
+}
+.anomaly-table .type-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.anomaly-table .type-badge { display: inline-block; margin: 0; }
+.anomaly-table .type-badge.type-EMA_FAR_UP   { background: rgba(32,178,108,0.18); color: #20B26C; }
+.anomaly-table .type-badge.type-EMA_FAR_DOWN { background: rgba(239,69,74,0.18);  color: #EF454A; }
+.anomaly-table .type-badge.type-STOCH_OB     { background: rgba(239,69,74,0.18);  color: #EF454A; }
+.anomaly-table .type-badge.type-STOCH_OS     { background: rgba(32,178,108,0.18); color: #20B26C; }
 .anomaly-table tr:last-child td { border-bottom: none; }
 .anomaly-table tr:hover td { background: var(--surface-hover); }
 .anomaly-table .type-badge {

@@ -17,6 +17,34 @@
   a.btn, select, input[type="button"], input[type="submit"] {
     min-height: 44px;
   }
+  /* Круглый аватар — не растягивать в овал */
+  .user-avatar { min-height: 0; width: 44px; height: 44px; flex-basis: 44px; min-width: 44px; }
+  .user-row-avatar { min-height: 0; width: 40px; height: 40px; flex-basis: 40px; min-width: 40px; }
+  .user-actions-toggle { min-height: 0; width: 36px; height: 36px; }
+
+  /* Без линии между header и balance — они смежные на мобиле */
+  header {
+    border-bottom: none;
+    box-shadow: none;
+  }
+  header::after { display: none; }
+  .account-bar { box-shadow: none; }
+
+  /* Бэктест: даты не влезают на телефоне — компактные инпуты + сетка 2 кол. */
+  .bt-form { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .bt-form label.col-2 { grid-column: auto; }
+  .bt-form label.col-full { grid-column: 1 / -1; }
+  .bt-form input[type="date"] {
+    padding: 6px 6px;
+    font-size: 13px;
+    min-width: 0;
+  }
+  .bt-form input[type="date"]::-webkit-date-and-time-value { text-align: left; }
+  .bt-form input[type="date"]::-webkit-calendar-picker-indicator {
+    padding: 0;
+    margin-left: 2px;
+    opacity: 0.7;
+  }
 
   /* iOS не зумит инпуты при focus, если font-size ≥ 16px */
   input, select, textarea { font-size: 16px; }
@@ -26,6 +54,8 @@
 
   /* Любая таблица в фолбэке — горизонтальный скролл, не вылезает */
   table { display: block; overflow-x: auto; max-width: 100%; }
+  /* Таблица пользователей — должна растягиваться на всю ширину, без block-обёртки */
+  .users-grid { display: table; overflow: visible; width: 100%; }
 
   /* Верхняя горизонтальная лента табов — скрыта (заменяется нижним tab-bar) */
   .tabs { display: none !important; }
@@ -161,7 +191,7 @@
     border-radius: 2px;
   }
   .sheet-item {
-    display: block; width: 100%;
+    display: flex; align-items: center; gap: 12px; width: 100%;
     padding: 14px 20px;
     background: none; border: none;
     color: var(--text, #eaecef);
@@ -225,10 +255,12 @@
     font-size: 13px;
     gap: 12px;
   }
-  .anomaly-table th,
+  .anomaly-table th { padding: 4px 6px; font-size: 12px; }
   .anomaly-table td {
-    padding: 4px 6px;
+    padding: 22px 6px;
     font-size: 12px;
+    vertical-align: middle;
+    line-height: 1.5;
   }
 }
 

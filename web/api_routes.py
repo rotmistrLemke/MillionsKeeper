@@ -879,6 +879,21 @@ class UserCreateRequest(BaseModel):
 class UserUpdateRequest(BaseModel):
     password: Optional[str] = None
     role: Optional[str] = None
+    avatar: Optional[str] = None
+
+
+class AvatarRequest(BaseModel):
+    avatar: str
+
+
+@router.patch("/me/avatar")
+async def update_my_avatar(req: AvatarRequest,
+                           user: auth.UserRecord = Depends(get_current_user)):
+    try:
+        rec = auth.registry.update(user.username, avatar=req.avatar)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"ok": True, "user": rec.to_public()}
 
 
 @router.get("/users")
@@ -900,7 +915,7 @@ async def create_user(req: UserCreateRequest,
 async def update_user(username: str, req: UserUpdateRequest,
                       admin: auth.UserRecord = Depends(require_admin)):
     try:
-        rec = auth.registry.update(username, password=req.password, role=req.role)
+        rec = auth.registry.update(username, password=req.password, role=req.role, avatar=req.avatar)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Пользователь {username} не найден")
     except ValueError as e:
