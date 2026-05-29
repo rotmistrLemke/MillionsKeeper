@@ -187,6 +187,34 @@ class ExecutionAgent(BaseAgent):
                     "magic": stream.magic,
                     "indicators": p.get("indicators", {}),
                 })
+
+                if self._strategy_wants_hedge(stream):
+                    hedge_signal = "SELL" if signal == "BUY" else "BUY"
+                    try:
+                        hedge_result = await asyncio.get_event_loop().run_in_executor(
+                            None, self._open_hedge_order, stream, hedge_signal, float(result["volume"])
+                        )
+                        if hedge_result:
+                            self.metrics["opened_today"] = self.metrics.get("opened_today", 0) + 1
+                            await self.emit(EventType.ORDER_OPENED, {
+                                "symbol": symbol,
+                                "type": hedge_signal,
+                                "volume": hedge_result.get("volume"),
+                                "price": hedge_result.get("price"),
+                                "ticket": hedge_result.get("ticket"),
+                                "stream_id": stream.id,
+                                "magic": stream.magic,
+                                "indicators": p.get("indicators", {}),
+                                "role": "H",
+                            })
+                        else:
+                            self._logger.error(
+                                f"Hedge leg failed {symbol} [{stream.name}] — main {result.get('ticket')} остался без пары"
+                            )
+                    except Exception as he:
+                        self._logger.error(f"Open hedge failed {symbol}: {he}")
+                        await self.emit(EventType.ORDER_ERROR, {"symbol": symbol, "error": f"hedge:{he}"})
+
                 Dictionary.symbolTradingStatus[symbol] = 1
                 await self.emit(EventType.TRADING_STATUS_CHANGED, {
                     "symbol": symbol,
@@ -197,6 +225,38 @@ class ExecutionAgent(BaseAgent):
         except Exception as e:
             self._logger.error(f"Open order failed {symbol}: {e}")
             await self.emit(EventType.ORDER_ERROR, {"symbol": symbol, "error": str(e)})
+
+    @staticmethod
+    def _strategy_wants_hedge(stream) -> bool:
+        from strategies import STRATEGIES
+        strat_cls = STRATEGIES.get(stream.strategy)
+        if strat_cls is None:
+            return False
+        try:
+            return bool(strat_cls().wants_hedge())
+        except Exception:
+            return False
+
+    def _open_hedge_order(self, stream, signal: str, volume: float) -> dict:
+        """Открывает противоположную (хедж) ногу: тот же magic, тот же объём,
+        без SL/TP — выход управляется get_hedge_exit_signal / get_exit_signal.
+        """
+        import MetaTrader5 as mt5
+        if not volume or volume <= 0:
+            return None
+        order_type = mt5.ORDER_TYPE_BUY if signal == "BUY" else mt5.ORDER_TYPE_SELL
+        comment = f"{stream.id}:{stream.strategy}:H"[:31]
+        result = self.trading.orderOpen(
+            stream.symbol, order_type, volume, comment,
+            sl=0.0, tp=0.0, magic=stream.magic,
+        )
+        if isinstance(result, dict) and result.get("order"):
+            return {
+                "ticket": result["order"],
+                "volume": volume,
+                "price": result.get("price"),
+            }
+        return None
 
     def _open_order(self, stream, signal: str, indicators: dict) -> dict:
         import MetaTrader5 as mt5

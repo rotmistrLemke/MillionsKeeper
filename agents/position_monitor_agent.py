@@ -101,8 +101,16 @@ class PositionMonitorAgent(BaseAgent):
         })
 
         # Сбрасываем статус торговли обратно в 0, чтобы можно было открыть новую позицию.
-        # Без этого после первого трейда символ залипал в status=1 и все сигналы отбрасывались.
-        if Dictionary.symbolTradingStatus.get(symbol) == 1:
+        # Для hedge-стратегий держим status=1, пока существует ХОТЯ БЫ одна позиция по
+        # этому magic (иначе закрытие одной ноги откроет новый вход поверх оставшейся).
+        magic = int(prev_pos.get("magic") or 0)
+        sibling_open = False
+        if magic > 0:
+            for p in self._get_positions_with_pnl():
+                if p["magic"] == magic and p["symbol"] == symbol and p["ticket"] != prev_pos["ticket"]:
+                    sibling_open = True
+                    break
+        if Dictionary.symbolTradingStatus.get(symbol) == 1 and not sibling_open:
             Dictionary.symbolTradingStatus[symbol] = 0
             await self.emit(EventType.TRADING_STATUS_CHANGED, {
                 "symbol": symbol,
@@ -255,6 +263,7 @@ class PositionMonitorAgent(BaseAgent):
                 "pnl_money": round(p.profit, 2),
                 "open_time": int(p.time),
                 "magic": magic,
+                "comment": getattr(p, "comment", "") or "",
                 "stream_id": stream.id if stream else None,
                 "stream_name": stream.name if stream else None,
             })
@@ -285,18 +294,37 @@ class PositionMonitorAgent(BaseAgent):
         else:
             await self._check_legacy_rsi_exit(pos, stream)
 
+    @staticmethod
+    def _is_hedge_position(pos: dict) -> bool:
+        return (pos.get("comment") or "").endswith(":H")
+
+    def _find_paired_hedge_ticket(self, main_pos: dict) -> int | None:
+        """Парный хедж = та же magic + symbol, противоположный type, comment endswith ':H'."""
+        opp = "SELL" if main_pos["type"] == "BUY" else "BUY"
+        for p in self._get_positions_with_pnl():
+            if (
+                p["magic"] == main_pos["magic"]
+                and p["symbol"] == main_pos["symbol"]
+                and p["type"] == opp
+                and self._is_hedge_position(p)
+                and p["ticket"] != main_pos["ticket"]
+            ):
+                return p["ticket"]
+        return None
+
     async def _check_strategy_exit(self, pos: dict, stream):
         from strategies.runtime import get_runtime_strategy
         from market_data_cache import cache
 
         symbol = pos["symbol"]
         strategy_name = stream.strategy
+        is_hedge_leg = self._is_hedge_position(pos)
         try:
             def _run():
                 strategy = get_runtime_strategy(strategy_name, symbol)
                 df = cache.get_rates(symbol, stream.timeframe, bars=500)
                 if df is None or len(df) < 50:
-                    return None
+                    return None, False
                 df = strategy.compute_indicators(df)
                 df = strategy.compute_flat_indicators(df)
                 row = df.iloc[-1]
@@ -306,16 +334,41 @@ class PositionMonitorAgent(BaseAgent):
                     "volume": pos["volume"],
                     "sl": pos.get("sl"),
                 }
-                return bool(strategy.get_exit_signal(row, position_dict))
+                wants_hedge = bool(getattr(strategy, "wants_hedge", lambda: False)())
+                if is_hedge_leg and wants_hedge:
+                    return bool(strategy.get_hedge_exit_signal(row, position_dict)), wants_hedge
+                return bool(strategy.get_exit_signal(row, position_dict)), wants_hedge
 
-            should_close = await asyncio.get_event_loop().run_in_executor(None, _run)
-            if should_close:
+            should_close, wants_hedge = await asyncio.get_event_loop().run_in_executor(None, _run)
+            if not should_close:
+                return
+
+            if is_hedge_leg:
+                # Закрываем только саму хедж-ногу — основная продолжает работать
                 await self.emit(EventType.ORDER_CLOSE_REQUEST, {
                     "ticket": pos["ticket"],
                     "symbol": symbol,
                     "stream_id": stream.id,
-                    "reason": f"strategy:{strategy_name}",
+                    "reason": f"strategy:{strategy_name}:hedge",
                 })
+                return
+
+            # Основная сработала — закрываем её и парный хедж (если есть)
+            await self.emit(EventType.ORDER_CLOSE_REQUEST, {
+                "ticket": pos["ticket"],
+                "symbol": symbol,
+                "stream_id": stream.id,
+                "reason": f"strategy:{strategy_name}",
+            })
+            if wants_hedge:
+                hedge_ticket = self._find_paired_hedge_ticket(pos)
+                if hedge_ticket is not None:
+                    await self.emit(EventType.ORDER_CLOSE_REQUEST, {
+                        "ticket": hedge_ticket,
+                        "symbol": symbol,
+                        "stream_id": stream.id,
+                        "reason": f"strategy:{strategy_name}:pair_close",
+                    })
         except Exception as e:
             self._logger.warning(f"Strategy exit check failed {symbol}/{strategy_name}: {e}")
 
