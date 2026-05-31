@@ -38,7 +38,7 @@ window.fetch = async function(input, init) {
 // ─── Strategy Metadata ────────────────────────────────────────────
 const STRATEGY_META = {
   default: {
-    name: 'MA + MACD + RSI (основная)',
+    name: 'Трендовый вход по MA + MACD + RSI',
     desc: [
       '<b>Вход:</b> EMA8 и EMA21 в одном направлении + MACD подтверждает + RSI в зоне',
       'BUY: EMA8 &gt; EMA21 + MACD &gt; 0 и растёт + RSI 55–70',
@@ -56,7 +56,7 @@ const STRATEGY_META = {
     ],
   },
   sr_bounce: {
-    name: 'S/R Bounce',
+    name: 'Отскок от поддержки и сопротивления',
     desc: [
       'Отскок от уровней поддержки/сопротивления по подтверждённым свинг-пивотам.',
       '<b>Уровни:</b> swing high/low в окне ±5 баров',
@@ -74,7 +74,7 @@ const STRATEGY_META = {
     ],
   },
   ema_pullback: {
-    name: 'EMA Pullback (50/200)',
+    name: 'Откат к EMA50 по тренду EMA200',
     desc: [
       'Откат к EMA50 в направлении тренда EMA200.',
       '<b>Вход:</b>',
@@ -91,7 +91,7 @@ const STRATEGY_META = {
     ],
   },
   ema_cross: {
-    name: 'EMA 50/200 Cross',
+    name: 'Пересечение EMA50 и EMA200',
     desc: [
       'Взаимное положение быстрой EMA50 и медленной EMA200. Позиция всегда по направлению быстрой.',
       '<b>Вход</b> (на открытии новой свечи):',
@@ -110,7 +110,7 @@ const STRATEGY_META = {
     ],
   },
   ema_cross_inverse: {
-    name: 'EMA 8/21 Cross Inverse',
+    name: 'Контрсигнал на пересечении EMA8/21',
     desc: [
       'Инверсия EMA Cross — сделки открываются в противоположную сторону.',
       '<b>Вход:</b>',
@@ -129,7 +129,7 @@ const STRATEGY_META = {
     ],
   },
   cci_rsi: {
-    name: 'CCI + RSI (D1-фильтр)',
+    name: 'Импульс CCI с фильтрами RSI и EMA200',
     desc: [
       'CCI(20) пересекает ±100, подтверждение RSI и EMA200 как D1-фильтр.',
       '<b>Вход:</b>',
@@ -147,7 +147,7 @@ const STRATEGY_META = {
     ],
   },
   fibonacci_retracement: {
-    name: 'Fibonacci Retracement',
+    name: 'Откат по уровням Фибоначчи',
     desc: [
       'Откат к уровням Фибоначчи 38.2%–50% после импульсного движения.',
       '<b>Вход:</b>',
@@ -165,7 +165,7 @@ const STRATEGY_META = {
     ],
   },
   macd_hist: {
-    name: 'MACD Histogram',
+    name: 'Смена знака гистограммы MACD',
     desc: [
       'Вход и выход по знаку гистограммы MACD(12, 26, 9).',
       '<b>Вход:</b>',
@@ -185,7 +185,7 @@ const STRATEGY_META = {
     ],
   },
   default_hedge: {
-    name: 'Default + Hedge',
+    name: 'Двусторонний хедж по MA + MACD + RSI',
     desc: [
       'Основная (MA + MACD + RSI). При входе открываются ОБЕ стороны (хедж).',
       '<b>Вход как у default:</b>',
@@ -210,7 +210,7 @@ const STRATEGY_META = {
     ],
   },
   default_inverse: {
-    name: 'Default Inverse (MA+MACD+RSI reverse)',
+    name: 'Контртренд во флэте (инверсия основной)',
     desc: [
       'Инверсия основной стратегии: когда фильтры MA + MACD + RSI согласованы,',
       'открываем позицию в противоположную сторону.',
@@ -234,29 +234,8 @@ const STRATEGY_META = {
       { col: 'atr',         label: 'ATR'    },
     ],
   },
-  candle_reversal: {
-    name: 'Candlestick Reversal',
-    desc: [
-      'Разворотные паттерны свечей после трендового движения.',
-      '<b>Условие:</b> 3+ баров тренда + ADX &lt; 35',
-      '<b>Паттерны:</b> дожи, пин-бар (молот/повешенный), поглощение',
-      '<b>Вход:</b>',
-      'BUY: Бычий дожи / пин / поглощение',
-      'SELL: Медвежий дожи / пин / поглощение',
-      '<b>SL:</b> Экстремум свечи + 0.5 × ATR &nbsp; <b>TP:</b> 2 × ATR',
-      '<b>Таймфрейм:</b> H1',
-    ],
-    indicators: [
-      { col: 'adx',         label: 'ADX'      },
-      { col: 'atr',         label: 'ATR'      },
-      { col: 'doji',        label: 'Дожи'     },
-      { col: 'pin_bull',    label: 'PinBull'  },
-      { col: 'pin_bear',    label: 'PinBear'  },
-      { col: 'engulf_bull', label: 'EngBull'  },
-    ],
-  },
   sar_adx: {
-    name: 'Parabolic SAR + ADX',
+    name: 'Разворот Parabolic SAR с фильтром ADX',
     desc: [
       'Разворот Parabolic SAR с фильтром силы тренда ADX(14).',
       '<b>Вход:</b>',
@@ -275,7 +254,7 @@ const STRATEGY_META = {
     ],
   },
   donchian_breakout: {
-    name: 'Donchian Breakout',
+    name: 'Пробой канала Дончиана',
     desc: [
       'Пробой канала Дончиана (20 баров) с ATR-фильтром волатильности.',
       '<b>Вход:</b>',
@@ -293,7 +272,7 @@ const STRATEGY_META = {
     ],
   },
   triple_ema: {
-    name: 'Triple EMA Momentum',
+    name: 'Импульс по трём EMA (8/21/50)',
     desc: [
       'Тройная EMA-выравненность (8/21/50) с подтверждением MACD.',
       '<b>Вход:</b>',
@@ -312,7 +291,7 @@ const STRATEGY_META = {
     ],
   },
   mean_revert_ema: {
-    name: 'Mean Revert 10/20 EMA',
+    name: 'Возврат к средней EMA10/20',
     desc: [
       'Возврат к среднему: зона 10/20 EMA как справедливая цена в тренде.',
       '<b>Контекст:</b>',
@@ -331,7 +310,7 @@ const STRATEGY_META = {
     ],
   },
   ema50_pullback: {
-    name: 'EMA50 Pullback',
+    name: 'Свинг-откат к EMA50 (H4/D1)',
     desc: [
       'Трендовая торговля на откатах к 50 EMA в тренде 200 EMA.',
       '<b>Фильтр тренда:</b> close vs EMA200',
@@ -348,7 +327,7 @@ const STRATEGY_META = {
     ],
   },
   ema_triple_touch: {
-    name: 'EMA 20/50 Triple Touch',
+    name: 'Третье касание зоны EMA20/50',
     desc: [
       'После пересечения EMA20/50 ждём 3 теста зоны перед входом.',
       '<b>Глобальный тренд:</b> цена vs EMA200',
@@ -366,7 +345,7 @@ const STRATEGY_META = {
     ],
   },
   market_phase: {
-    name: '200 MA + Market Phase',
+    name: 'Фазы рынка по наклону MA200',
     desc: [
       'Классификатор фазы по наклону 200 MA, торговля уровней по фазе.',
       '<b>Фаза:</b>',
@@ -387,7 +366,7 @@ const STRATEGY_META = {
     ],
   },
   combined_a_plus: {
-    name: 'Combined A+ (5 факторов)',
+    name: 'Слияние пяти факторов (сигнал A+)',
     desc: [
       'Сигнал проходит только при score ≥ 4 из 5 факторов.',
       '<b>1. Направление:</b> close vs EMA200',
@@ -407,7 +386,7 @@ const STRATEGY_META = {
     ],
   },
   ema50_rejection: {
-    name: 'EMA50 Rejection (2×ATR)',
+    name: 'Отбой от EMA50 в сильном тренде',
     desc: [
       'Торгуем только в сильном тренде, где EMA50 отстоит от EMA200 ≥ 2×ATR.',
       '<b>BUY:</b>',
@@ -426,7 +405,7 @@ const STRATEGY_META = {
     ],
   },
   ema50_overstretch: {
-    name: 'EMA50 Overstretch (4.5×ATR фейд)',
+    name: 'Фейд перерастяжения от EMA50',
     desc: [
       'Контртренд: фейдим перерастяжение цены от EMA50 в EMA-контексте.',
       '<b>SELL:</b> EMA50 &gt; EMA200 и закрытие ≥ 4.5×ATR ВЫШЕ EMA50',
@@ -439,6 +418,24 @@ const STRATEGY_META = {
       { col: 'ema50',  label: 'EMA50'  },
       { col: 'ema200', label: 'EMA200' },
       { col: 'atr',    label: 'ATR'    },
+    ],
+  },
+  ema50_overstretch_mtf: {
+    name: 'Фейд перерастяжения от EMA50 (мультитаймфрейм)',
+    desc: [
+      'Контртренд на оверстретче от EMA50 с подтверждением экстремума старшего ТФ.',
+      '<b>SELL:</b> закрытие ≥ 4.5×ATR ВЫШЕ EMA50 + перекупленность старшего ТФ (RSI или Stoch)',
+      '<b>BUY:</b> закрытие ≥ 4.5×ATR НИЖЕ EMA50 + перепроданность старшего ТФ (RSI или Stoch)',
+      '<b>Старший ТФ:</b> по умолчанию H4 для Stochastic и RSI',
+      '<b>Выход:</b> только по установленным SL и TP',
+      '<b>Дефолт:</b> SL 1.5×ATR &nbsp; TP 3×ATR (перекрываются из формы)',
+      '<b>Таймфрейм:</b> H1 (база) + H4 (фильтр)',
+    ],
+    indicators: [
+      { col: 'ema50',     label: 'EMA50'     },
+      { col: 'atr',       label: 'ATR'       },
+      { col: 'htf_rsi',   label: 'HTF RSI'   },
+      { col: 'htf_stoch', label: 'HTF Stoch' },
     ],
   },
 };
@@ -1329,27 +1326,27 @@ async function populateActiveSymbols() {
 // ─── Streams (мульти-поточная торговля) ──────────────────────────
 const STREAM_TF_OPTIONS = ['M1','M5','M15','M30','H1','H4','D1'];
 const STREAM_STRATEGY_OPTIONS = [
-  ['default',              'MA + MACD + RSI (основная)'],
-  ['sr_bounce',            'S/R Bounce'],
-  ['ema_pullback',         'EMA Pullback (50/200)'],
-  ['ema_cross',            'EMA 50/200 Cross'],
-  ['ema_cross_inverse',    'EMA 8/21 Cross Inverse'],
-  ['cci_rsi',              'CCI + RSI (D1-фильтр)'],
-  ['fibonacci_retracement','Fibonacci Retracement'],
-  ['macd_hist',            'MACD Histogram'],
-  ['default_hedge',        'Default + Hedge'],
-  ['default_inverse',      'Default Inverse (MA+MACD+RSI reverse)'],
-  ['candle_reversal',      'Candlestick Reversal'],
-  ['sar_adx',              'Parabolic SAR + ADX'],
-  ['donchian_breakout',    'Donchian Breakout'],
-  ['triple_ema',           'Triple EMA Momentum'],
-  ['mean_revert_ema',      'Mean Revert 10/20 EMA'],
-  ['ema50_pullback',       'EMA50 Pullback (D1/H4)'],
-  ['ema_triple_touch',     'EMA 20/50 Triple Touch'],
-  ['market_phase',         '200 MA + Market Phase'],
-  ['combined_a_plus',      'Combined A+ (5 факторов)'],
-  ['ema50_rejection',      'EMA50 Rejection (2×ATR)'],
-  ['ema50_overstretch',    'EMA50 Overstretch (4.5×ATR фейд)'],
+  ['default',              'Трендовый вход по MA + MACD + RSI'],
+  ['sr_bounce',            'Отскок от поддержки и сопротивления'],
+  ['ema_pullback',         'Откат к EMA50 по тренду EMA200'],
+  ['ema_cross',            'Пересечение EMA50 и EMA200'],
+  ['ema_cross_inverse',    'Контрсигнал на пересечении EMA8/21'],
+  ['cci_rsi',              'Импульс CCI с фильтрами RSI и EMA200'],
+  ['fibonacci_retracement','Откат по уровням Фибоначчи'],
+  ['macd_hist',            'Смена знака гистограммы MACD'],
+  ['default_hedge',        'Двусторонний хедж по MA + MACD + RSI'],
+  ['default_inverse',      'Контртренд во флэте (инверсия основной)'],
+  ['sar_adx',              'Разворот Parabolic SAR с фильтром ADX'],
+  ['donchian_breakout',    'Пробой канала Дончиана'],
+  ['triple_ema',           'Импульс по трём EMA (8/21/50)'],
+  ['mean_revert_ema',      'Возврат к средней EMA10/20'],
+  ['ema50_pullback',       'Свинг-откат к EMA50 (H4/D1)'],
+  ['ema_triple_touch',     'Третье касание зоны EMA20/50'],
+  ['market_phase',         'Фазы рынка по наклону MA200'],
+  ['combined_a_plus',      'Слияние пяти факторов (сигнал A+)'],
+  ['ema50_rejection',      'Отбой от EMA50 в сильном тренде'],
+  ['ema50_overstretch',    'Фейд перерастяжения от EMA50'],
+  ['ema50_overstretch_mtf','Фейд перерастяжения от EMA50 (мультитаймфрейм)'],
 ];
 
 async function loadStreams() {
@@ -1695,7 +1692,7 @@ async function populateBtStrategies() {
     for (const s of items) (groups[s.family] = groups[s.family] || []).push(s);
 
     // Сохраняем «default» (он не в STRATEGIES, но есть в backend как ветвь "default")
-    let html = `<option value="default">MA + MACD + RSI (основная)</option>`;
+    let html = `<option value="default">${escapeHtml(stratDisplayName({ key: 'default' }))}</option>`;
     const order = ['candle','mean_revert','trend_follow','breakout','scalp','momentum','hedge','custom'];
     const seen = new Set();
     const fams = order.filter(f => groups[f]).concat(Object.keys(groups).filter(f => !order.includes(f)));
@@ -1707,8 +1704,7 @@ async function populateBtStrategies() {
       for (const s of arr.sort((a,b)=>a.key.localeCompare(b.key))) {
         if (seen.has(s.key)) continue;
         seen.add(s.key);
-        const desc = s.description ? ` — ${s.description}` : '';
-        html += `<option value="${escapeHtml(s.key)}">${escapeHtml(s.key)}${escapeHtml(desc)}</option>`;
+        html += `<option value="${escapeHtml(s.key)}">${escapeHtml(stratDisplayName(s))}</option>`;
       }
       html += `</optgroup>`;
     }
@@ -1750,6 +1746,11 @@ function runBacktest() {
 function renderBacktestResult(payload) {
   state.bt_strategy = payload.strategy || 'default';
   const r = payload.result;
+  if (r && r.error) {
+    document.getElementById('bt-result').innerHTML =
+      `<div style="color:var(--danger,#e25c5c)">Ошибка бэктеста: ${escapeHtml(String(r.error))}</div>`;
+    return;
+  }
   if (!r || !r.total_trades) {
     document.getElementById('bt-result').innerHTML = '<div style="color:var(--text-muted)">Нет сделок</div>';
     return;
@@ -3096,6 +3097,11 @@ const STRAT_FAMILY_LABEL = {
   custom:       'Прочее',
 };
 
+/** Русское отображаемое имя стратегии: из STRATEGY_META, затем cls.name, затем ключ. */
+function stratDisplayName(s) {
+  return (STRATEGY_META[s.key] && STRATEGY_META[s.key].name) || s.name || s.key;
+}
+
 async function loadStrategiesTab() {
   if (_stratState.loaded) return;
   try {
@@ -3122,6 +3128,7 @@ function renderStrategyList(filter = '') {
   if (!list) return;
   const items = !filter ? _stratState.items : _stratState.items.filter(s =>
     s.key.toLowerCase().includes(filter) ||
+    stratDisplayName(s).toLowerCase().includes(filter) ||
     (s.description || '').toLowerCase().includes(filter) ||
     (s.doc || '').toLowerCase().includes(filter)
   );
@@ -3138,7 +3145,7 @@ function renderStrategyList(filter = '') {
     for (const s of groups[fam]) {
       const active = (_stratState.selected === s.key) ? ' active' : '';
       html += `<div class="strat-list-item${active}" data-key="${escapeHtml(s.key)}" onclick="selectStrategy('${s.key}')">
-        <span>${escapeHtml(s.key)}</span>
+        <span>${escapeHtml(stratDisplayName(s))}</span>
         <span class="tf-badge">${escapeHtml(s.timeframe)}</span>
       </div>`;
     }
@@ -3157,11 +3164,11 @@ function selectStrategy(key) {
   const params = (s.indicators || []).map(c => `<span class="pill">${escapeHtml(c)}</span>`).join(' ');
 
   detail.innerHTML = `
-    <h2>${escapeHtml(s.key)}</h2>
+    <h2>${escapeHtml(stratDisplayName(s))}</h2>
     <div class="strat-meta">
       <span class="pill">TF: ${escapeHtml(s.timeframe)}</span>
       <span class="pill">${escapeHtml(STRAT_FAMILY_LABEL[s.family] || s.family)}</span>
-      ${s.description ? `<span class="pill">${escapeHtml(s.description)}</span>` : ''}
+      <span class="pill">${escapeHtml(s.key)}</span>
     </div>
 
     <div class="strat-section-title">Описание</div>
@@ -3170,14 +3177,10 @@ function selectStrategy(key) {
     ${params ? `<div class="strat-section-title">Индикаторы / выходные колонки</div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap">${params}</div>` : ''}
 
-    <div class="strat-section-title">Иллюстрация паттерна</div>
-    <div id="strat-svg-host"></div>
-
     <div class="strat-actions">
       <button class="btn-primary" onclick="openInBacktest('${s.key}')">Открыть в бэктесте</button>
     </div>
   `;
-  document.getElementById('strat-svg-host').innerHTML = drawStrategyExampleSVG(s);
 }
 
 /** Открыть стратегию во вкладке «Бэктест»: переключиться, заполнить селект, проскроллить. */
@@ -3191,126 +3194,6 @@ function openInBacktest(key) {
     }
     document.getElementById('bt-result')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, 50);
-}
-
-/**
- * Синтетический SVG-пример: рисует ряд свечей под архетип семейства стратегии,
- * накладывает линию (например, EMA) и помечает вход. Чисто иллюстративно.
- */
-function drawStrategyExampleSVG(s) {
-  const W = 720, H = 240, PAD = 24;
-  const N = 36;
-  // Семейные генераторы цены (детерминированные, чтобы пример не "прыгал")
-  function gen() {
-    const rng = (function (seed) {
-      let x = seed | 0; return () => { x = (x * 9301 + 49297) % 233280; return x / 233280; };
-    })((s.key || 'x').split('').reduce((a, c) => a + c.charCodeAt(0), 0));
-    const arr = [];
-    let p = 100;
-    for (let i = 0; i < N; i++) {
-      let drift = 0;
-      switch (s.family) {
-        case 'candle':
-          // Затухание тренда → разворотная свеча → откат
-          drift = (i < N * 0.50 ? -0.5 : i < N * 0.56 ? -0.05 : 0.6);
-          break;
-        case 'mean_revert':
-          // Сильный отскок от средней: рост → шип вверх → возврат
-          drift = (i < N * 0.45 ? 0.6 : i < N * 0.55 ? 1.6 : -1.0);
-          break;
-        case 'trend_follow':
-          // Прямой uptrend с откатом ~середины
-          drift = (i > N * 0.40 && i < N * 0.55) ? -0.6 : 0.55;
-          break;
-        case 'breakout':
-          // Боковик → прорыв
-          drift = (i < N * 0.62 ? (rng() - 0.5) * 0.5 : 1.1);
-          break;
-        case 'scalp':
-          // Микро-импульсы вверх с короткими откатами
-          drift = (i % 4 === 0 ? -0.4 : 0.35);
-          break;
-        case 'momentum':
-          drift = Math.sin(i / 5) * 0.6 + 0.25;
-          break;
-        case 'hedge':
-          drift = (rng() - 0.45) * 0.9;
-          break;
-        default:
-          drift = (rng() - 0.5) * 0.8;
-      }
-      const open = p;
-      p += drift + (rng() - 0.5) * 0.6;
-      const close = p;
-      const high = Math.max(open, close) + rng() * 0.5;
-      const low  = Math.min(open, close) - rng() * 0.5;
-      arr.push({ open, high, low, close });
-    }
-    return arr;
-  }
-  const data = gen();
-  const minP = Math.min(...data.map(c => c.low));
-  const maxP = Math.max(...data.map(c => c.high));
-  const range = (maxP - minP) || 1;
-  const cw = (W - PAD * 2) / N;
-  const yOf = (p) => PAD + (1 - (p - minP) / range) * (H - PAD * 2);
-
-  // EMA(9) для иллюстрации
-  const ema = []; const k = 2 / (9 + 1);
-  for (let i = 0; i < N; i++) {
-    const c = data[i].close;
-    ema.push(i === 0 ? c : ema[i-1] + k * (c - ema[i-1]));
-  }
-
-  let svg = `<svg class="strat-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">`;
-  // Фон-сетка
-  for (let g = 1; g < 4; g++) {
-    const y = PAD + (H - PAD * 2) * g / 4;
-    svg += `<line x1="${PAD}" y1="${y}" x2="${W-PAD}" y2="${y}" stroke="rgba(120,120,120,0.10)" />`;
-  }
-  // Свечи
-  for (let i = 0; i < N; i++) {
-    const c = data[i];
-    const x = PAD + i * cw + cw / 2;
-    const up = c.close >= c.open;
-    const col = up ? '#20B26C' : '#EF454A';
-    svg += `<line x1="${x}" y1="${yOf(c.high)}" x2="${x}" y2="${yOf(c.low)}" stroke="${col}" stroke-width="1" />`;
-    const yo = yOf(c.open), yc = yOf(c.close);
-    const top = Math.min(yo, yc), height = Math.max(2, Math.abs(yo - yc));
-    svg += `<rect x="${x - cw*0.35}" y="${top}" width="${cw*0.7}" height="${height}" fill="${col}" />`;
-  }
-  // EMA линия
-  let path = '';
-  for (let i = 0; i < N; i++) {
-    const x = PAD + i * cw + cw / 2;
-    path += (i ? ' L ' : 'M ') + x.toFixed(1) + ' ' + yOf(ema[i]).toFixed(1);
-  }
-  svg += `<path d="${path}" fill="none" stroke="#F7A600" stroke-width="1.5" />`;
-
-  // Точка входа: семейно-зависимая
-  let entryIdx = Math.floor(N * 0.55);
-  if (s.family === 'mean_revert')  entryIdx = Math.floor(N * 0.55);
-  if (s.family === 'trend_follow') entryIdx = Math.floor(N * 0.50);
-  if (s.family === 'breakout')     entryIdx = Math.floor(N * 0.66);
-  if (s.family === 'scalp')        entryIdx = Math.floor(N * 0.40);
-  if (s.family === 'momentum')     entryIdx = Math.floor(N * 0.55);
-  if (s.family === 'candle')       entryIdx = Math.floor(N * 0.55);
-  const ex = PAD + entryIdx * cw + cw / 2;
-  const ec = data[entryIdx].close;
-  // Для свечных и mean-revert — пример SELL у вершины; для остальных — BUY.
-  const isSell = (s.family === 'mean_revert');
-  const arrowY = isSell ? yOf(ec) - 14 : yOf(ec) + 14;
-  const aColor = isSell ? '#EF454A' : '#20B26C';
-  const arrow  = isSell
-    ? `M ${ex} ${arrowY-8} L ${ex-6} ${arrowY+2} L ${ex+6} ${arrowY+2} Z`
-    : `M ${ex} ${arrowY+8} L ${ex-6} ${arrowY-2} L ${ex+6} ${arrowY-2} Z`;
-  svg += `<path d="${arrow}" fill="${aColor}" />`;
-  svg += `<text x="${ex + 10}" y="${arrowY + 4}" fill="${aColor}" font-size="11" font-family="Inter, sans-serif" font-weight="600">${isSell ? 'SELL' : 'BUY'}</text>`;
-
-  // Подпись TF справа сверху
-  svg += `<text x="${W - PAD}" y="${PAD - 4}" text-anchor="end" fill="rgba(255,255,255,0.45)" font-size="10" font-family="JetBrains Mono, monospace">${escapeHtml(s.timeframe)} • ${escapeHtml(s.family)}</text>`;
-  svg += `</svg>`;
-  return svg;
 }
 
 // ─── Role-based visibility & auth bindings ────────────────────────

@@ -9,7 +9,6 @@ from strategies.ema_cross_inverse import EmaCrossInverseStrategy
 from strategies.cci_rsi import CciRsiStrategy
 from strategies.fibonacci_retracement import FibonacciRetracementStrategy
 from strategies.macd_hist import MacdHistStrategy
-from strategies.candle_reversal import CandleReversalStrategy
 from strategies.default_hedge import DefaultHedgeStrategy
 from strategies.default_inverse import DefaultInverseStrategy
 from strategies.mean_revert_ema import MeanRevertEmaStrategy
@@ -20,9 +19,6 @@ from strategies.combined_a_plus import CombinedAPlusStrategy
 from strategies.ema50_rejection import Ema50RejectionStrategy
 from strategies.ema50_overstretch import Ema50OverstretchStrategy
 from strategies.ema50_overstretch_mtf import Ema50OverstretchMtfStrategy
-from strategies.morning_evening_star import MorningEveningStarStrategy
-from strategies.inside_bar_breakout  import InsideBarBreakoutStrategy
-from strategies.harami_reversal      import HaramiReversalStrategy
 
 STRATEGIES = {
     # H1 внутридневные/среднесрочные
@@ -33,7 +29,6 @@ STRATEGIES = {
     'cci_rsi':               CciRsiStrategy,
     'fibonacci_retracement': FibonacciRetracementStrategy,
     'macd_hist':             MacdHistStrategy,
-    'candle_reversal':       CandleReversalStrategy,
     'default_hedge':         DefaultHedgeStrategy,
     'default_inverse':       DefaultInverseStrategy,
     # Скальпинговые (предыдущие)
@@ -49,8 +44,4 @@ STRATEGIES = {
     'ema50_rejection':       Ema50RejectionStrategy,
     'ema50_overstretch':     Ema50OverstretchStrategy,
     'ema50_overstretch_mtf': Ema50OverstretchMtfStrategy,
-    # Свечные паттерны
-    'morning_evening_star':  MorningEveningStarStrategy,
-    'inside_bar_breakout':   InsideBarBreakoutStrategy,
-    'harami_reversal':       HaramiReversalStrategy,
 }

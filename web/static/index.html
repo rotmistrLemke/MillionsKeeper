@@ -174,27 +174,27 @@
           <label class="col-full">
             Стратегия
             <select id="bt-strategy" onchange="onBtStrategyChange()">
-              <option value="default">MA + MACD + RSI (основная)</option>
-              <option value="sr_bounce">S/R Bounce</option>
-              <option value="ema_pullback">EMA Pullback (50/200)</option>
-              <option value="ema_cross">EMA 50/200 Cross</option>
-              <option value="ema_cross_inverse">EMA 8/21 Cross Inverse</option>
-              <option value="cci_rsi">CCI + RSI (D1-фильтр)</option>
-              <option value="fibonacci_retracement">Fibonacci Retracement</option>
-              <option value="macd_hist">MACD Histogram</option>
-              <option value="default_hedge">Default + Hedge</option>
-              <option value="default_inverse">Default Inverse (MA+MACD+RSI reverse)</option>
-              <option value="candle_reversal">Candlestick Reversal</option>
-              <option value="sar_adx">Parabolic SAR + ADX</option>
-              <option value="donchian_breakout">Donchian Breakout</option>
-              <option value="triple_ema">Triple EMA Momentum</option>
-              <option value="mean_revert_ema">Mean Revert 10/20 EMA</option>
-              <option value="ema50_pullback">EMA50 Pullback (D1/H4)</option>
-              <option value="ema_triple_touch">EMA 20/50 Triple Touch</option>
-              <option value="market_phase">200 MA + Market Phase</option>
-              <option value="combined_a_plus">Combined A+ (5 факторов)</option>
-              <option value="ema50_rejection">EMA50 Rejection (2×ATR)</option>
-              <option value="ema50_overstretch">EMA50 Overstretch (4.5×ATR фейд)</option>
+              <option value="default">Трендовый вход по MA + MACD + RSI</option>
+              <option value="sr_bounce">Отскок от поддержки и сопротивления</option>
+              <option value="ema_pullback">Откат к EMA50 по тренду EMA200</option>
+              <option value="ema_cross">Пересечение EMA50 и EMA200</option>
+              <option value="ema_cross_inverse">Контрсигнал на пересечении EMA8/21</option>
+              <option value="cci_rsi">Импульс CCI с фильтрами RSI и EMA200</option>
+              <option value="fibonacci_retracement">Откат по уровням Фибоначчи</option>
+              <option value="macd_hist">Смена знака гистограммы MACD</option>
+              <option value="default_hedge">Двусторонний хедж по MA + MACD + RSI</option>
+              <option value="default_inverse">Контртренд во флэте (инверсия основной)</option>
+              <option value="sar_adx">Разворот Parabolic SAR с фильтром ADX</option>
+              <option value="donchian_breakout">Пробой канала Дончиана</option>
+              <option value="triple_ema">Импульс по трём EMA (8/21/50)</option>
+              <option value="mean_revert_ema">Возврат к средней EMA10/20</option>
+              <option value="ema50_pullback">Свинг-откат к EMA50 (H4/D1)</option>
+              <option value="ema_triple_touch">Третье касание зоны EMA20/50</option>
+              <option value="market_phase">Фазы рынка по наклону MA200</option>
+              <option value="combined_a_plus">Слияние пяти факторов (сигнал A+)</option>
+              <option value="ema50_rejection">Отбой от EMA50 в сильном тренде</option>
+              <option value="ema50_overstretch">Фейд перерастяжения от EMA50</option>
+              <option value="ema50_overstretch_mtf">Фейд перерастяжения от EMA50 (мультитаймфрейм)</option>
             </select>
           </label>
 
@@ -435,10 +435,14 @@
 <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
 <script src="/static/app.js"></script>
 <script>
-  // Часы
-  setInterval(() => {
-    document.getElementById('clock').textContent = new Date().toLocaleTimeString('ru-RU');
-  }, 1000);
+  // Часы (элемент опционален — после редизайна header'а может отсутствовать)
+  (() => {
+    const el = document.getElementById('clock');
+    if (!el) return;
+    setInterval(() => {
+      el.textContent = new Date().toLocaleTimeString('ru-RU');
+    }, 1000);
+  })();
 </script>
 
 <!-- Mobile bottom tab-bar -->

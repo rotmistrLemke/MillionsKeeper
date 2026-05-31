@@ -197,7 +197,6 @@ async def get_symbols(user: auth.UserRecord = Depends(get_current_user)):
 # Меташаг: классифицируем стратегию по эвристическому семейству, чтобы
 # фронт мог нарисовать соответствующий синтетический пример.
 _STRATEGY_FAMILY_HINTS = {
-    "candle":        ["candle_reversal", "morning", "evening", "star", "harami", "inside_bar"],
     "mean_revert":   ["overstretch", "mean_revert", "fibonacci", "rejection"],
     "trend_follow":  ["pullback", "ema_cross", "triple", "phase", "combined"],
     "breakout":      ["donchian", "breakout", "sr_bounce"],
