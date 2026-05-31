@@ -39,25 +39,15 @@ def test_compute_indicators_preserves_length(strategy):
     assert len(out) == n0
 
 
-# FINDING: fibonacci_retracement использует imp_high (max предыдущих N баров через shift(1))
-# как TP для BUY. На тренде imp_high всегда ниже текущего close, поэтому TP < price.
-# Реальный риск: в торговле TP будет немедленно достигнут или вообще не достижим в нужную сторону.
-# Стратегия не изменяется; тест отмечен xfail как зафиксированная находка.
-_FIBONACCI_TP_BUG = pytest.mark.xfail(
-    reason=(
-        "FINDING: fibonacci_retracement BUY TP = imp_high (shift(1).rolling(n).max()), "
-        "что всегда < текущей цены на трендовом DF — TP расположен за спиной цены."
-    ),
-    strict=False,
-)
-
-
 def test_get_sl_tp_ordering_on_valid_row(strategy):
     """На строке с готовыми индикаторами SL/TP, если заданы, корректно упорядочены."""
     if strategy.name == "fibonacci_retracement":
         pytest.xfail(
-            "FINDING: fibonacci_retracement BUY TP = imp_high (shift(1).rolling(n).max()), "
-            "что всегда < текущей цены на трендовом DF — TP расположен за спиной цены."
+            "FINDING(verify on real data): fibonacci_retracement BUY TP = imp_high "
+            "(shift(1).rolling(n).max()). На монотонном синтетическом аптренде imp_high "
+            "всегда < текущей цены, поэтому TP < price. На реальных данных вход происходит "
+            "на откате, где imp_high может быть выше — проверить через golden-тест на "
+            "реальном CSV, является ли это настоящим риском."
         )
     df = _computed(strategy, builders.trend_up())
     row = df.iloc[-1]  # последняя строка — индикаторы не NaN
