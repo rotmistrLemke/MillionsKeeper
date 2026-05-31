@@ -77,6 +77,7 @@ def test_no_exception_on_short_dataframe(strategy):
 
 
 def test_no_exception_on_nan_rows(strategy):
-    """Начальные строки с NaN-индикаторами не ломают get_entry_signal."""
+    """Ранние строки с NaN/частично-NaN индикаторами не ломают get_entry_signal."""
     df = _computed(strategy, builders.trend_up())
-    strategy.get_entry_signal(df.iloc[0])  # самые ранние строки — NaN, не должно кидать
+    for idx in range(min(50, len(df))):
+        strategy.get_entry_signal(df.iloc[idx])  # не должно кидать

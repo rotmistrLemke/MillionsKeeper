@@ -41,16 +41,6 @@ def _append_bar(df, open_, high, low, close):
     return pd.concat([df, pd.DataFrame([crafted])], ignore_index=True)
 
 
-def _signal_at_last(strategy, df):
-    """Как _last_signal, но df уже собран (вкл. крафтовые бары)."""
-    df = strategy.compute_indicators(df)
-    df = strategy.compute_flat_indicators(df)
-    row = df.iloc[-1]
-    if strategy.is_flat(row):
-        return None
-    return strategy.get_entry_signal(row)
-
-
 def _any_signal_sequential(strategy, df):
     """Прогоняет get_entry_signal по всем барам (для стейтфул-стратегий и
     мульти-условных фильтров). Возвращает set встретившихся сигналов."""
@@ -96,7 +86,7 @@ def test_sr_bounce_support_retest_gives_buy():
     s = SrBounceStrategy()
     support = s.compute_indicators(df0.copy())["support"].iloc[-1]
     df = _append_bar(df0, open_=1981.0, high=1986.0, low=support - 0.1, close=1985.0)
-    assert _signal_at_last(s, df) == "BUY"
+    assert _last_signal(s, df) == "BUY"
 
 
 # ── ema_pullback ──────────────────────────────────────────────────────────
@@ -107,7 +97,7 @@ def test_ema_pullback_uptrend_pin_gives_buy():
     df = _append_bar(builders.from_closes(base),
                      open_=2145.0, high=2146.0, low=2136.0, close=2145.5)
     # Крафтовый бар: маленькое бычье тело + длинная нижняя тень до EMA50.
-    assert _signal_at_last(EmaPullbackStrategy(), df) == "BUY"
+    assert _last_signal(EmaPullbackStrategy(), df) == "BUY"
 
 
 # ── ema_cross_inverse ─────────────────────────────────────────────────────
@@ -141,9 +131,9 @@ def test_cci_rsi_cross_down_gives_sell():
     assert _last_signal(CciRsiStrategy(), builders.from_closes(closes)) == "SELL"
 
 
-def test_cci_rsi_flat_gives_none():
-    # На зажатом диапазоне условия пересечения CCI±100 не выполняются.
-    assert _last_signal(CciRsiStrategy(), builders.flat()) is None
+# cci_rsi не подавляет входы во флэте: на builders.flat() выдаёт 16 сигналов
+# (8 BUY + 8 SELL) при последовательном прогоне — flat→None тест неприменим
+# (проверка только последнего бара давала ложную уверенность).
 
 
 # ── fibonacci_retracement ─────────────────────────────────────────────────
@@ -155,11 +145,12 @@ def test_fibonacci_bull_retracement_gives_buy():
     df0 = builders.from_closes(base + impulse)
     # Крафтовый бар отката: бычий пин с длинной нижней тенью, закрытие в зоне фибо.
     df = _append_bar(df0, open_=2009.0, high=2010.0, low=2002.0, close=2009.5)
-    assert _signal_at_last(FibonacciRetracementStrategy(), df) == "BUY"
+    assert _last_signal(FibonacciRetracementStrategy(), df) == "BUY"
 
 
-def test_fibonacci_flat_gives_none():
-    assert _last_signal(FibonacciRetracementStrategy(), builders.flat()) is None
+def test_fibonacci_flat_no_signals():
+    # На всём флэт-ряду fibonacci не находит импульса/отката — ни одного входа.
+    assert _any_signal_sequential(FibonacciRetracementStrategy(), builders.flat()) == set()
 
 
 # ── macd_hist ─────────────────────────────────────────────────────────────
@@ -229,9 +220,9 @@ def test_donchian_breakout_accel_down_gives_sell():
     assert _last_signal(BollingerScalpStrategy(), builders.from_closes(closes)) == "SELL"
 
 
-def test_donchian_breakout_flat_gives_none():
-    # На флэте ATR ниже среднего/нет пробоя — входа нет.
-    assert _last_signal(BollingerScalpStrategy(), builders.flat()) is None
+def test_donchian_breakout_flat_no_signals():
+    # На всём флэт-ряду ATR ниже среднего/нет пробоя — ни одного входа.
+    assert _any_signal_sequential(BollingerScalpStrategy(), builders.flat()) == set()
 
 
 # ── triple_ema (stochastic_scalp) ─────────────────────────────────────────
@@ -247,8 +238,9 @@ def test_triple_ema_accel_down_gives_sell():
     assert _last_signal(StochasticScalpStrategy(), builders.from_closes(closes)) == "SELL"
 
 
-def test_triple_ema_flat_gives_none():
-    assert _last_signal(StochasticScalpStrategy(), builders.flat()) is None
+# triple_ema не подавляет входы во флэте: на builders.flat() выдаёт 109 сигналов
+# (46 BUY + 63 SELL) при последовательном прогоне — flat→None тест неприменим
+# (проверка только последнего бара давала ложную уверенность).
 
 
 # ── mean_revert_ema ───────────────────────────────────────────────────────
@@ -258,7 +250,7 @@ def test_mean_revert_ema_zone_pin_gives_buy():
     base = list(2000 + np.arange(300) * 0.5)
     df = _append_bar(builders.from_closes(base),
                      open_=2147.0, high=2147.5, low=2141.0, close=2147.3)
-    assert _signal_at_last(MeanRevertEmaStrategy(), df) == "BUY"
+    assert _last_signal(MeanRevertEmaStrategy(), df) == "BUY"
 
 
 # ── ema50_pullback ────────────────────────────────────────────────────────
@@ -268,7 +260,7 @@ def test_ema50_pullback_uptrend_pin_gives_buy():
     base = list(2000 + np.arange(300) * 0.5)
     df = _append_bar(builders.from_closes(base),
                      open_=2145.0, high=2146.0, low=2130.0, close=2145.5)
-    assert _signal_at_last(Ema50PullbackStrategy(), df) == "BUY"
+    assert _last_signal(Ema50PullbackStrategy(), df) == "BUY"
 
 
 # ── ema_triple_touch ──────────────────────────────────────────────────────
@@ -309,7 +301,7 @@ def test_combined_a_plus_uptrend_pin_gives_buy():
     base = list(2000 + np.arange(300) * 0.5)
     df = _append_bar(builders.from_closes(base),
                      open_=2145.0, high=2146.0, low=2130.0, close=2145.5)
-    assert _signal_at_last(CombinedAPlusStrategy(), df) == "BUY"
+    assert _last_signal(CombinedAPlusStrategy(), df) == "BUY"
 
 
 # ── ema50_rejection ───────────────────────────────────────────────────────
