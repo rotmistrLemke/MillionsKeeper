@@ -1,6 +1,9 @@
 
 *.xlsx
 test*
+# tests/ — каталог с тестами должен трекаться, несмотря на широкий паттерн test*
+!tests/
+!tests/**
 account*
 settings*
 active_state.json
