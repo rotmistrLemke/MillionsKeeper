@@ -39,15 +39,6 @@ _install_mt5_stub()
 # a fresh import of settings to fail — Python will reuse the cached copy.
 import settings  # noqa: E402  (intentional late import)
 
-# test_alligatorbot.py depends on alligatorBot module which is absent in this
-# branch; skip its collection gracefully so the suite can run at all.
-import os as _os
-
-_tests_dir = _os.path.dirname(__file__)
-collect_ignore: list = []
-if not _os.path.exists(_os.path.join(_tests_dir, "..", "alligatorBot.py")):
-    collect_ignore.append(_os.path.join(_tests_dir, "test_alligatorbot.py"))
-
 
 def pytest_addoption(parser):
     parser.addoption(
