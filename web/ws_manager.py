@@ -11,6 +11,21 @@ import auth
 logger = logging.getLogger("WSManager")
 
 
+def _sanitize_for_json(obj):
+    """Рекурсивно заменяет float('inf')/-inf/nan на None — стандартный JSON
+    их не поддерживает, а JSON.parse в браузере падает."""
+    import math
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    if isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sanitize_for_json(v) for v in obj]
+    return obj
+
+
 class WebSocketManager:
     """
     Управляет WebSocket-соединениями.
@@ -53,11 +68,21 @@ class WebSocketManager:
     async def broadcast(self, msg_type: str, data: dict):
         if not self._auth_by_ws:
             return
-        msg = json.dumps({
-            "msg_type": msg_type,
-            "timestamp": datetime.now().isoformat(),
-            "data": data,
-        }, default=str)
+        try:
+            # allow_nan=False: Infinity/NaN ломают JSON.parse в браузере, и
+            # onmessage молча падает (фрейм виден в Network, но UI «висит»).
+            msg = json.dumps({
+                "msg_type": msg_type,
+                "timestamp": datetime.now().isoformat(),
+                "data": data,
+            }, default=str, allow_nan=False)
+        except ValueError as e:
+            logger.warning(f"broadcast({msg_type}): неJSON-совместимое значение, sanitize: {e}")
+            msg = json.dumps({
+                "msg_type": msg_type,
+                "timestamp": datetime.now().isoformat(),
+                "data": _sanitize_for_json(data),
+            }, default=str, allow_nan=False)
         dead = set()
         for ws in list(self._auth_by_ws.keys()):
             try:

@@ -219,7 +219,12 @@ class BacktestResult:
     def profit_factor(self):
         gross_win  = sum(t['pnl_points'] for t in self.winning_trades)
         gross_loss = abs(sum(t['pnl_points'] for t in self.losing_trades))
-        return gross_win / gross_loss if gross_loss > 0 else float('inf')
+        if gross_loss > 0:
+            return gross_win / gross_loss
+        # Нет убытков → бесконечный PF. Возвращаем 0 (если и побед нет) или
+        # большое конечное число — иначе json.dumps выдаёт Infinity, которое
+        # ломает JSON.parse в браузере и UI зависает.
+        return 0.0 if gross_win == 0 else 9999.0
 
     @property
     def max_drawdown_points(self):
@@ -278,6 +283,13 @@ class BacktestResult:
 
 # ─── Движок: основная стратегия (default) ────────────────────────────────
 
+def _is_daily_or_higher_tf(timeframe) -> bool:
+    """D1/W1/MN1 — weekend-фильтр (по часам в баре) для них некорректен:
+    дневной бар у брокеров стоит на hour=0, что ложно совпадает с
+    is_monday_early и отрезает каждый понедельник."""
+    return timeframe in (mt5.TIMEFRAME_D1, mt5.TIMEFRAME_W1, mt5.TIMEFRAME_MN1)
+
+
 def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0,
                  risk_pct=80, fixed_volume=0.0, date_from=None, date_to=None):
     rates = load_rates(symbol, timeframe, bars, date_from, date_to)
@@ -285,6 +297,7 @@ def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0,
         print(f"Недостаточно данных для бэктеста {symbol}")
         return None
 
+    skip_weekend_filter = _is_daily_or_higher_tf(timeframe)
     df = pd.DataFrame(rates)
     df['time'] = pd.to_datetime(df['time'], unit='s')
     df = compute_indicators(df)
@@ -333,10 +346,13 @@ def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0,
         if dd_block_until is not None and bar_time >= dd_block_until:
             dd_block_until = None
 
-        is_friday_close = weekday == 4 and hour >= 23
-        is_weekend      = weekday in (5, 6)
-        is_monday_early = weekday == 0 and hour < 2
-        weekend_block   = is_friday_close or is_weekend or is_monday_early
+        if skip_weekend_filter:
+            weekend_block = False
+        else:
+            is_friday_close = weekday == 4 and hour >= 23
+            is_weekend      = weekday in (5, 6)
+            is_monday_early = weekday == 0 and hour < 2
+            weekend_block   = is_friday_close or is_weekend or is_monday_early
 
         if weekend_block and position is not None:
             if position['type'] == 'BUY':
@@ -388,7 +404,8 @@ def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0,
                 trade_status = 0
 
         if (position is None and trade_status == 0 and combined != 'NO_SIGNAL'
-                and dd_block_until is None and not _is_night_bar(bar_time)):
+                and dd_block_until is None
+                and (skip_weekend_filter or not _is_night_bar(bar_time))):
             entry_price = row['close']
             if combined == 'BUY':
                 entry_price += spread_points * point
@@ -471,6 +488,7 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
         print(f"  Недостаточно данных для {symbol}")
         return None
 
+    skip_weekend_filter = _is_daily_or_higher_tf(timeframe)
     df = pd.DataFrame(rates)
     df['time'] = pd.to_datetime(df['time'], unit='s')
     df = strategy.compute_indicators(df)
@@ -529,10 +547,13 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
         if dd_block_until is not None and bar_time >= dd_block_until:
             dd_block_until = None
 
-        is_friday_close = weekday == 4 and hour >= 23
-        is_weekend      = weekday in (5, 6)
-        is_monday_early = weekday == 0 and hour < 2
-        weekend_block   = is_friday_close or is_weekend or is_monday_early
+        if skip_weekend_filter:
+            weekend_block = False
+        else:
+            is_friday_close = weekday == 4 and hour >= 23
+            is_weekend      = weekday in (5, 6)
+            is_monday_early = weekday == 0 and hour < 2
+            weekend_block   = is_friday_close or is_weekend or is_monday_early
 
         def _close_hedge(ref_row, ref_i, reason):
             nonlocal current_balance, cumulative_pnl
@@ -665,7 +686,8 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
                 position = None
                 continue
 
-        if position is None and dd_block_until is None and not _is_night_bar(bar_time):
+        if (position is None and dd_block_until is None
+                and (skip_weekend_filter or not _is_night_bar(bar_time))):
             signal = strategy.get_entry_signal(row)
             if signal:
                 entry_price = row['close']
