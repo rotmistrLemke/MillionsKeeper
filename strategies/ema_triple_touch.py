@@ -25,7 +25,9 @@
 State (per symbol через runtime cache):
   _cross_side: 'UP' | 'DOWN' | None
   _touch_count: int
-  _last_tested_bar: int  — чтобы не считать соседние бары как отдельные тесты
+  _counted_dip: bool  — тест засчитан за текущий «провал» в зону; сбрасывается,
+                        когда цена закрывается ВНЕ зоны (соседние бары внутри
+                        зоны не считаются отдельными тестами)
 """
 
 import pandas as pd
@@ -39,19 +41,17 @@ class EmaTripleTouchStrategy(BaseStrategy):
     default_timeframe = "H4"
 
     def __init__(self, fast=20, mid=50, slow=200, atr_period=14,
-                 sl_atr_mult=2.0, min_tests: int = 3,
-                 min_gap_bars: int = 2):
+                 sl_atr_mult=2.0, min_tests: int = 3):
         self.fast = fast
         self.mid = mid
         self.slow = slow
         self.atr_period = atr_period
         self.sl_atr_mult = float(sl_atr_mult or 0.0)
         self.min_tests = int(min_tests)
-        self.min_gap_bars = int(min_gap_bars)  # минимум баров между тестами
         # Состояние
         self._cross_side = None        # 'UP' | 'DOWN'
         self._touch_count = 0
-        self._last_tested_ts = None    # timestamp последнего зачтённого теста
+        self._counted_dip = False      # тест засчитан за текущий заход в зону
 
     def compute_indicators(self, df):
         close = df['close'].values.astype(float)
@@ -88,11 +88,11 @@ class EmaTripleTouchStrategy(BaseStrategy):
         if bool(row.get('cross20_50_up')):
             self._cross_side = 'UP'
             self._touch_count = 0
-            self._last_tested_ts = None
+            self._counted_dip = False
         elif bool(row.get('cross20_50_down')):
             self._cross_side = 'DOWN'
             self._touch_count = 0
-            self._last_tested_ts = None
+            self._counted_dip = False
 
         # Сброс если тренд сломан 200 EMA.
         if self._cross_side == 'UP' and row['close'] < ema200:
@@ -108,19 +108,16 @@ class EmaTripleTouchStrategy(BaseStrategy):
             return
         touched = row['low'] <= zh and row['high'] >= zl
         closed_inside = zl <= row['close'] <= zh
-        if not (touched and closed_inside):
-            return
-        ts = row.get('time')
-        if self._last_tested_ts is not None and ts is not None:
-            try:
-                # не считаем тест повторно, если прошло меньше min_gap_bars
-                # (приближаемся через фактическую временную дельту: если бары
-                # идут один за другим, timestamp разница будет маленькой).
-                pass
-            except Exception:
-                pass
-        self._touch_count += 1
-        self._last_tested_ts = ts
+        if touched and closed_inside:
+            # Засчитываем тест один раз за «провал»: пока цена остаётся
+            # внутри зоны, соседние бары не считаются отдельными тестами.
+            if not self._counted_dip:
+                self._touch_count += 1
+                self._counted_dip = True
+        else:
+            # Цена закрылась вне зоны — провал завершён; следующий заход
+            # в зону засчитается как новый тест.
+            self._counted_dip = False
 
     def get_entry_signal(self, row):
         required = ('ema20', 'ema50', 'ema200', 'atr')
@@ -174,7 +171,7 @@ class EmaTripleTouchStrategy(BaseStrategy):
         if reason in ('SIGNAL', 'SL', 'TP'):
             self._cross_side = None
             self._touch_count = 0
-            self._last_tested_ts = None
+            self._counted_dip = False
 
     def indicator_columns(self):
         return ['ema20', 'ema50', 'ema200', 'atr']
