@@ -226,9 +226,8 @@ registry = StreamRegistry()
 
 # ── Module-level API ─────────────────────────────────────────────────
 def load() -> None:
-    """Загружает потоки из streams.json. Если файла нет — мигрирует из legacy active_state."""
+    """Загружает потоки из streams.json. Если файла нет — стартуем с пустым реестром."""
     if not _STREAMS_FILE.exists():
-        _migrate_from_legacy()
         return
     try:
         data = json.loads(_STREAMS_FILE.read_text(encoding="utf-8"))
@@ -251,39 +250,6 @@ def save() -> None:
         )
     except OSError as e:
         logger.warning(f"Не удалось сохранить {_STREAMS_FILE.name}: {e}")
-
-
-def _migrate_from_legacy() -> None:
-    """Разовая миграция: создаём поток из legacy GlobalValues.active_* и/или active_state.json."""
-    from settings import GlobalValues
-    from trading_status import status
-    # Попытка догрузить legacy-файл (если main.py ещё не вызвал active_state.load()).
-    legacy_file = Path(__file__).parent / "active_state.json"
-    if legacy_file.exists():
-        try:
-            import active_state  # noqa: F401
-            active_state.load()
-        except Exception as e:
-            logger.warning(f"Legacy active_state.load() failed: {e}")
-
-    symbol = GlobalValues.active_symbol
-    if not status.has(symbol):
-        logger.warning(f"Миграция отменена: symbol {symbol} неизвестен")
-        return
-    try:
-        registry.create(
-            name="Поток 1",
-            strategy=GlobalValues.active_strategy,
-            symbol=symbol,
-            timeframe=GlobalValues.time_frame,
-            volume=GlobalValues.active_volume,
-            sl_atr=GlobalValues.active_sl_atr,
-            tp_atr=GlobalValues.active_tp_atr,
-            enabled=True,
-        )
-        logger.info("Миграция: создан «Поток 1» из legacy active_* настроек")
-    except Exception as e:
-        logger.warning(f"Миграция не удалась: {e}")
 
 
 def _sync_trading_status() -> None:
