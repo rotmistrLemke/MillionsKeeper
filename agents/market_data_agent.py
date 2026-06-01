@@ -4,6 +4,7 @@ import time
 from agents.base_agent import BaseAgent, AgentStatus
 from core.event_bus import EventBus
 from core.events import EventType
+from trading_status import status
 
 
 class MarketDataAgent(BaseAgent):
@@ -25,10 +26,9 @@ class MarketDataAgent(BaseAgent):
     def _current_pairs(self) -> set[tuple[str, int]]:
         """Уникальные (symbol, tf) по enabled-потокам — с учётом symbolTradingStatus != 3."""
         import streams as streams_mod
-        from settings import Dictionary
         pairs: set[tuple[str, int]] = set()
         for s in streams_mod.registry.enabled():
-            if Dictionary.symbolTradingStatus.get(s.symbol, 3) == 3:
+            if status.is_disabled(s.symbol):
                 continue
             pairs.add((s.symbol, int(s.timeframe)))
         return pairs

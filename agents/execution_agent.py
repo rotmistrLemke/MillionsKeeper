@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, time as dtime
 from agents.base_agent import BaseAgent, AgentStatus
 from core.event_bus import EventBus
 from core.events import EventType, Event
-from settings import Dictionary
+from trading_status import status
 
 
 class ExecutionAgent(BaseAgent):
@@ -142,7 +142,7 @@ class ExecutionAgent(BaseAgent):
         p = event.payload
         symbol = p["symbol"]
         signal = p["signal"]
-        trading_status = Dictionary.symbolTradingStatus.get(symbol, 3)
+        trading_status = status.status_of(symbol)
 
         if signal == "NO_SIGNAL":
             await self.emit_status(AgentStatus.IDLE, f"{symbol}: NO_SIGNAL")
@@ -215,7 +215,7 @@ class ExecutionAgent(BaseAgent):
                         self._logger.error(f"Open hedge failed {symbol}: {he}")
                         await self.emit(EventType.ORDER_ERROR, {"symbol": symbol, "error": f"hedge:{he}"})
 
-                Dictionary.symbolTradingStatus[symbol] = 1
+                status.mark_open(symbol)
                 await self.emit(EventType.TRADING_STATUS_CHANGED, {
                     "symbol": symbol,
                     "status": 1,

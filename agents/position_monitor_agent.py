@@ -5,6 +5,7 @@ import pandas as pd
 from agents.base_agent import BaseAgent, AgentStatus
 from core.event_bus import EventBus
 from core.events import EventType
+from trading_status import status
 
 
 class PositionMonitorAgent(BaseAgent):
@@ -78,7 +79,6 @@ class PositionMonitorAgent(BaseAgent):
         Пытаемся определить причину по истории MT5 и вызвать strategy.on_trade_closed.
         """
         import streams as streams_mod
-        from settings import Dictionary
         from strategies import STRATEGIES
         from strategies.runtime import get_runtime_strategy
 
@@ -110,8 +110,8 @@ class PositionMonitorAgent(BaseAgent):
                 if p["magic"] == magic and p["symbol"] == symbol and p["ticket"] != prev_pos["ticket"]:
                     sibling_open = True
                     break
-        if Dictionary.symbolTradingStatus.get(symbol) == 1 and not sibling_open:
-            Dictionary.symbolTradingStatus[symbol] = 0
+        if status.is_open(symbol) and not sibling_open:
+            status.mark_allowed(symbol)
             await self.emit(EventType.TRADING_STATUS_CHANGED, {
                 "symbol": symbol,
                 "status": 0,
@@ -276,11 +276,10 @@ class PositionMonitorAgent(BaseAgent):
         Иначе — legacy RSI-выход (<45 для BUY, >55 для SELL).
         """
         import streams as streams_mod
-        from settings import Dictionary
         from strategies import STRATEGIES
 
         symbol = pos["symbol"]
-        trading_status = Dictionary.symbolTradingStatus.get(symbol, 3)
+        trading_status = status.status_of(symbol)
         if trading_status == 3:
             return
 

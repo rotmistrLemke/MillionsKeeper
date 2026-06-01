@@ -3,7 +3,7 @@ import asyncio
 from agents.base_agent import BaseAgent, AgentStatus
 from core.event_bus import EventBus
 from core.events import EventType, Event
-from settings import Dictionary
+from trading_status import status
 
 
 class SignalAgent(BaseAgent):
@@ -62,7 +62,7 @@ class SignalAgent(BaseAgent):
             "symbol": symbol,
             "signal": combined,
             "stream_id": p.get("stream_id"),
-            "trading_status": Dictionary.symbolTradingStatus.get(symbol, 3),
+            "trading_status": status.status_of(symbol),
             "indicators": {
                 "ma": signal_ma,
                 "ma_angle": signal_critical,
