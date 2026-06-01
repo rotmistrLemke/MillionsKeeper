@@ -21,7 +21,8 @@ def load() -> None:
         logger.warning(f"Не удалось прочитать {_STATE_FILE.name}: {e}")
         return
 
-    from settings import GlobalValues, Dictionary, TF_MAP
+    from settings import GlobalValues, TF_MAP
+    from trading_status import status
 
     strategy = data.get("strategy")
     symbol   = data.get("symbol")
@@ -32,7 +33,7 @@ def load() -> None:
 
     if isinstance(strategy, str):
         GlobalValues.active_strategy = strategy
-    if isinstance(symbol, str) and symbol in Dictionary.symbolTradingStatus:
+    if isinstance(symbol, str) and status.has(symbol):
         GlobalValues.active_symbol = symbol
     if isinstance(tf_str, str) and tf_str in TF_MAP:
         GlobalValues.time_frame = TF_MAP[tf_str]
@@ -44,9 +45,7 @@ def load() -> None:
         GlobalValues.active_tp_atr = float(tp_atr)
 
     # Активируем только сохранённую пару, остальные — выключены.
-    active_symbol = GlobalValues.active_symbol
-    for s in Dictionary.symbolTradingStatus.keys():
-        Dictionary.symbolTradingStatus[s] = 0 if s == active_symbol else 3
+    status.activate_only(GlobalValues.active_symbol)
 
     logger.info(
         f"Загружено состояние: strategy={GlobalValues.active_strategy}, "

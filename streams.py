@@ -255,7 +255,8 @@ def save() -> None:
 
 def _migrate_from_legacy() -> None:
     """Разовая миграция: создаём поток из legacy GlobalValues.active_* и/или active_state.json."""
-    from settings import GlobalValues, Dictionary
+    from settings import GlobalValues
+    from trading_status import status
     # Попытка догрузить legacy-файл (если main.py ещё не вызвал active_state.load()).
     legacy_file = Path(__file__).parent / "active_state.json"
     if legacy_file.exists():
@@ -266,7 +267,7 @@ def _migrate_from_legacy() -> None:
             logger.warning(f"Legacy active_state.load() failed: {e}")
 
     symbol = GlobalValues.active_symbol
-    if symbol not in Dictionary.symbolTradingStatus:
+    if not status.has(symbol):
         logger.warning(f"Миграция отменена: symbol {symbol} неизвестен")
         return
     try:
@@ -286,15 +287,10 @@ def _migrate_from_legacy() -> None:
 
 
 def _sync_trading_status() -> None:
-    """Приводит Dictionary.symbolTradingStatus к enabled-потокам.
-    0 = разрешено, 3 = выключено. Символы со статусом 1 (открытая позиция) не трогаем.
-    """
-    from settings import Dictionary
-    enabled_symbols = {s.symbol for s in registry.enabled()}
-    for sym, cur in list(Dictionary.symbolTradingStatus.items()):
-        if cur == 1:
-            continue
-        Dictionary.symbolTradingStatus[sym] = 0 if sym in enabled_symbols else 3
+    """Приводит статусы к enabled-потокам: enabled-символы → ALLOWED, прочие → DISABLED.
+    Символы с открытой позицией (OPEN) не трогаем."""
+    from trading_status import status
+    status.sync_enabled({s.symbol for s in registry.enabled()})
 
 
 def unique_symbol_tf_pairs() -> set[tuple[str, int]]:

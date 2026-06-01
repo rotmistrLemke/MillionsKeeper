@@ -34,8 +34,8 @@ logger = logging.getLogger("Main")
 
 def _get_active_symbols():
     """Возвращает символы со статусом != 3 (не выключены)."""
-    from settings import Dictionary
-    return [s for s, v in Dictionary.symbolTradingStatus.items() if v != 3]
+    from trading_status import status
+    return status.active_symbols()
 
 
 async def main():
