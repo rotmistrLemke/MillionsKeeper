@@ -127,7 +127,7 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
         return
 
     # Команды, которые может выполнять только admin.
-    ADMIN_ONLY = {"close_position", "set_active_strategy", "set_trading_status"}
+    ADMIN_ONLY = {"close_position", "set_trading_status"}
     if action in ADMIN_ONLY:
         import auth as auth_mod
         user = ws_manager.user_of(ws)
@@ -186,80 +186,6 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
                 "reason": "manual_ws",
             }
         ))
-
-    elif action == "set_active_strategy":
-        from core.events import Event, EventType
-        from settings import GlobalValues, TF_MAP
-        from trading_status import status
-        from strategies.runtime import reset_all as reset_strategy_cache
-        strategy = cmd.get("strategy", "default")
-        tf_str   = cmd.get("timeframe", "H1")
-        tf_enum  = TF_MAP.get(tf_str, GlobalValues.time_frame)
-        symbol   = cmd.get("symbol") or GlobalValues.active_symbol
-        try:
-            volume = float(cmd.get("volume", 0) or 0)
-        except (TypeError, ValueError):
-            volume = 0.0
-        if volume < 0:
-            volume = 0.0
-
-        def _parse_mult(key):
-            try:
-                v = float(cmd.get(key, 0) or 0)
-            except (TypeError, ValueError):
-                v = 0.0
-            return max(0.0, v)
-
-        sl_atr = _parse_mult("sl_atr")
-        tp_atr = _parse_mult("tp_atr")
-
-        if not status.has(symbol):
-            await ws_manager.send_to(ws, "active_strategy_changed", {
-                "error": f"Unknown symbol: {symbol}",
-            })
-            return
-
-        # Сброс кэша экземпляров — чтобы внутреннее состояние (напр. _blocked_side)
-        # не переносилось между применениями стратегии.
-        reset_strategy_cache()
-
-        GlobalValues.active_strategy = strategy
-        GlobalValues.time_frame      = tf_enum
-        GlobalValues.active_symbol   = symbol
-        GlobalValues.active_volume   = volume
-        GlobalValues.active_sl_atr   = sl_atr
-        GlobalValues.active_tp_atr   = tp_atr
-
-        # Активируем только выбранный символ (0 = разрешено, 3 = выключено).
-        # Позиции с активным ордером (статус 1) не трогаем — PositionMonitor
-        # сбросит их в 0 при закрытии.
-        status.activate_only(symbol)
-
-        # Персистим выбор — чтобы сохранялся между перезапусками.
-        import active_state
-        active_state.save()
-
-        await bus.publish(Event(
-            type=EventType.TRADING_STATUS_CHANGED,
-            source="ws_client",
-            payload={
-                "action":    "set_active_strategy",
-                "strategy":  strategy,
-                "timeframe": tf_str,
-                "symbol":    symbol,
-                "volume":    volume,
-                "sl_atr":    sl_atr,
-                "tp_atr":    tp_atr,
-            }
-        ))
-        await ws_manager.broadcast("active_strategy_changed", {
-            "strategy":  strategy,
-            "timeframe": tf_str,
-            "symbol":    symbol,
-            "volume":    volume,
-            "sl_atr":    sl_atr,
-            "tp_atr":    tp_atr,
-        })
 
     elif action == "chart_subscribe":
         symbol = cmd.get("symbol")

@@ -32,15 +32,8 @@ logging.basicConfig(
 logger = logging.getLogger("Main")
 
 
-def _get_active_symbols():
-    """Возвращает символы со статусом != 3 (не выключены)."""
-    from trading_status import status
-    return status.active_symbols()
-
-
 async def main():
     import MetaTrader5 as mt5
-    from settings import GlobalValues
 
     # ── Авторизация MT5 ──────────────────────────────────────────
     # ВАЖНО: имя локальной переменной — `mt5_auth`, а не `auth`. Иначе её
@@ -60,10 +53,6 @@ async def main():
     from trading import Trading
     trading = Trading()
 
-    # ── Восстановление последней выбранной стратегии ─────────────
-    import active_state
-    active_state.load()
-
     # ── Авторизация: загрузка пользователей ──────────────────────
     import auth
     auth.load()
@@ -72,10 +61,7 @@ async def main():
     import streams
     streams.load()
 
-    # ── Список активных символов ──────────────────────────────────
-    symbols = _get_active_symbols()
-    timeframe = GlobalValues.time_frame
-    logger.info(f"Активных символов: {len(symbols)} | потоков: {len(streams.registry.all())}")
+    logger.info(f"Потоков: {len(streams.registry.all())}")
 
     # ── Агенты ───────────────────────────────────────────────────
     from agents.market_data_agent   import MarketDataAgent
@@ -113,8 +99,8 @@ async def main():
     )
 
     agents = [
-        MarketDataAgent("MarketData",  bus, symbols, timeframe, poll_interval=10.0),
-        IndicatorAgent("Indicator",    bus, timeframe),
+        MarketDataAgent("MarketData",  bus, poll_interval=10.0),
+        IndicatorAgent("Indicator",    bus),
         SignalAgent("Signal",          bus),
         ExecutionAgent("Execution",    bus, trading),
         PositionMonitorAgent("PosMon", bus, trading, poll_interval=5.0),

@@ -678,21 +678,6 @@ async def get_trading_status(user: auth.UserRecord = Depends(get_current_user)):
     return {"status": status.snapshot()}
 
 
-# ──────────────────────────── Active strategy ────────────────────
-
-@router.get("/active_strategy")
-async def get_active_strategy(user: auth.UserRecord = Depends(get_current_user)):
-    from settings import GlobalValues, TF_REVERSE
-    return {
-        "strategy":  GlobalValues.active_strategy,
-        "symbol":    GlobalValues.active_symbol,
-        "timeframe": TF_REVERSE.get(GlobalValues.time_frame, "H1"),
-        "volume":    GlobalValues.active_volume,
-        "sl_atr":    GlobalValues.active_sl_atr,
-        "tp_atr":    GlobalValues.active_tp_atr,
-    }
-
-
 # ──────────────────────────── Streams (мульти-поточная торговля) ──
 
 class StreamCreateRequest(BaseModel):
