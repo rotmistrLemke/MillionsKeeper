@@ -12,7 +12,7 @@ _STATE_FILE = Path(__file__).parent / "active_state.json"
 
 
 def load() -> None:
-    """Применяет сохранённое состояние к GlobalValues и Dictionary.symbolTradingStatus."""
+    """Применяет сохранённое состояние к GlobalValues и статусам торговли (trading_status)."""
     if not _STATE_FILE.exists():
         return
     try:
