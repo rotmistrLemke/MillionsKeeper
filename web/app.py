@@ -189,7 +189,8 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
 
     elif action == "set_active_strategy":
         from core.events import Event, EventType
-        from settings import GlobalValues, Dictionary, TF_MAP
+        from settings import GlobalValues, TF_MAP
+        from trading_status import status
         from strategies.runtime import reset_all as reset_strategy_cache
         strategy = cmd.get("strategy", "default")
         tf_str   = cmd.get("timeframe", "H1")
@@ -212,7 +213,7 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
         sl_atr = _parse_mult("sl_atr")
         tp_atr = _parse_mult("tp_atr")
 
-        if symbol not in Dictionary.symbolTradingStatus:
+        if not status.has(symbol):
             await ws_manager.send_to(ws, "active_strategy_changed", {
                 "error": f"Unknown symbol: {symbol}",
             })
@@ -232,10 +233,7 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
         # Активируем только выбранный символ (0 = разрешено, 3 = выключено).
         # Позиции с активным ордером (статус 1) не трогаем — PositionMonitor
         # сбросит их в 0 при закрытии.
-        for s, st in list(Dictionary.symbolTradingStatus.items()):
-            if st == 1:
-                continue
-            Dictionary.symbolTradingStatus[s] = 0 if s == symbol else 3
+        status.activate_only(symbol)
 
         # Персистим выбор — чтобы сохранялся между перезапусками.
         import active_state
@@ -273,14 +271,14 @@ async def _handle_ws_command(ws: WebSocket, raw: str):
         chart_streamer.unsubscribe(ws)
 
     elif action == "set_trading_status":
-        from settings import Dictionary
+        from trading_status import status
         from core.events import Event, EventType
         symbol = cmd.get("symbol")
-        status = cmd.get("status", 3)
-        if symbol in Dictionary.symbolTradingStatus:
-            Dictionary.symbolTradingStatus[symbol] = status
+        status_value = cmd.get("status", 3)
+        if status.has(symbol):
+            status.set_status(symbol, status_value)
             await bus.publish(Event(
                 type=EventType.TRADING_STATUS_CHANGED,
                 source="ws_client",
-                payload={"symbol": symbol, "status": status, "reason": "ws_command"}
+                payload={"symbol": symbol, "status": status_value, "reason": "ws_command"}
             ))

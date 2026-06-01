@@ -189,8 +189,8 @@ async def get_candles(symbol: str, timeframe: str = "H1", bars: int = 500,
 
 @router.get("/symbols")
 async def get_symbols(user: auth.UserRecord = Depends(get_current_user)):
-    from settings import Dictionary
-    return {"symbols": list(Dictionary.symbolTradingStatus.keys())}
+    from trading_status import status
+    return {"symbols": status.symbols()}
 
 
 # ──────────────────────────── Strategies catalog ─────────────────
@@ -660,10 +660,10 @@ class TradingStatusRequest(BaseModel):
 @router.post("/trading/status")
 async def set_trading_status(req: TradingStatusRequest,
                              admin: auth.UserRecord = Depends(require_admin)):
-    from settings import Dictionary
-    if req.symbol not in Dictionary.symbolTradingStatus:
+    from trading_status import status
+    if not status.has(req.symbol):
         raise HTTPException(status_code=404, detail=f"Символ {req.symbol} не найден")
-    Dictionary.symbolTradingStatus[req.symbol] = req.status
+    status.set_status(req.symbol, req.status)
     await bus.publish(Event(
         type=EventType.TRADING_STATUS_CHANGED,
         source="api",
@@ -674,8 +674,8 @@ async def set_trading_status(req: TradingStatusRequest,
 
 @router.get("/trading/status")
 async def get_trading_status(user: auth.UserRecord = Depends(get_current_user)):
-    from settings import Dictionary
-    return {"status": Dictionary.symbolTradingStatus}
+    from trading_status import status
+    return {"status": status.snapshot()}
 
 
 # ──────────────────────────── Active strategy ────────────────────
@@ -724,8 +724,8 @@ class StreamUpdateRequest(BaseModel):
 
 
 def _validate_symbol(symbol: str):
-    from settings import Dictionary
-    if symbol not in Dictionary.symbolTradingStatus:
+    from trading_status import status
+    if not status.has(symbol):
         raise HTTPException(status_code=400, detail=f"Неизвестный символ: {symbol}")
 
 
