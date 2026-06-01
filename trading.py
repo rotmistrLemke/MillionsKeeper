@@ -1,6 +1,7 @@
 import MetaTrader5 as mt5
 import pandas as pd
 from settings import TargetType, Dictionary
+from trading_status import status
 from indicators import ATR
 import time
 from market_data_cache import cache
@@ -63,8 +64,8 @@ class Trading:
                 print("4. order_send failed, retcode={}".format(result.retcode))
                 print("   result", result)
         else:
-            dict.symbolTradingStatus[symbol] = 1
-            print(f"Пара {symbol} Ордер {result.order} цена {result.price} статус торговли: {dict.symbolTradingStatus[symbol]}")
+            status.mark_open(symbol)
+            print(f"Пара {symbol} Ордер {result.order} цена {result.price} статус торговли: {status.status_of(symbol)}")
 
         return {"order": result.order, "price": result.price, "symbol": symbol, "targetType": type}
 
@@ -270,8 +271,7 @@ class Trading:
                         continue
                     return 0
 
-                active_symbols = [s for s in dict.symbolTradingStatus.keys()
-                                if dict.symbolTradingStatus.get(s, 0) < 3]
+                active_symbols = status.active_symbols()
                 orders = self.getPositions()
 
                 balance = account_info.balance
