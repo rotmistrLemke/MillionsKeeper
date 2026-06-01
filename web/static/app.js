@@ -451,7 +451,6 @@ const state = {
   history: { today: {}, week: {}, month: {} },
   backtest_result: null,
   bt_strategy: 'default',
-  active_strategy: null,
   streams: [],
   streams_max: 10,
   log_lines: [],
@@ -541,20 +540,6 @@ function handleMessage(msg) {
     renderAgents();
     (data.recent_events || []).reverse().forEach(addLogLine);
     renderLog();
-    if (data.active_strategy) {
-      state.active_strategy = data.active_strategy;
-      renderActiveStrategy();
-      syncActiveStrategyForm();
-    }
-    return;
-  }
-
-  if (msg_type === 'active_strategy_changed') {
-    if (data && !data.error) {
-      state.active_strategy = data;
-      renderActiveStrategy();
-      syncActiveStrategyForm();
-    }
     return;
   }
 
@@ -1244,83 +1229,6 @@ function renderStrategyDesc(stratKey, containerId) {
 function onBtStrategyChange() {
   const val = document.getElementById('bt-strategy').value;
   renderStrategyDesc(val, 'bt-strategy-desc');
-}
-
-function onActiveStrategyChange() {
-  const val = document.getElementById('active-strategy').value;
-  renderStrategyDesc(val, 'active-strategy-desc');
-}
-
-function setActiveStrategy() {
-  const strategy  = document.getElementById('active-strategy').value;
-  const timeframe = document.getElementById('active-timeframe')?.value || 'H1';
-  const symbol    = document.getElementById('active-symbol')?.value || 'XAUUSDrfd';
-  const volume    = parseFloat(document.getElementById('active-volume')?.value || '0') || 0;
-  const sl_atr    = parseFloat(document.getElementById('active-sl-atr')?.value || '0') || 0;
-  const tp_atr    = parseFloat(document.getElementById('active-tp-atr')?.value || '0') || 0;
-  sendCmd({ cmd: 'set_active_strategy', strategy, timeframe, symbol, volume, sl_atr, tp_atr });
-  const btn = document.getElementById('btn-set-strategy');
-  if (btn) { btn.textContent = '✓ Применено'; setTimeout(() => { btn.textContent = '✓ Применить'; }, 2000); }
-}
-
-function renderActiveStrategy() {
-  const s = state.active_strategy;
-  if (!s) return;
-  const meta = STRATEGY_META[s.strategy] || { name: s.strategy };
-  const labelEl = document.getElementById('asp-strategy');
-  const symEl   = document.getElementById('asp-symbol');
-  const tfEl    = document.getElementById('asp-timeframe');
-  const volEl   = document.getElementById('asp-volume');
-  const slEl    = document.getElementById('asp-sl');
-  const tpEl    = document.getElementById('asp-tp');
-  if (labelEl) labelEl.textContent = meta.name || s.strategy || '—';
-  if (symEl)   symEl.textContent   = s.symbol || '—';
-  if (tfEl)    tfEl.textContent    = s.timeframe || '—';
-  if (volEl) {
-    const v = Number(s.volume || 0);
-    volEl.textContent = v > 0 ? `${v.toFixed(2)} лот` : 'Авто';
-  }
-  const fmtAtr = (v) => {
-    const n = Number(v || 0);
-    return n > 0 ? `${n}×ATR` : 'выкл';
-  };
-  if (slEl) slEl.textContent = fmtAtr(s.sl_atr);
-  if (tpEl) tpEl.textContent = fmtAtr(s.tp_atr);
-}
-
-function syncActiveStrategyForm() {
-  const s = state.active_strategy;
-  if (!s) return;
-  const stratSel = document.getElementById('active-strategy');
-  const tfSel    = document.getElementById('active-timeframe');
-  const symSel   = document.getElementById('active-symbol');
-  const volInp   = document.getElementById('active-volume');
-  const slInp    = document.getElementById('active-sl-atr');
-  const tpInp    = document.getElementById('active-tp-atr');
-  if (stratSel && s.strategy) stratSel.value = s.strategy;
-  if (tfSel && s.timeframe)   tfSel.value    = s.timeframe;
-  if (symSel && s.symbol) {
-    const has = Array.from(symSel.options).some(o => o.value === s.symbol);
-    if (has) symSel.value = s.symbol;
-  }
-  if (volInp && s.volume != null) volInp.value = s.volume;
-  if (slInp  && s.sl_atr != null) slInp.value  = s.sl_atr;
-  if (tpInp  && s.tp_atr != null) tpInp.value  = s.tp_atr;
-}
-
-async function populateActiveSymbols() {
-  const sel = document.getElementById('active-symbol');
-  if (!sel) return;
-  try {
-    const r = await fetch('/api/symbols');
-    const d = await r.json();
-    const symbols = d.symbols || [];
-    if (!symbols.length) return;
-    const current = state.active_strategy?.symbol || 'XAUUSDrfd';
-    sel.innerHTML = symbols.map(s =>
-      `<option value="${s}" ${s === current ? 'selected' : ''}>${s}</option>`
-    ).join('');
-  } catch {}
 }
 
 // ─── Streams (мульти-поточная торговля) ──────────────────────────

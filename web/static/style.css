@@ -1249,58 +1249,6 @@ tr:hover td { background: var(--surface2); }
 .bt-pagination button:disabled { opacity: 0.35; cursor: default; }
 .bt-page-dots { color: var(--text-dim); font-size: 13px; padding: 0 4px; }
 
-/* ── Active strategy panel ── */
-.active-strategy-panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 14px 18px;
-  margin: 14px 16px 0;
-}
-.asp-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
-}
-.asp-title {
-  font-size: 10px;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  letter-spacing: 1.2px;
-  font-weight: 600;
-}
-.asp-strategy {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--accent);
-}
-.asp-row {
-  display: flex;
-  gap: 28px;
-  flex-wrap: wrap;
-}
-.asp-item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.asp-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  letter-spacing: 0.6px;
-}
-.asp-value {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-
 /* ── Streams table (мульти-поточная торговля) ── */
 .card-title-row {
   display: flex;
