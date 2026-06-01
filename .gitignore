@@ -6,6 +6,9 @@ test*
 !tests/**
 account*
 settings*
+# settings.py — несекретный конфиг (TF-карты, спреды, стоп-лоссы), должен
+# трекаться; реальные секреты — в account.py (остаётся под ignore).
+!settings.py
 active_state.json
 streams.json
 users.json
