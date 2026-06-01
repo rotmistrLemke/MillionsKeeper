@@ -1,0 +1,58 @@
+{
+  "summary": {
+    "total_trades": 6,
+    "win_rate": 0.0,
+    "total_pnl_points": -285.3658,
+    "max_drawdown_points": 285.3658
+  },
+  "trades": [
+    {
+      "type": "SELL",
+      "entry_price": 1999.7487,
+      "exit_price": 2000.212,
+      "pnl_points": -48.3324,
+      "exit_reason": "RSI",
+      "bars_held": 13
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1999.6936,
+      "exit_price": 2000.2771,
+      "pnl_points": -60.3511,
+      "exit_reason": "RSI",
+      "bars_held": 15
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1999.7378,
+      "exit_price": 2000.0764,
+      "pnl_points": -35.8551,
+      "exit_reason": "WEEKEND",
+      "bars_held": 11
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1999.7367,
+      "exit_price": 2000.2734,
+      "pnl_points": -55.6694,
+      "exit_reason": "RSI",
+      "bars_held": 36
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1999.7199,
+      "exit_price": 2000.225,
+      "pnl_points": -52.5068,
+      "exit_reason": "RSI",
+      "bars_held": 20
+    },
+    {
+      "type": "BUY",
+      "entry_price": 2000.2307,
+      "exit_price": 1999.9242,
+      "pnl_points": -32.651,
+      "exit_reason": "WEEKEND",
+      "bars_held": 8
+    }
+  ]
+}
