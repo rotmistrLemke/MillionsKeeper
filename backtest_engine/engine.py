@@ -8,6 +8,7 @@ from backtest_engine.result import BacktestResult
 from backtest_engine.trades import _calc_pnl_points, _make_default_trade, _make_strategy_trade
 from backtest_engine.sizing import calc_volume
 from backtest_engine.data import load_rates
+from backtest_engine._scaffolding import next_monday, is_weekend_block
 
 
 # ─── Движок: основная стратегия (default) ────────────────────────────────
@@ -45,10 +46,6 @@ def _run_default_on_df(df, *, point, symbol_info, skip_weekend_filter,
     trade_status    = 0
     warmup          = 50
 
-    def _next_monday(ts: pd.Timestamp) -> pd.Timestamp:
-        days = 7 - ts.weekday() if ts.weekday() > 0 else 7
-        return (ts + pd.Timedelta(days=days)).normalize()
-
     def _update_dd_block(ts: pd.Timestamp):
         nonlocal peak_balance, dd_block_until
         if peak_balance <= 0:
@@ -60,7 +57,7 @@ def _run_default_on_df(df, *, point, symbol_info, skip_weekend_filter,
             return
         dd_pct = (peak_balance - current_balance) / peak_balance
         if dd_pct > 0.35:
-            dd_block_until = _next_monday(ts)
+            dd_block_until = next_monday(ts)
 
     for i in range(warmup, len(df)):
         row = df.iloc[i]
@@ -79,10 +76,7 @@ def _run_default_on_df(df, *, point, symbol_info, skip_weekend_filter,
         if skip_weekend_filter:
             weekend_block = False
         else:
-            is_friday_close = weekday == 4 and hour >= 23
-            is_weekend      = weekday in (5, 6)
-            is_monday_early = weekday == 0 and hour < 2
-            weekend_block   = is_friday_close or is_weekend or is_monday_early
+            weekend_block = is_weekend_block(weekday, hour)
 
         if weekend_block and position is not None:
             if position['type'] == 'BUY':
@@ -242,10 +236,6 @@ def _run_strategy_on_df(strategy, df, *, point, symbol_info, skip_weekend_filter
     dd_block_until  = None  # pd.Timestamp; запрет входов до начала следующей недели
     warmup          = 60
 
-    def _next_monday(ts: pd.Timestamp) -> pd.Timestamp:
-        days = 7 - ts.weekday() if ts.weekday() > 0 else 7
-        return (ts + pd.Timedelta(days=days)).normalize()
-
     def _update_dd_block(ts: pd.Timestamp):
         nonlocal peak_balance, dd_block_until
         if peak_balance <= 0:
@@ -257,7 +247,7 @@ def _run_strategy_on_df(strategy, df, *, point, symbol_info, skip_weekend_filter
             return
         dd_pct = (peak_balance - current_balance) / peak_balance
         if dd_pct > 0.35:
-            dd_block_until = _next_monday(ts)
+            dd_block_until = next_monday(ts)
 
     for i in range(warmup, len(df)):
         row = df.iloc[i]
@@ -275,10 +265,7 @@ def _run_strategy_on_df(strategy, df, *, point, symbol_info, skip_weekend_filter
         if skip_weekend_filter:
             weekend_block = False
         else:
-            is_friday_close = weekday == 4 and hour >= 23
-            is_weekend      = weekday in (5, 6)
-            is_monday_early = weekday == 0 and hour < 2
-            weekend_block   = is_friday_close or is_weekend or is_monday_early
+            weekend_block = is_weekend_block(weekday, hour)
 
         def _close_hedge(ref_row, ref_i, reason):
             nonlocal current_balance, cumulative_pnl
