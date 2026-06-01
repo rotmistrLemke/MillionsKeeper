@@ -24,7 +24,7 @@ class MarketDataAgent(BaseAgent):
         self.metrics["poll_interval_sec"] = poll_interval
 
     def _current_pairs(self) -> set[tuple[str, int]]:
-        """Уникальные (symbol, tf) по enabled-потокам — с учётом symbolTradingStatus != 3."""
+        """Уникальные (symbol, tf) по enabled-потокам — с учётом статуса торговли (не DISABLED)."""
         import streams as streams_mod
         pairs: set[tuple[str, int]] = set()
         for s in streams_mod.registry.enabled():
