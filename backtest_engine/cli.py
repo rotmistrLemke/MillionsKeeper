@@ -11,8 +11,6 @@ from backtest_engine.report import print_report
 
 
 def main():
-    from strategies import STRATEGIES
-
     all_strategies = ['default'] + list(STRATEGIES.keys())
 
     parser = argparse.ArgumentParser(description='Бэктест торговых стратегий TradingHouse')
