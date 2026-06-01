@@ -297,13 +297,21 @@ def run_backtest(symbol, timeframe, bars=2000, spread_points=0, deposit=0.0,
         print(f"Недостаточно данных для бэктеста {symbol}")
         return None
 
-    skip_weekend_filter = _is_daily_or_higher_tf(timeframe)
     df = pd.DataFrame(rates)
     df['time'] = pd.to_datetime(df['time'], unit='s')
-    df = compute_indicators(df)
+    symbol_info = mt5.symbol_info(symbol)
+    point       = symbol_info.point if symbol_info else 0.0001
+    return _run_default_on_df(
+        df, point=point, symbol_info=symbol_info,
+        skip_weekend_filter=_is_daily_or_higher_tf(timeframe),
+        spread_points=spread_points, deposit=deposit,
+        risk_pct=risk_pct, fixed_volume=fixed_volume,
+    )
 
-    symbol_info       = mt5.symbol_info(symbol)
-    point             = symbol_info.point if symbol_info else 0.0001
+
+def _run_default_on_df(df, *, point, symbol_info, skip_weekend_filter,
+                       spread_points=0, deposit=0.0, risk_pct=80, fixed_volume=0.0):
+    df = compute_indicators(df)
     pip_value_per_lot = 1
 
     result          = BacktestResult(initial_deposit=deposit)
@@ -488,9 +496,23 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
         print(f"  Недостаточно данных для {symbol}")
         return None
 
-    skip_weekend_filter = _is_daily_or_higher_tf(timeframe)
     df = pd.DataFrame(rates)
     df['time'] = pd.to_datetime(df['time'], unit='s')
+    symbol_info = mt5.symbol_info(symbol)
+    point       = symbol_info.point if symbol_info else 0.0001
+    return _run_strategy_on_df(
+        strategy, df, point=point, symbol_info=symbol_info,
+        skip_weekend_filter=_is_daily_or_higher_tf(timeframe),
+        spread_points=spread_points, deposit=deposit, risk_pct=risk_pct,
+        fixed_volume=fixed_volume, sl_atr_mult=sl_atr_mult, tp_atr_mult=tp_atr_mult,
+        breakeven_atr_mult=breakeven_atr_mult, trail_atr_mult=trail_atr_mult,
+    )
+
+
+def _run_strategy_on_df(strategy, df, *, point, symbol_info, skip_weekend_filter,
+                        spread_points=0, deposit=0.0, risk_pct=80, fixed_volume=0.0,
+                        sl_atr_mult=0.0, tp_atr_mult=0.0,
+                        breakeven_atr_mult=0.0, trail_atr_mult=0.0):
     df = strategy.compute_indicators(df)
 
     # ATR нужен для SL/TP/breakeven/trail — считаем, если стратегия не предоставила.
@@ -505,8 +527,6 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
             timeperiod=14,
         )
 
-    symbol_info       = mt5.symbol_info(symbol)
-    point             = symbol_info.point if symbol_info else 0.0001
     pip_value_per_lot = 1
 
     result          = BacktestResult(initial_deposit=deposit)
