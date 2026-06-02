@@ -3,8 +3,6 @@
 Это характеризация существующего кода: тест фиксирует ТЕКУЩЕЕ поведение.
 Если тест красный — сверяемся с кодом и правим ожидание под факт (не код).
 """
-from types import SimpleNamespace
-
 import pytest
 
 from settings import TargetType
