@@ -4,7 +4,6 @@ import argparse
 import MetaTrader5 as mt5
 from datetime import datetime
 from authenticator import MT5Auth
-from account import Account
 from strategies import STRATEGIES
 from backtest_engine.engine import run_backtest, run_strategy_backtest
 from backtest_engine.report import print_report
@@ -39,6 +38,11 @@ def main():
     date_from = datetime.strptime(args.start, '%Y-%m-%d') if args.start else None
     date_to   = datetime.strptime(args.end,   '%Y-%m-%d') if args.end   else None
 
+    # Ленивый импорт: account.py содержит боевые секреты MT5 и gitignored,
+    # поэтому он нужен только при реальном запуске CLI, а не при импорте модуля
+    # (фасад backtest.py ре-экспортирует main, и без этого сборка тестов в CI
+    # падала бы ModuleNotFoundError: No module named 'account').
+    from account import Account
     account = Account.account
     auth = MT5Auth(account)
     auth.login()

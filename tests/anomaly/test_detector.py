@@ -13,7 +13,7 @@ def _make_df(closes, highs=None, lows=None):
     if lows is None:
         lows = closes - 0.5
     return pd.DataFrame({
-        "time": pd.date_range("2026-05-01", periods=len(closes), freq="H", tz="UTC"),
+        "time": pd.date_range("2026-05-01", periods=len(closes), freq="h", tz="UTC"),
         "open": closes,
         "high": highs,
         "low":  lows,
