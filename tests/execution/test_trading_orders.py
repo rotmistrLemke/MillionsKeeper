@@ -174,3 +174,17 @@ class TestModifySL:
         t.mt5.positions = [make_position(t.mt5, type=t.mt5.ORDER_TYPE_BUY)]
         t.mt5.set_result(retcode=10004, order=1, price=0.0)
         assert t.trading.modifySL(555, "S", 1899.0) is False
+
+
+class TestOrderOpenFindings:
+    @pytest.mark.xfail(
+        reason="находка E1: при order_send→None строка trading.py:70 'result.order' "
+               "даёт AttributeError; желаемое поведение — graceful-возврат без падения",
+        raises=AttributeError, strict=True,
+    )
+    def test_order_send_none_should_not_crash(self, patched_trading):
+        t = patched_trading
+        t.mt5.set_result_none()
+        # Желаемое: не падать, а вернуть результат с order=None (или None).
+        out = t.trading.orderOpen("S", TargetType.LONG, 0.1, "c")
+        assert out["order"] is None
