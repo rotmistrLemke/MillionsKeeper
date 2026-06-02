@@ -129,3 +129,48 @@ class TestOrderClose:
         t.mt5.positions = [make_position(t.mt5)]
         t.mt5.set_result(retcode=10004, order=1, price=1900.0)
         assert t.trading.orderClose(555, "S", "TP") is False
+
+
+class TestModifySL:
+    def test_no_position_returns_false(self, patched_trading):
+        t = patched_trading
+        t.mt5.positions = []
+        assert t.trading.modifySL(555, "S", 1899.0) is False
+        assert t.mt5.sent == []
+
+    def test_buy_sl_too_close_blocked_without_send(self, patched_trading):
+        # point=0.01, trade_stops_level=10 → min_dist=0.1; bid=1900 → порог 1899.9
+        t = patched_trading
+        t.mt5.positions = [make_position(t.mt5, type=t.mt5.ORDER_TYPE_BUY)]
+        assert t.trading.modifySL(555, "S", 1899.95) is False  # >= 1899.9
+        assert t.mt5.sent == []
+
+    def test_sell_sl_too_close_blocked_without_send(self, patched_trading):
+        # SELL: ref=ask=1900.5; порог = 1900.5 + 0.1 = 1900.6
+        t = patched_trading
+        t.mt5.positions = [make_position(t.mt5, type=t.mt5.ORDER_TYPE_SELL)]
+        assert t.trading.modifySL(555, "S", 1900.55) is False  # <= 1900.6
+        assert t.mt5.sent == []
+
+    def test_valid_buy_sl_sends_sltp_rounded(self, patched_trading):
+        t = patched_trading
+        t.mt5.positions = [make_position(t.mt5, type=t.mt5.ORDER_TYPE_BUY, tp=1950.0)]
+        ok = t.trading.modifySL(555, "S", 1899.0)  # < 1899.9 → разрешено
+        assert ok is True
+        req = t.mt5.sent[0]
+        assert req["action"] == t.mt5.TRADE_ACTION_SLTP
+        assert req["position"] == 555
+        assert req["sl"] == 1899.0                 # round(1899.0, digits=2)
+        assert req["tp"] == 1950.0                 # по умолчанию из pos.tp
+
+    def test_explicit_new_tp_used(self, patched_trading):
+        t = patched_trading
+        t.mt5.positions = [make_position(t.mt5, type=t.mt5.ORDER_TYPE_BUY, tp=1950.0)]
+        t.trading.modifySL(555, "S", 1899.0, new_tp=1975.0)
+        assert t.mt5.sent[0]["tp"] == 1975.0
+
+    def test_retcode_not_done_returns_false(self, patched_trading):
+        t = patched_trading
+        t.mt5.positions = [make_position(t.mt5, type=t.mt5.ORDER_TYPE_BUY)]
+        t.mt5.set_result(retcode=10004, order=1, price=0.0)
+        assert t.trading.modifySL(555, "S", 1899.0) is False
