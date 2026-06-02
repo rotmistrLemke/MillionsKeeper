@@ -76,3 +76,56 @@ class TestOrderOpen:
         t.cache.symbol_info.visible = False
         t.trading.orderOpen("XAUUSDrfd", TargetType.LONG, 0.1, "c")
         assert t.mt5.selected == [("XAUUSDrfd", True)]
+
+
+class TestOrderClose:
+    def test_no_position_returns_false_without_send(self, patched_trading):
+        t = patched_trading
+        t.mt5.positions = []
+        assert t.trading.orderClose(555, "S", "TP") is False
+        assert t.mt5.sent == []
+
+    def test_tick_none_returns_false(self, patched_trading):
+        t = patched_trading
+        t.mt5.positions = [make_position(t.mt5)]
+        t.mt5.tick = None
+        assert t.trading.orderClose(555, "S", "TP") is False
+        assert t.mt5.sent == []
+
+    def test_closing_buy_uses_sell_at_bid(self, patched_trading):
+        t = patched_trading
+        t.mt5.positions = [make_position(t.mt5, type=t.mt5.ORDER_TYPE_BUY, magic=42)]
+        ok = t.trading.orderClose(555, "S", "TP")
+        assert ok is True
+        req = t.mt5.sent[0]
+        assert req["type"] == t.mt5.ORDER_TYPE_SELL
+        assert req["price"] == t.mt5.tick.bid
+        assert req["position"] == 555
+        assert req["magic"] == 42
+
+    def test_closing_sell_uses_buy_at_ask(self, patched_trading):
+        t = patched_trading
+        t.mt5.positions = [make_position(t.mt5, type=t.mt5.ORDER_TYPE_SELL)]
+        t.trading.orderClose(555, "S", "TP")
+        req = t.mt5.sent[0]
+        assert req["type"] == t.mt5.ORDER_TYPE_BUY
+        assert req["price"] == t.mt5.tick.ask
+
+    def test_comment_truncated_to_31(self, patched_trading):
+        t = patched_trading
+        t.mt5.positions = [make_position(t.mt5)]
+        long_comment = "X" * 50
+        t.trading.orderClose(555, "S", long_comment)
+        assert t.mt5.sent[0]["comment"] == "X" * 31
+
+    def test_result_none_returns_false(self, patched_trading):
+        t = patched_trading
+        t.mt5.positions = [make_position(t.mt5)]
+        t.mt5.set_result_none()
+        assert t.trading.orderClose(555, "S", "TP") is False
+
+    def test_retcode_not_done_returns_false(self, patched_trading):
+        t = patched_trading
+        t.mt5.positions = [make_position(t.mt5)]
+        t.mt5.set_result(retcode=10004, order=1, price=1900.0)
+        assert t.trading.orderClose(555, "S", "TP") is False
