@@ -82,3 +82,31 @@ async def test_stream_selected_by_id_when_provided(execution_agent_factory):
     # comment в orderOpen начинается с id потока → подтверждает выбор by-id (s2).
     assert h.trading.open_calls
     assert h.trading.open_calls[0]["comment"].startswith("s2:")
+
+
+@pytest.mark.parametrize("dt,blocked", [
+    (datetime(2026, 6, 3, 23, 55), True),   # >= 23:50
+    (datetime(2026, 6, 3, 0, 30), True),    # < 05:00
+    (datetime(2026, 6, 3, 4, 59), True),    # < 05:00
+    (datetime(2026, 6, 3, 5, 0), False),    # ровно 05:00 — не блок
+    (datetime(2026, 6, 3, 12, 0), False),
+    (datetime(2026, 6, 3, 23, 49), False),  # < 23:50
+])
+def test_is_night_block(execution_agent_factory, dt, blocked):
+    h = execution_agent_factory(now=dt)
+    result, _reason = h.agent._is_night_block()
+    assert result is blocked
+
+
+async def test_night_block_prevents_open(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD")
+    h = execution_agent_factory(streams={"s1": stream}, now=datetime(2026, 6, 3, 0, 30))
+    await h.agent._handle_signal(_signal_event(signal="BUY"))
+    assert h.trading.open_calls == []
+
+
+async def test_daytime_allows_open(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD", volume=0.1)
+    h = execution_agent_factory(streams={"s1": stream}, now=datetime(2026, 6, 3, 12, 0))
+    await h.agent._handle_signal(_signal_event(signal="BUY"))
+    assert h.trading.open_calls   # дошли до открытия
