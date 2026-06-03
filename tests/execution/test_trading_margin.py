@@ -174,3 +174,40 @@ def test_check_margin_double_counts_volume(patched_trading):
         "XAUUSD", 1.5, patched_trading.mt5.ORDER_TYPE_BUY, 100
     )
     assert ok is True   # желаемое поведение; сейчас код даёт False → xfail
+
+
+def test_safetrade_zero_max_returns_zero(patched_trading, monkeypatch):
+    monkeypatch.setattr(patched_trading.trading, "calculateMaxVolumeWithMarginCheck",
+                        lambda *a, **k: 0)
+    assert patched_trading.trading.calculateSafeTradeWithMargin("XAUUSD", 2, 100) == 0
+
+
+def test_safetrade_margin_ok_returns_max(patched_trading, monkeypatch):
+    monkeypatch.setattr(patched_trading.trading, "calculateMaxVolumeWithMarginCheck",
+                        lambda *a, **k: 2.0)
+    monkeypatch.setattr(patched_trading.trading, "checkMarginWithStopLoss",
+                        lambda *a, **k: (True, 5.0))
+    assert patched_trading.trading.calculateSafeTradeWithMargin("XAUUSD", 2, 100) == pytest.approx(2.0)
+
+
+def test_safetrade_steps_down_to_safe_volume(patched_trading, monkeypatch):
+    # max=2.0; шаг 0.5; margin_ok только при volume<=1.5 → ожидаем 1.5
+    patched_trading.cache.symbol_info.volume_min = 0.5
+    patched_trading.cache.symbol_info.volume_step = 0.5
+    monkeypatch.setattr(patched_trading.trading, "calculateMaxVolumeWithMarginCheck",
+                        lambda *a, **k: 2.0)
+    def fake_check(symbol, volume, order_type, sl, margin_safety=1.2):
+        return (volume <= 1.5 + 1e-9, 1.0)
+    monkeypatch.setattr(patched_trading.trading, "checkMarginWithStopLoss", fake_check)
+    assert patched_trading.trading.calculateSafeTradeWithMargin("XAUUSD", 2, 100) == pytest.approx(1.5)
+
+
+def test_safetrade_exhausts_returns_max(patched_trading, monkeypatch):
+    # margin_ok никогда → цикл исчерпан → возврат max_volume
+    patched_trading.cache.symbol_info.volume_min = 0.5
+    patched_trading.cache.symbol_info.volume_step = 0.5
+    monkeypatch.setattr(patched_trading.trading, "calculateMaxVolumeWithMarginCheck",
+                        lambda *a, **k: 2.0)
+    monkeypatch.setattr(patched_trading.trading, "checkMarginWithStopLoss",
+                        lambda *a, **k: (False, 0.5))
+    assert patched_trading.trading.calculateSafeTradeWithMargin("XAUUSD", 2, 100) == pytest.approx(2.0)
