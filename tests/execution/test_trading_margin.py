@@ -211,3 +211,19 @@ def test_safetrade_exhausts_returns_max(patched_trading, monkeypatch):
     monkeypatch.setattr(patched_trading.trading, "checkMarginWithStopLoss",
                         lambda *a, **k: (False, 0.5))
     assert patched_trading.trading.calculateSafeTradeWithMargin("XAUUSD", 2, 100) == pytest.approx(2.0)
+
+
+import inspect
+from trading import Trading
+
+
+def test_legacy_setStopLoss_missing_self_param():
+    # FINDING #legacy-no-self: setStopLoss объявлен без self → сломан при вызове как метод.
+    params = list(inspect.signature(Trading.setStopLoss).parameters)
+    assert params and params[0] != "self"
+
+
+def test_legacy_calculateStopLossOld_missing_self_param():
+    # FINDING #legacy-no-self: calculateStopLossOld объявлен без self.
+    params = list(inspect.signature(Trading.calculateStopLossOld).parameters)
+    assert params and params[0] != "self"
