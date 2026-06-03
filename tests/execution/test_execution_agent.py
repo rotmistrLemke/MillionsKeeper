@@ -4,7 +4,6 @@
 gating, ночная блокировка, DD-блок, equity, SL/TP по ATR, хедж, эмит/метрики,
 закрытие, _reason_to_tag. Зависимости подменяются фикстурой execution_agent_factory.
 """
-import asyncio
 from datetime import datetime
 
 import pytest
@@ -527,3 +526,24 @@ async def test_dispatch_close_through_run(execution_agent_factory):
     closed = [e for e in h.bus.events if e.type == EventType.ORDER_CLOSED]
     assert len(closed) == 1
     assert closed[0].payload["tag"] == "SL"
+
+
+async def test_hedge_leg_exception_emits_order_error(execution_agent_factory, monkeypatch):
+    stream = make_stream(symbol="XAUUSD", strategy="hedge", volume=0.1)
+    h = execution_agent_factory(
+        streams={"s1": stream},
+        strategies={"hedge": make_strategy(hedge=True)},
+        now=datetime(2026, 6, 3, 12, 0),
+    )
+    h.trading.set_open_result({"order": 111, "price": 1900.5})  # основная нога открыта
+    def boom(*a, **k):
+        raise RuntimeError("hedge boom")
+    monkeypatch.setattr(h.agent, "_open_hedge_order", boom)
+    await h.agent._handle_signal(_signal_event(signal="BUY"))
+    errors = [e for e in h.bus.events if e.type == EventType.ORDER_ERROR]
+    assert len(errors) == 1
+    assert errors[0].payload["error"].startswith("hedge:")
+    assert "hedge boom" in errors[0].payload["error"]
+    # основная нога всё равно открыта
+    opened = [e for e in h.bus.events if e.type == EventType.ORDER_OPENED]
+    assert len(opened) == 1

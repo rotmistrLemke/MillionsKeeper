@@ -60,15 +60,13 @@ def execution_agent_factory(monkeypatch):
     )
 
     def make(*, streams=None, strategies=None, now=None,
-             positions=None, deals=None, calc_result=None):
+             deals=None, calc_result=None):
         import agents.execution_agent as ea_mod
         import streams as streams_mod
         import strategies as strat_mod
         import market_data_cache as mdc_mod
 
         fake_mt5 = FakeMT5()
-        if positions is not None:
-            fake_mt5.positions = positions
         if deals is not None:
             fake_mt5.deals = deals
         fake_cache = FakeCache()
