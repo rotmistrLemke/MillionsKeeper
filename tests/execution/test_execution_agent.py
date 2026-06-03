@@ -173,3 +173,76 @@ def test_next_monday(execution_agent_factory, now):
     assert nm.weekday() == 0
     assert nm.date() == datetime(2026, 6, 8).date()
     assert (nm.hour, nm.minute, nm.second, nm.microsecond) == (0, 0, 0, 0)
+
+
+def test_dd_no_deposit_skips(execution_agent_factory):
+    stream = make_stream(deposit=0.0)
+    h = execution_agent_factory(now=datetime(2026, 6, 3, 12, 0))
+    allowed, reason = h.agent._check_stream_drawdown(stream)
+    assert allowed is True and reason == ""
+
+
+def test_dd_block_when_drawdown_over_threshold(execution_agent_factory):
+    # peak инициализируется как deposit (1000); equity = 1000 + realized(-400) = 600.
+    # dd = (1000-600)/1000 = 0.40 > 0.35 → блок.
+    stream = make_stream(magic=777, deposit=1000.0)
+    h = execution_agent_factory(
+        deals=[make_deal(magic=777, profit=-400.0)], now=datetime(2026, 6, 3, 12, 0),
+    )
+    allowed, reason = h.agent._check_stream_drawdown(stream)
+    assert allowed is False
+    assert stream.id in h.agent._stream_dd_block_until
+    # блокировка выставлена до следующего понедельника (08.06).
+    assert h.agent._stream_dd_block_until[stream.id].date() == datetime(2026, 6, 8).date()
+
+
+def test_dd_allows_when_within_threshold(execution_agent_factory):
+    # equity = 1000 - 100 = 900; dd = 0.10 ≤ 0.35 → allowed; peak обновляется при росте.
+    stream = make_stream(magic=777, deposit=1000.0)
+    h = execution_agent_factory(
+        deals=[make_deal(magic=777, profit=-100.0)], now=datetime(2026, 6, 3, 12, 0),
+    )
+    allowed, reason = h.agent._check_stream_drawdown(stream)
+    assert allowed is True and reason == ""
+
+
+def test_dd_active_block_in_future_rejects(execution_agent_factory):
+    stream = make_stream(deposit=1000.0)
+    h = execution_agent_factory(now=datetime(2026, 6, 3, 12, 0))
+    h.agent._stream_dd_block_until[stream.id] = datetime(2026, 6, 8, 0, 0)
+    allowed, reason = h.agent._check_stream_drawdown(stream)
+    assert allowed is False
+    assert "блокировка до" in reason
+
+
+def test_dd_expired_block_is_cleared(execution_agent_factory):
+    # block_until в прошлом → снимаем (pop until/peak/week_start), затем пересчёт (allowed).
+    stream = make_stream(magic=777, deposit=1000.0)
+    h = execution_agent_factory(deals=[], now=datetime(2026, 6, 3, 12, 0))
+    h.agent._stream_dd_block_until[stream.id] = datetime(2026, 6, 1, 0, 0)
+    h.agent._stream_peak[stream.id] = 5000.0
+    allowed, reason = h.agent._check_stream_drawdown(stream)
+    assert allowed is True
+    assert stream.id not in h.agent._stream_dd_block_until
+
+
+def test_dd_week_roll_resets_peak(execution_agent_factory):
+    # week_start старше 7 дней → новый _monday_start, peak сброшен (pop).
+    stream = make_stream(magic=777, deposit=1000.0)
+    h = execution_agent_factory(deals=[], now=datetime(2026, 6, 3, 12, 0))
+    h.agent._stream_week_start[stream.id] = datetime(2026, 5, 20, 0, 0)  # >7 дней назад
+    h.agent._stream_peak[stream.id] = 9999.0
+    h.agent._check_stream_drawdown(stream)
+    new_ws = h.agent._stream_week_start[stream.id]
+    assert new_ws.weekday() == 0
+    assert new_ws.date() == datetime(2026, 6, 1).date()
+
+
+def test_dd_equity_exception_allows(execution_agent_factory, monkeypatch):
+    stream = make_stream(magic=777, deposit=1000.0)
+    h = execution_agent_factory(now=datetime(2026, 6, 3, 12, 0))
+    def boom(*a, **k):
+        raise RuntimeError("equity fail")
+    monkeypatch.setattr(h.agent, "_compute_stream_equity", boom)
+    allowed, reason = h.agent._check_stream_drawdown(stream)
+    assert allowed is True and reason == ""
