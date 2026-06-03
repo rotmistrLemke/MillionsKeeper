@@ -413,3 +413,60 @@ async def test_no_hedge_strategy_single_leg(execution_agent_factory):
     await h.agent._handle_signal(_signal_event(signal="BUY"))
     opened = [e for e in h.bus.events if e.type == EventType.ORDER_OPENED]
     assert len(opened) == 1
+
+
+async def test_open_happy_emits_order_opened_and_status_changed(execution_agent_factory):
+    stream = make_stream(id="s1", symbol="XAUUSD", strategy="plain", volume=0.1, magic=777)
+    h = execution_agent_factory(
+        streams={"s1": stream},
+        strategies={"plain": make_strategy()},
+        now=datetime(2026, 6, 3, 12, 0),
+    )
+    await h.agent._handle_signal(_signal_event(signal="BUY", indicators={"atr_value": 2.0}))
+
+    opened = [e for e in h.bus.events if e.type == EventType.ORDER_OPENED]
+    assert len(opened) == 1
+    p = opened[0].payload
+    assert p["symbol"] == "XAUUSD"
+    assert p["type"] == "BUY"
+    assert p["volume"] == 0.1
+    assert p["stream_id"] == "s1"
+    assert p["magic"] == 777
+
+    assert "XAUUSD" in h.status.opened   # status.mark_open вызван
+
+    changed = [e for e in h.bus.events if e.type == EventType.TRADING_STATUS_CHANGED]
+    assert len(changed) == 1
+    assert changed[0].payload["status"] == 1
+    assert changed[0].payload["reason"] == "order_opened"
+
+    assert h.agent.metrics["opened_today"] == 1
+
+
+async def test_open_returns_none_no_events(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD", strategy="plain", volume=0.0)
+    h = execution_agent_factory(
+        streams={"s1": stream},
+        strategies={"plain": make_strategy()},
+        now=datetime(2026, 6, 3, 12, 0),
+        calc_result=0.0,   # volume<=0 → _open_order вернёт None
+    )
+    await h.agent._handle_signal(_signal_event(signal="BUY", indicators={"atr_value": 2.0}))
+    assert [e for e in h.bus.events if e.type == EventType.ORDER_OPENED] == []
+    assert h.status.opened == []
+
+
+async def test_open_exception_emits_order_error(execution_agent_factory, monkeypatch):
+    stream = make_stream(symbol="XAUUSD", strategy="plain", volume=0.1)
+    h = execution_agent_factory(
+        streams={"s1": stream},
+        strategies={"plain": make_strategy()},
+        now=datetime(2026, 6, 3, 12, 0),
+    )
+    def boom(*a, **k):
+        raise RuntimeError("open fail")
+    monkeypatch.setattr(h.agent, "_open_order", boom)
+    await h.agent._handle_signal(_signal_event(signal="BUY", indicators={"atr_value": 2.0}))
+    errors = [e for e in h.bus.events if e.type == EventType.ORDER_ERROR]
+    assert len(errors) == 1
+    assert "open fail" in errors[0].payload["error"]
