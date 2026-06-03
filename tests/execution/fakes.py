@@ -21,6 +21,9 @@ class FakeMT5:
         self.sent = []                       # записанные order_send-запросы
         self.tick = SimpleNamespace(bid=1900.0, ask=1900.5, time=1_700_000_000)
         self.positions = []                  # отдаётся positions_get
+        self.ticks = {}                      # symbol -> tick override (конверсионные символы)
+        self.symbol_infos = {}               # symbol -> info|None для mt5.symbol_info()
+        self.margin_per_lot = 100.0          # order_calc_margin (фикс-скаляр; None для fail-теста)
         self.deals = []                      # отдаётся history_deals_get
         self.selected = []                   # записанные symbol_select
         self._result = "default"             # "default" → построить успешный результат
@@ -47,10 +50,16 @@ class FakeMT5:
         return self._result
 
     def symbol_info_tick(self, symbol):
-        return self.tick
+        return self.ticks.get(symbol, self.tick)
 
     def positions_get(self, ticket=None, symbol=None):
         return list(self.positions)
+
+    def order_calc_margin(self, order_type, symbol, volume, price):
+        return self.margin_per_lot
+
+    def symbol_info(self, symbol):
+        return self.symbol_infos.get(symbol)
 
     def history_deals_get(self, date_from=None, date_to=None):
         return list(self.deals)
@@ -67,8 +76,13 @@ class FakeCache:
     def __init__(self):
         self.symbol_info = SimpleNamespace(
             visible=True, point=0.01, digits=2, trade_stops_level=10,
+            trade_contract_size=100.0, currency_profit="USD", currency_margin="USD",
+            volume_min=0.01, volume_max=100.0, volume_step=0.01,
         )
         self.positions = []
+        self.account_info = SimpleNamespace(
+            balance=10000.0, equity=10000.0, margin_free=5000.0,
+        )
 
     def get_symbol_info(self, symbol):
         return self.symbol_info
@@ -76,11 +90,15 @@ class FakeCache:
     def get_positions(self):
         return list(self.positions)
 
+    def get_account_info(self):
+        return self.account_info
+
 
 class FakeStatus:
     def __init__(self):
         self.opened = []
         self._status = {}
+        self._active = []
 
     def mark_open(self, symbol):
         self.opened.append(symbol)
@@ -88,6 +106,9 @@ class FakeStatus:
 
     def status_of(self, symbol):
         return self._status.get(symbol, 0)
+
+    def active_symbols(self):
+        return list(self._active)
 
 
 def make_position(fm, *, ticket=555, type=None, volume=0.1, magic=777, tp=1950.0,
