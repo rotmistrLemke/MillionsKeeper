@@ -45,3 +45,52 @@ def patched_trading(monkeypatch):
         trading=trading_mod.Trading(),
         mt5=fake_mt5, cache=fake_cache, status=fake_status,
     )
+
+
+@pytest.fixture
+def execution_agent_factory(monkeypatch):
+    """Фабрика ExecutionAgent с подменёнными зависимостями.
+
+    Подменяет: agents.execution_agent.status, streams.registry,
+    strategies.STRATEGIES, market_data_cache.cache, sys.modules['MetaTrader5'],
+    agents.execution_agent.datetime. Прод не трогаем.
+    """
+    from tests.execution.fakes import (
+        FakeMT5, FakeCache, FakeStatus, FakeTrading, FakeBus, FakeRegistry, make_clock,
+    )
+
+    def make(*, streams=None, strategies=None, now=None,
+             positions=None, deals=None, calc_result=None):
+        import agents.execution_agent as ea_mod
+        import streams as streams_mod
+        import strategies as strat_mod
+        import market_data_cache as mdc_mod
+
+        fake_mt5 = FakeMT5()
+        if positions is not None:
+            fake_mt5.positions = positions
+        if deals is not None:
+            fake_mt5.deals = deals
+        fake_cache = FakeCache()
+        fake_status = FakeStatus()
+        fake_trading = FakeTrading()
+        if calc_result is not None:
+            fake_trading.set_calc_result(calc_result)
+        fake_registry = FakeRegistry(streams or {})
+        strat_map = {} if strategies is None else strategies
+
+        monkeypatch.setattr(ea_mod, "status", fake_status)
+        monkeypatch.setattr(streams_mod, "registry", fake_registry)
+        monkeypatch.setattr(strat_mod, "STRATEGIES", strat_map)
+        monkeypatch.setattr(mdc_mod, "cache", fake_cache)
+        monkeypatch.setitem(sys.modules, "MetaTrader5", fake_mt5)
+        if now is not None:
+            monkeypatch.setattr(ea_mod, "datetime", make_clock(now))
+
+        agent = ea_mod.ExecutionAgent("Execution", FakeBus(), fake_trading)
+        return SimpleNamespace(
+            agent=agent, bus=agent.bus, trading=fake_trading,
+            mt5=fake_mt5, cache=fake_cache, status=fake_status, registry=fake_registry,
+        )
+
+    return make
