@@ -332,3 +332,84 @@ def test_open_order_atr_zero_no_sltp(execution_agent_factory):
     h.agent._open_order(stream, "BUY", {"atr_value": 0})
     call = h.trading.open_calls[0]
     assert call["sl"] == 0.0 and call["tp"] == 0.0
+
+
+def test_strategy_wants_hedge_true(execution_agent_factory):
+    stream = make_stream(strategy="hedge")
+    h = execution_agent_factory(strategies={"hedge": make_strategy(hedge=True)})
+    assert h.agent._strategy_wants_hedge(stream) is True
+
+
+def test_strategy_wants_hedge_missing_strategy_false(execution_agent_factory):
+    stream = make_stream(strategy="ghost")
+    h = execution_agent_factory(strategies={})
+    assert h.agent._strategy_wants_hedge(stream) is False
+
+
+def test_strategy_wants_hedge_exception_false(execution_agent_factory):
+    class Boom:
+        def wants_hedge(self):
+            raise RuntimeError("boom")
+    stream = make_stream(strategy="boom")
+    h = execution_agent_factory(strategies={"boom": Boom})
+    assert h.agent._strategy_wants_hedge(stream) is False
+
+
+def test_open_hedge_order_zero_volume_none(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD", magic=777)
+    h = execution_agent_factory()
+    assert h.agent._open_hedge_order(stream, "SELL", 0.0) is None
+    assert h.trading.open_calls == []
+
+
+def test_open_hedge_order_builds_opposite_leg(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD", strategy="s", magic=777)
+    h = execution_agent_factory()
+    res = h.agent._open_hedge_order(stream, "SELL", 0.1)
+    assert res["volume"] == 0.1
+    call = h.trading.open_calls[0]
+    assert call["sl"] == 0.0 and call["tp"] == 0.0
+    assert call["comment"].endswith(":H")
+    assert call["magic"] == 777
+
+
+async def test_hedge_emits_second_order_opened(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD", strategy="hedge", volume=0.1)
+    h = execution_agent_factory(
+        streams={"s1": stream},
+        strategies={"hedge": make_strategy(hedge=True)},
+        now=datetime(2026, 6, 3, 12, 0),
+    )
+    h.trading.set_open_result({"order": 111, "price": 1900.5}, {"order": 222, "price": 1900.0})
+    await h.agent._handle_signal(_signal_event(signal="BUY"))
+    opened = [e for e in h.bus.events if e.type == EventType.ORDER_OPENED]
+    assert len(opened) == 2
+    assert opened[1].payload["role"] == "H"
+    assert opened[1].payload["type"] == "SELL"
+    assert h.agent.metrics["opened_today"] == 2
+
+
+async def test_hedge_leg_none_keeps_main_only(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD", strategy="hedge", volume=0.1)
+    h = execution_agent_factory(
+        streams={"s1": stream},
+        strategies={"hedge": make_strategy(hedge=True)},
+        now=datetime(2026, 6, 3, 12, 0),
+    )
+    h.trading.set_open_result({"order": 111, "price": 1900.5}, None)  # хедж не открылся
+    await h.agent._handle_signal(_signal_event(signal="BUY"))
+    opened = [e for e in h.bus.events if e.type == EventType.ORDER_OPENED]
+    assert len(opened) == 1
+    assert h.agent.metrics["opened_today"] == 1
+
+
+async def test_no_hedge_strategy_single_leg(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD", strategy="plain", volume=0.1)
+    h = execution_agent_factory(
+        streams={"s1": stream},
+        strategies={"plain": make_strategy(hedge=False)},
+        now=datetime(2026, 6, 3, 12, 0),
+    )
+    await h.agent._handle_signal(_signal_event(signal="BUY"))
+    opened = [e for e in h.bus.events if e.type == EventType.ORDER_OPENED]
+    assert len(opened) == 1
