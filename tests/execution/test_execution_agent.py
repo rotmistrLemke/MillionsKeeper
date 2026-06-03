@@ -246,3 +246,89 @@ def test_dd_equity_exception_allows(execution_agent_factory, monkeypatch):
     monkeypatch.setattr(h.agent, "_compute_stream_equity", boom)
     allowed, reason = h.agent._check_stream_drawdown(stream)
     assert allowed is True and reason == ""
+
+
+def test_open_order_none_when_no_symbol_info(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD", volume=0.1)
+    h = execution_agent_factory()
+    h.cache.symbol_info = None
+    assert h.agent._open_order(stream, "BUY", {"atr_value": 2.0}) is None
+
+
+def test_open_order_fixed_volume_skips_calc(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD", volume=0.25)
+    h = execution_agent_factory()
+    result = h.agent._open_order(stream, "BUY", {"atr_value": 2.0})
+    assert result["volume"] == 0.25
+    assert h.trading.calc_calls == []   # фикс-объём → calc не зван
+    assert h.trading.open_calls[0]["volume"] == 0.25
+
+
+def test_open_order_calc_volume_buy_uses_80(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD", volume=0.0)
+    h = execution_agent_factory(calc_result=0.7)
+    result = h.agent._open_order(stream, "BUY", {"atr_value": 2.0})
+    assert result["volume"] == 0.7
+    assert h.trading.calc_calls[0]["risk"] == 80
+    # stop_loss_pips = 2*atr/point = 2*2.0/0.01 = 400.0
+    assert h.trading.calc_calls[0]["stop_loss_pips"] == pytest.approx(400.0)
+
+
+def test_open_order_calc_volume_sell_uses_90(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD", volume=0.0)
+    h = execution_agent_factory(calc_result=0.7)
+    h.agent._open_order(stream, "SELL", {"atr_value": 2.0})
+    assert h.trading.calc_calls[0]["risk"] == 90
+
+
+def test_open_order_none_when_volume_nonpositive(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD", volume=0.0)
+    h = execution_agent_factory(calc_result=0.0)
+    assert h.agent._open_order(stream, "BUY", {"atr_value": 2.0}) is None
+    assert h.trading.open_calls == []
+
+
+def test_open_order_sltp_buy(execution_agent_factory):
+    # BUY: entry=ask=1900.5; sl=1900.5-1.5*2=1897.5; tp=1900.5+3.0*2=1906.5; round digits=2.
+    stream = make_stream(symbol="XAUUSD", volume=0.1, sl_atr=1.5, tp_atr=3.0)
+    h = execution_agent_factory(strategies={})
+    h.agent._open_order(stream, "BUY", {"atr_value": 2.0})
+    call = h.trading.open_calls[0]
+    assert call["sl"] == pytest.approx(1897.5)
+    assert call["tp"] == pytest.approx(1906.5)
+
+
+def test_open_order_sltp_sell(execution_agent_factory):
+    # SELL: entry=bid=1900.0; sl=1900.0+1.5*2=1903.0; tp=1900.0-3.0*2=1894.0.
+    stream = make_stream(symbol="XAUUSD", volume=0.1, sl_atr=1.5, tp_atr=3.0)
+    h = execution_agent_factory(strategies={})
+    h.agent._open_order(stream, "SELL", {"atr_value": 2.0})
+    call = h.trading.open_calls[0]
+    assert call["sl"] == pytest.approx(1903.0)
+    assert call["tp"] == pytest.approx(1894.0)
+
+
+def test_open_order_no_sltp_when_multipliers_zero(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD", volume=0.1, sl_atr=0.0, tp_atr=0.0)
+    h = execution_agent_factory(strategies={})
+    h.agent._open_order(stream, "BUY", {"atr_value": 2.0})
+    call = h.trading.open_calls[0]
+    assert call["sl"] == 0.0 and call["tp"] == 0.0
+
+
+def test_open_order_trailing_strategy_zeroes_tp(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD", strategy="trail", volume=0.1,
+                         sl_atr=1.5, tp_atr=3.0)
+    h = execution_agent_factory(strategies={"trail": make_strategy(trailing=True)})
+    h.agent._open_order(stream, "BUY", {"atr_value": 2.0})
+    call = h.trading.open_calls[0]
+    assert call["sl"] == pytest.approx(1897.5)   # SL остаётся
+    assert call["tp"] == 0.0                       # TP принудительно обнулён
+
+
+def test_open_order_atr_zero_no_sltp(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD", volume=0.1, sl_atr=1.5, tp_atr=3.0)
+    h = execution_agent_factory(strategies={})
+    h.agent._open_order(stream, "BUY", {"atr_value": 0})
+    call = h.trading.open_calls[0]
+    assert call["sl"] == 0.0 and call["tp"] == 0.0
