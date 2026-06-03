@@ -505,3 +505,25 @@ async def test_close_exception_emits_order_error(execution_agent_factory):
     assert len(errors) == 1
     assert errors[0].payload["ticket"] == 555
     assert "close fail" in errors[0].payload["error"]
+
+
+async def test_dispatch_signal_through_run(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD", strategy="plain", volume=0.1)
+    h = execution_agent_factory(
+        streams={"s1": stream},
+        strategies={"plain": make_strategy()},
+        now=datetime(2026, 6, 3, 12, 0),
+    )
+    await h.agent._on_signal(_signal_event(signal="BUY", indicators={"atr_value": 2.0}))
+    await h.agent.run()
+    assert [e for e in h.bus.events if e.type == EventType.ORDER_OPENED]
+
+
+async def test_dispatch_close_through_run(execution_agent_factory):
+    h = execution_agent_factory(now=datetime(2026, 6, 3, 12, 0))
+    h.trading.set_close_result(True)
+    await h.agent._on_close_request(_close_event(ticket=555, symbol="XAUUSD", reason="sl"))
+    await h.agent.run()
+    closed = [e for e in h.bus.events if e.type == EventType.ORDER_CLOSED]
+    assert len(closed) == 1
+    assert closed[0].payload["tag"] == "SL"
