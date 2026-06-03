@@ -132,3 +132,45 @@ def test_maxvol_clamps_to_volume_min(patched_trading):
         "XAUUSD", 2, 100, patched_trading.mt5.ORDER_TYPE_BUY
     )
     assert vol == pytest.approx(5.0)
+
+
+def test_check_margin_happy(patched_trading):
+    # pip_value=calculatePipValue(vol 0.1)=0.01*100*0.1=0.1;
+    # potential_loss=0.1*100*0.1=1.0; total=margin(100)+1.0=101; ratio=5000/101≈49.5 ≥1.2
+    ok, ratio = patched_trading.trading.checkMarginWithStopLoss(
+        "XAUUSD", 0.1, patched_trading.mt5.ORDER_TYPE_BUY, 100
+    )
+    assert ok is True
+    assert ratio == pytest.approx(5000 / 101)
+
+
+def test_check_margin_account_none(patched_trading):
+    patched_trading.cache.account_info = None
+    assert patched_trading.trading.checkMarginWithStopLoss("XAUUSD", 0.1, 0, 100) == (False, 0)
+
+
+def test_check_margin_margin_required_none(patched_trading):
+    patched_trading.mt5.margin_per_lot = None
+    assert patched_trading.trading.checkMarginWithStopLoss("XAUUSD", 0.1, 0, 100) == (False, 0)
+
+
+def test_check_margin_exception_returns_false_zero(patched_trading, monkeypatch):
+    def boom(*a, **k):
+        raise RuntimeError("calc boom")
+    monkeypatch.setattr(patched_trading.mt5, "order_calc_margin", boom)
+    assert patched_trading.trading.checkMarginWithStopLoss("XAUUSD", 0.1, 0, 100) == (False, 0)
+
+
+@pytest.mark.xfail(reason="находка #double-count: potential_loss = pip_value*sl*volume, "
+                          "а pip_value уже умножен на volume → квадрат по volume; "
+                          "желаемое — линейная зависимость (см. docs/known-issues.md)")
+def test_check_margin_double_counts_volume(patched_trading):
+    # free=300, vol=1.5, sl=100, margin=100.
+    # АКТУАЛЬНО (квадрат): pip_value=0.01*100*1.5=1.5; loss=1.5*100*1.5=225; total=325;
+    #   ratio=300/325≈0.923 < 1.2 → (False).
+    # ЖЕЛАЕМО (линейно): loss=pip_per_lot(1.0)*100*1.5=150; total=250; ratio=300/250=1.2 ≥1.2 → True.
+    patched_trading.cache.account_info.margin_free = 300.0
+    ok, _ratio = patched_trading.trading.checkMarginWithStopLoss(
+        "XAUUSD", 1.5, patched_trading.mt5.ORDER_TYPE_BUY, 100
+    )
+    assert ok is True   # желаемое поведение; сейчас код даёт False → xfail
