@@ -470,3 +470,38 @@ async def test_open_exception_emits_order_error(execution_agent_factory, monkeyp
     errors = [e for e in h.bus.events if e.type == EventType.ORDER_ERROR]
     assert len(errors) == 1
     assert "open fail" in errors[0].payload["error"]
+
+
+async def test_close_happy_emits_order_closed(execution_agent_factory):
+    h = execution_agent_factory(now=datetime(2026, 6, 3, 12, 0))
+    h.trading.set_close_result(True)
+    await h.agent._handle_close(_close_event(ticket=555, symbol="XAUUSD", reason="tp"))
+    closed = [e for e in h.bus.events if e.type == EventType.ORDER_CLOSED]
+    assert len(closed) == 1
+    p = closed[0].payload
+    assert p["ticket"] == 555
+    assert p["symbol"] == "XAUUSD"
+    assert p["reason"] == "tp"
+    assert p["tag"] == "TP"
+    assert h.agent.metrics["closed_today"] == 1
+    # tag прокинут в orderClose
+    assert h.trading.close_calls[0]["tag"] == "TP"
+
+
+async def test_close_falsy_result_no_event(execution_agent_factory):
+    h = execution_agent_factory(now=datetime(2026, 6, 3, 12, 0))
+    h.trading.set_close_result(False)
+    await h.agent._handle_close(_close_event(ticket=555, symbol="XAUUSD", reason="manual"))
+    assert [e for e in h.bus.events if e.type == EventType.ORDER_CLOSED] == []
+
+
+async def test_close_exception_emits_order_error(execution_agent_factory):
+    h = execution_agent_factory(now=datetime(2026, 6, 3, 12, 0))
+    def boom(*a, **k):
+        raise RuntimeError("close fail")
+    h.trading.orderClose = boom
+    await h.agent._handle_close(_close_event(ticket=555, symbol="XAUUSD"))
+    errors = [e for e in h.bus.events if e.type == EventType.ORDER_ERROR]
+    assert len(errors) == 1
+    assert errors[0].payload["ticket"] == 555
+    assert "close fail" in errors[0].payload["error"]
