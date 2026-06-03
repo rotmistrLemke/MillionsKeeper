@@ -41,6 +41,7 @@ def patched_trading(monkeypatch):
     monkeypatch.setattr(trading_mod, "mt5", fake_mt5)
     monkeypatch.setattr(trading_mod, "cache", fake_cache)
     monkeypatch.setattr(trading_mod, "status", fake_status)
+    monkeypatch.setattr(trading_mod.time, "sleep", lambda *a, **k: None)
     return SimpleNamespace(
         trading=trading_mod.Trading(),
         mt5=fake_mt5, cache=fake_cache, status=fake_status,
