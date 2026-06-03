@@ -21,6 +21,7 @@ class FakeMT5:
         self.sent = []                       # записанные order_send-запросы
         self.tick = SimpleNamespace(bid=1900.0, ask=1900.5, time=1_700_000_000)
         self.positions = []                  # отдаётся positions_get
+        self.deals = []                      # отдаётся history_deals_get
         self.selected = []                   # записанные symbol_select
         self._result = "default"             # "default" → построить успешный результат
         self._error = (1, "fake error")
@@ -50,6 +51,9 @@ class FakeMT5:
 
     def positions_get(self, ticket=None, symbol=None):
         return list(self.positions)
+
+    def history_deals_get(self, date_from=None, date_to=None):
+        return list(self.deals)
 
     def last_error(self):
         return self._error
@@ -86,10 +90,121 @@ class FakeStatus:
         return self._status.get(symbol, 0)
 
 
-def make_position(fm, *, ticket=555, type=None, volume=0.1, magic=777, tp=1950.0):
+def make_position(fm, *, ticket=555, type=None, volume=0.1, magic=777, tp=1950.0,
+                  profit=0.0, swap=0.0, commission=0.0):
     """Удобный конструктор фейковой позиции MT5."""
     return SimpleNamespace(
         ticket=ticket,
         type=fm.ORDER_TYPE_BUY if type is None else type,
         volume=volume, magic=magic, tp=tp,
+        profit=profit, swap=swap, commission=commission,
     )
+
+
+def make_deal(*, magic=777, profit=0.0, commission=0.0, swap=0.0):
+    """Фейковый закрытый deal MT5 (для history_deals_get)."""
+    return SimpleNamespace(magic=magic, profit=profit, commission=commission, swap=swap)
+
+
+def make_stream(*, id="s1", name="Stream-1", strategy="default", symbol="XAUUSD",
+                volume=0.1, sl_atr=0.0, tp_atr=0.0, magic=777, deposit=0.0,
+                enabled=True):
+    """TradingStream-подобный объект для тестов execution_agent."""
+    return SimpleNamespace(
+        id=id, name=name, strategy=strategy, symbol=symbol,
+        volume=volume, sl_atr=sl_atr, tp_atr=tp_atr, magic=magic,
+        deposit=deposit, enabled=enabled,
+    )
+
+
+def make_clock(fixed_dt):
+    """Фабрика фейк-класса datetime: .now() возвращает зафиксированный реальный datetime."""
+    class _FakeDateTime:
+        @classmethod
+        def now(cls, tz=None):
+            return fixed_dt
+    return _FakeDateTime
+
+
+def make_strategy(*, hedge=False, trailing=False):
+    """Фабрика фейк-класса стратегии для STRATEGIES."""
+    class _FakeStrategy:
+        def wants_hedge(self):
+            return hedge
+        def uses_trailing_exit(self):
+            return trailing
+    return _FakeStrategy
+
+
+class FakeBus:
+    """Шина для тестов агентов: пишет события, поддерживает subscribe (no-op-хранилище)."""
+    def __init__(self):
+        self.events = []
+        self.subscriptions = []
+
+    def subscribe(self, event_type, handler):
+        self.subscriptions.append((event_type, handler))
+
+    async def publish(self, ev):
+        self.events.append(ev)
+
+    def publish_sync(self, ev):
+        self.events.append(ev)
+
+
+class FakeRegistry:
+    """Подмена streams.registry: get(id) / by_symbol(symbol) поверх dict потоков."""
+    def __init__(self, streams=None):
+        # streams: dict[id -> stream]
+        self._streams = dict(streams or {})
+
+    def get(self, stream_id):
+        return self._streams.get(stream_id)
+
+    def by_symbol(self, symbol):
+        for s in self._streams.values():
+            if s.symbol == symbol:
+                return s
+        return None
+
+
+class FakeTrading:
+    """Спай вместо trading.Trading: записывает вызовы orderOpen/orderClose/calc."""
+    def __init__(self):
+        self.open_calls = []
+        self.close_calls = []
+        self.calc_calls = []
+        self._open_results = None   # None → дефолтный успешный dict на каждый вызов
+        self._close_result = True
+        self._calc_result = 0.5
+
+    def set_open_result(self, *results):
+        """Последовательность результатов orderOpen (1-й — основная нога, 2-й — хедж)."""
+        self._open_results = list(results)
+
+    def set_close_result(self, val):
+        self._close_result = val
+
+    def set_calc_result(self, val):
+        self._calc_result = val
+
+    def orderOpen(self, symbol, order_type, volume, comment, sl=0.0, tp=0.0, magic=0):
+        self.open_calls.append(dict(
+            symbol=symbol, order_type=order_type, volume=volume,
+            comment=comment, sl=sl, tp=tp, magic=magic,
+        ))
+        if self._open_results is None:
+            return {"order": 12345, "price": 1900.5}
+        if self._open_results:
+            return self._open_results.pop(0)
+        return None
+
+    def orderClose(self, ticket, symbol, tag):
+        self.close_calls.append(dict(ticket=ticket, symbol=symbol, tag=tag))
+        return self._close_result
+
+    def calculateSafeTradeWithMargin(self, symbol, risk, stop_loss_pips, order_type):
+        self.calc_calls.append(dict(
+            symbol=symbol, risk=risk, stop_loss_pips=stop_loss_pips, order_type=order_type,
+        ))
+        return self._calc_result
