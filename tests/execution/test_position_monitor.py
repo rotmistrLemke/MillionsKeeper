@@ -290,3 +290,56 @@ def test_trail_modifysl_exception_does_not_crash(position_monitor_agent_factory)
         raise RuntimeError("modify boom")
     h.trading.modifySL = boom
     h.agent._apply_trailing_sl(_posd(open_price=1899.0, sl=0.0))   # не должно бросить
+
+
+# ---------------------------------------------------------------------------
+# _is_hedge_position / _find_paired_hedge_ticket / _check_rsi_exit (Task 8, E3)
+# ---------------------------------------------------------------------------
+
+def test_is_hedge_position(position_monitor_agent_factory):
+    h = position_monitor_agent_factory()
+    assert h.agent._is_hedge_position({"comment": "s1:strat:H"}) is True
+    assert h.agent._is_hedge_position({"comment": "s1:strat"}) is False
+    assert h.agent._is_hedge_position({"comment": ""}) is False
+
+
+def test_find_paired_hedge_ticket(position_monitor_agent_factory):
+    main = make_mt5_position(ticket=1001, symbol="XAUUSD", type=0, magic=777, comment="s1:strat")
+    hedge = make_mt5_position(ticket=2002, symbol="XAUUSD", type=1, magic=777, comment="s1:strat:H")
+    h = position_monitor_agent_factory(positions=[main, hedge], streams={"s1": make_stream(magic=777)})
+    main_dict = {"ticket": 1001, "symbol": "XAUUSD", "type": "BUY", "magic": 777}
+    assert h.agent._find_paired_hedge_ticket(main_dict) == 2002
+
+
+def test_find_paired_hedge_none_when_absent(position_monitor_agent_factory):
+    main = make_mt5_position(ticket=1001, symbol="XAUUSD", type=0, magic=777, comment="s1:strat")
+    h = position_monitor_agent_factory(positions=[main], streams={"s1": make_stream(magic=777)})
+    main_dict = {"ticket": 1001, "symbol": "XAUUSD", "type": "BUY", "magic": 777}
+    assert h.agent._find_paired_hedge_ticket(main_dict) is None
+
+
+async def test_check_rsi_exit_disabled_status_skips(position_monitor_agent_factory):
+    h = position_monitor_agent_factory(streams={"s1": make_stream(magic=777)},
+                                       status_seed={"XAUUSD": 3})   # DISABLED
+    await h.agent._check_rsi_exit({"symbol": "XAUUSD", "magic": 777, "ticket": 1001, "type": "BUY"})
+    assert h.bus.events == []
+
+
+async def test_check_rsi_exit_no_stream_skips(position_monitor_agent_factory):
+    h = position_monitor_agent_factory(streams={}, status_seed={"XAUUSD": 0})
+    await h.agent._check_rsi_exit({"symbol": "XAUUSD", "magic": 999, "ticket": 1001, "type": "BUY"})
+    assert h.bus.events == []
+
+
+async def test_check_rsi_exit_dispatches_to_strategy(position_monitor_agent_factory):
+    # стратегия в STRATEGIES → идёт в _check_strategy_exit (get_exit_signal True → CLOSE)
+    rstrat = make_runtime_strategy(exit_signal=True)
+    h = position_monitor_agent_factory(
+        streams={"s1": make_stream(magic=777, strategy="strat")},
+        strategies={"strat": object()}, runtime_strategy=rstrat,
+        rates_df=pd.DataFrame({"close": [1.0] * 60}), status_seed={"XAUUSD": 0},
+    )
+    await h.agent._check_rsi_exit({"symbol": "XAUUSD", "magic": 777, "ticket": 1001,
+                                   "type": "BUY", "open_price": 1899.0, "volume": 0.1,
+                                   "sl": 0.0, "comment": "s1:strat"})
+    assert [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST]
