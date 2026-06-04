@@ -343,3 +343,99 @@ async def test_check_rsi_exit_dispatches_to_strategy(position_monitor_agent_fact
                                    "type": "BUY", "open_price": 1899.0, "volume": 0.1,
                                    "sl": 0.0, "comment": "s1:strat"})
     assert [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST]
+
+
+# ---------------------------------------------------------------------------
+# _check_strategy_exit  (Task 9 / E3)
+# ---------------------------------------------------------------------------
+
+def _main_pos(ticket=1001, comment="s1:strat"):
+    return {"ticket": ticket, "symbol": "XAUUSD", "type": "BUY", "open_price": 1899.0,
+            "volume": 0.1, "sl": 0.0, "magic": 777, "comment": comment}
+
+
+async def test_strategy_exit_no_rates_skips(position_monitor_agent_factory):
+    rstrat = make_runtime_strategy(exit_signal=True)
+    h = position_monitor_agent_factory(
+        streams={"s1": make_stream(magic=777, strategy="strat")},
+        strategies={"strat": object()}, runtime_strategy=rstrat, rates_df=None,
+    )
+    await h.agent._check_strategy_exit(_main_pos(), make_stream(magic=777, strategy="strat"))
+    assert [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST] == []
+
+
+async def test_strategy_exit_short_df_skips(position_monitor_agent_factory):
+    rstrat = make_runtime_strategy(exit_signal=True)
+    h = position_monitor_agent_factory(
+        streams={"s1": make_stream(magic=777, strategy="strat")},
+        strategies={"strat": object()}, runtime_strategy=rstrat,
+        rates_df=pd.DataFrame({"close": [1.0] * 10}),   # < 50
+    )
+    await h.agent._check_strategy_exit(_main_pos(), make_stream(magic=777, strategy="strat"))
+    assert [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST] == []
+
+
+async def test_strategy_exit_signal_false_no_close(position_monitor_agent_factory):
+    rstrat = make_runtime_strategy(exit_signal=False)
+    h = position_monitor_agent_factory(
+        streams={"s1": make_stream(magic=777, strategy="strat")},
+        strategies={"strat": object()}, runtime_strategy=rstrat,
+        rates_df=pd.DataFrame({"close": [1.0] * 60}),
+    )
+    await h.agent._check_strategy_exit(_main_pos(), make_stream(magic=777, strategy="strat"))
+    assert [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST] == []
+
+
+async def test_strategy_exit_main_emits_close(position_monitor_agent_factory):
+    rstrat = make_runtime_strategy(exit_signal=True, wants_hedge=False)
+    stream = make_stream(magic=777, strategy="strat")
+    h = position_monitor_agent_factory(
+        positions=[], streams={"s1": stream}, strategies={"strat": object()},
+        runtime_strategy=rstrat, rates_df=pd.DataFrame({"close": [1.0] * 60}),
+    )
+    await h.agent._check_strategy_exit(_main_pos(), stream)
+    reqs = [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST]
+    assert len(reqs) == 1
+    assert reqs[0].payload["reason"] == "strategy:strat"
+
+
+async def test_strategy_exit_main_with_hedge_closes_pair(position_monitor_agent_factory):
+    # wants_hedge + парный хедж в позициях → 2 CLOSE (основная + pair_close)
+    hedge = make_mt5_position(ticket=2002, symbol="XAUUSD", type=1, magic=777, comment="s1:strat:H")
+    rstrat = make_runtime_strategy(exit_signal=True, wants_hedge=True)
+    stream = make_stream(magic=777, strategy="strat")
+    h = position_monitor_agent_factory(
+        positions=[hedge], streams={"s1": stream}, strategies={"strat": object()},
+        runtime_strategy=rstrat, rates_df=pd.DataFrame({"close": [1.0] * 60}),
+    )
+    await h.agent._check_strategy_exit(_main_pos(), stream)
+    reqs = [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST]
+    assert len(reqs) == 2
+    reasons = {r.payload["reason"] for r in reqs}
+    assert "strategy:strat" in reasons
+    assert "strategy:strat:pair_close" in reasons
+
+
+async def test_strategy_exit_hedge_leg_closes_only_itself(position_monitor_agent_factory):
+    # хедж-нога (:H) + wants_hedge → get_hedge_exit_signal True → закрытие только ноги
+    rstrat = make_runtime_strategy(hedge_exit_signal=True, wants_hedge=True)
+    stream = make_stream(magic=777, strategy="strat")
+    h = position_monitor_agent_factory(
+        streams={"s1": stream}, strategies={"strat": object()}, runtime_strategy=rstrat,
+        rates_df=pd.DataFrame({"close": [1.0] * 60}),
+    )
+    await h.agent._check_strategy_exit(_main_pos(ticket=2002, comment="s1:strat:H"), stream)
+    reqs = [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST]
+    assert len(reqs) == 1
+    assert reqs[0].payload["reason"] == "strategy:strat:hedge"
+
+
+async def test_strategy_exit_exception_does_not_crash(position_monitor_agent_factory):
+    rstrat = make_runtime_strategy(raise_on_exit=True)
+    stream = make_stream(magic=777, strategy="strat")
+    h = position_monitor_agent_factory(
+        streams={"s1": stream}, strategies={"strat": object()}, runtime_strategy=rstrat,
+        rates_df=pd.DataFrame({"close": [1.0] * 60}),
+    )
+    await h.agent._check_strategy_exit(_main_pos(), stream)   # не должно бросить
+    assert [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST] == []
