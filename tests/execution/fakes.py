@@ -23,7 +23,8 @@ class FakeMT5:
         self.positions = []                  # отдаётся positions_get
         self.ticks = {}                      # symbol -> tick override (конверсионные символы)
         self.symbol_infos = {}               # symbol -> info|None для mt5.symbol_info()
-        self.margin_per_lot = 100.0          # order_calc_margin (фикс-скаляр; None для fail-теста)
+        self.margin_per_lot = 100.0          # order_calc_margin (фикс-скаляр; НЕ масштабируется по
+                                             # volume — реальный MT5 масштабирует; None для fail-теста)
         self.deals = []                      # отдаётся history_deals_get
         self.selected = []                   # записанные symbol_select
         self._result = "default"             # "default" → построить успешный результат

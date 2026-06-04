@@ -12,11 +12,10 @@ calculatePipValue (вкл. конверсию валют), calculateMaxVolumeWit
   account_info: balance=10000, equity=10000, margin_free=5000.
   order_calc_margin → margin_per_lot (фикс, дефолт 100.0).
 """
+import inspect
 from types import SimpleNamespace
 
 import pytest
-
-from settings import TargetType
 
 
 def test_pip_value_none_symbol_info(patched_trading):
@@ -211,9 +210,6 @@ def test_safetrade_exhausts_returns_max(patched_trading, monkeypatch):
     monkeypatch.setattr(patched_trading.trading, "checkMarginWithStopLoss",
                         lambda *a, **k: (False, 0.5))
     assert patched_trading.trading.calculateSafeTradeWithMargin("XAUUSD", 2, 100) == pytest.approx(2.0)
-
-
-import inspect
 
 
 # Класс Trading берём из инстанса фикстуры (patched_trading лениво и безопасно
