@@ -68,3 +68,48 @@ async def test_on_new_bar_empty_symbol_ignored(position_monitor_agent_factory):
     h = position_monitor_agent_factory()
     await h.agent._on_new_bar(Event(type=EventType.NEW_BAR, source="test", payload={}))
     assert h.agent._pending_exit_symbols == set()
+
+
+async def test_run_emits_position_update_and_metrics(position_monitor_agent_factory):
+    pos = make_mt5_position(ticket=1001, magic=777)
+    h = position_monitor_agent_factory(positions=[pos], streams={"s1": make_stream(magic=777)})
+    await h.agent.run()
+    updates = [e for e in h.bus.events if e.type == EventType.POSITION_UPDATE]
+    assert len(updates) == 1
+    assert len(updates[0].payload["positions"]) == 1
+    assert h.agent.metrics["open_positions"] == 1
+    assert 1001 in h.agent._prev_positions
+
+
+async def test_run_detects_disappeared_position(position_monitor_agent_factory):
+    # 1-й цикл: позиция есть; 2-й: пропала → ORDER_CLOSED
+    pos = make_mt5_position(ticket=1001, symbol="XAUUSD", magic=777)
+    h = position_monitor_agent_factory(
+        positions=[pos], streams={"s1": make_stream(magic=777)},
+        status_seed={"XAUUSD": 1},
+    )
+    await h.agent.run()                       # зафиксировали в _prev_positions
+    h.trading.positions_list = []             # позиция исчезла
+    await h.agent.run()
+    closed = [e for e in h.bus.events if e.type == EventType.ORDER_CLOSED]
+    assert len(closed) == 1
+    assert closed[0].payload["ticket"] == 1001
+
+
+async def test_run_checks_exit_only_for_pending_symbols(position_monitor_agent_factory):
+    # exit проверяется только для символов с новой свечой
+    pos = make_mt5_position(symbol="XAUUSD", type=0, magic=777, comment="s1:strat")
+    rstrat = make_runtime_strategy(exit_signal=True)
+    h = position_monitor_agent_factory(
+        positions=[pos], streams={"s1": make_stream(magic=777, strategy="strat")},
+        strategies={"strat": object()}, runtime_strategy=rstrat,
+        rates_df=pd.DataFrame({"close": [1.0] * 60}),
+    )
+    # без pending — exit не вызывается
+    await h.agent.run()
+    assert [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST] == []
+    # с pending по символу — вызывается
+    await h.agent._on_new_bar(_bar_event("XAUUSD"))
+    await h.agent.run()
+    assert [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST]
+    assert h.agent._pending_exit_symbols == set()   # очищено
