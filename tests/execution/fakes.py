@@ -26,6 +26,7 @@ class FakeMT5:
         self.margin_per_lot = 100.0          # order_calc_margin (фикс-скаляр; НЕ масштабируется по
                                              # volume — реальный MT5 масштабирует; None для fail-теста)
         self.deals = []                      # отдаётся history_deals_get
+        self.rates = None                    # copy_rates_from_pos (None=по умолчанию make_rates(30))
         self.selected = []                   # записанные symbol_select
         self._result = "default"             # "default" → построить успешный результат
         self._error = (1, "fake error")
@@ -62,7 +63,10 @@ class FakeMT5:
     def symbol_info(self, symbol):
         return self.symbol_infos.get(symbol)
 
-    def history_deals_get(self, date_from=None, date_to=None):
+    def copy_rates_from_pos(self, symbol, timeframe, start, count):
+        return self.rates if self.rates is not None else make_rates(30)
+
+    def history_deals_get(self, date_from=None, date_to=None, position=None):
         return list(self.deals)
 
     def last_error(self):
@@ -84,6 +88,7 @@ class FakeCache:
         self.account_info = SimpleNamespace(
             balance=10000.0, equity=10000.0, margin_free=5000.0,
         )
+        self.rates_df = None                 # get_rates (None → пусто)
 
     def get_symbol_info(self, symbol):
         return self.symbol_info
@@ -93,6 +98,9 @@ class FakeCache:
 
     def get_account_info(self):
         return self.account_info
+
+    def get_rates(self, symbol, timeframe, bars=None):
+        return self.rates_df
 
 
 class FakeStatus:
@@ -123,19 +131,21 @@ def make_position(fm, *, ticket=555, type=None, volume=0.1, magic=777, tp=1950.0
     )
 
 
-def make_deal(*, magic=777, profit=0.0, commission=0.0, swap=0.0):
+def make_deal(*, magic=777, profit=0.0, commission=0.0, swap=0.0, comment=""):
     """Фейковый закрытый deal MT5 (для history_deals_get)."""
-    return SimpleNamespace(magic=magic, profit=profit, commission=commission, swap=swap)
+    return SimpleNamespace(magic=magic, profit=profit, commission=commission,
+                           swap=swap, comment=comment)
 
 
 def make_stream(*, id="s1", name="Stream-1", strategy="default", symbol="XAUUSD",
                 volume=0.1, sl_atr=0.0, tp_atr=0.0, magic=777, deposit=0.0,
-                enabled=True):
-    """TradingStream-подобный объект для тестов execution_agent."""
+                enabled=True, breakeven_atr=0.0, trail_atr=0.0, timeframe=16385):
+    """TradingStream-подобный объект для тестов агентов."""
     return SimpleNamespace(
         id=id, name=name, strategy=strategy, symbol=symbol,
         volume=volume, sl_atr=sl_atr, tp_atr=tp_atr, magic=magic,
         deposit=deposit, enabled=enabled,
+        breakeven_atr=breakeven_atr, trail_atr=trail_atr, timeframe=timeframe,
     )
 
 
@@ -189,6 +199,12 @@ class FakeRegistry:
                 return s
         return None
 
+    def by_magic(self, magic):
+        for s in self._streams.values():
+            if getattr(s, "magic", None) == magic:
+                return s
+        return None
+
 
 class FakeTrading:
     """Спай вместо trading.Trading: записывает вызовы orderOpen/orderClose/calc."""
@@ -199,6 +215,9 @@ class FakeTrading:
         self._open_results = None   # None → дефолтный успешный dict на каждый вызов
         self._close_result = True
         self._calc_result = 0.5
+        self.positions_list = []             # отдаётся getPositions()
+        self.modify_calls = []               # записи modifySL
+        self._modify_result = True
 
     def set_open_result(self, *results):
         """Последовательность результатов orderOpen (1-й — основная нога, 2-й — хедж)."""
@@ -225,8 +244,76 @@ class FakeTrading:
         self.close_calls.append(dict(ticket=ticket, symbol=symbol, tag=tag))
         return self._close_result
 
+    def getPositions(self):
+        return list(self.positions_list)
+
+    def set_modify_result(self, val):
+        self._modify_result = val
+
+    def modifySL(self, ticket, symbol, new_sl, new_tp=None):
+        self.modify_calls.append(dict(ticket=ticket, symbol=symbol, new_sl=new_sl, new_tp=new_tp))
+        return self._modify_result
+
     def calculateSafeTradeWithMargin(self, symbol, risk, stop_loss_pips, order_type):
         self.calc_calls.append(dict(
             symbol=symbol, risk=risk, stop_loss_pips=stop_loss_pips, order_type=order_type,
         ))
         return self._calc_result
+
+
+def make_mt5_position(*, ticket=1001, symbol="XAUUSD", type=0, volume=0.1,
+                      price_open=1899.0, sl=0.0, profit=12.34, time=1_700_000_000,
+                      magic=777, comment=""):
+    """MT5-подобная открытая позиция (для FakeTrading.getPositions). type: 0=BUY,1=SELL."""
+    return SimpleNamespace(
+        ticket=ticket, symbol=symbol, type=type, volume=volume,
+        price_open=price_open, sl=sl, profit=profit, time=time,
+        magic=magic, comment=comment,
+    )
+
+
+def make_rates(n=30, *, high=1.05, low=0.95, close=1.0, open_=1.0):
+    """numpy structured array баров для copy_rates_from_pos (значения неважны — ATR замокан)."""
+    import numpy as np
+    arr = np.zeros(n, dtype=[("open", "f8"), ("high", "f8"), ("low", "f8"), ("close", "f8")])
+    arr["open"] = open_
+    arr["high"] = high
+    arr["low"] = low
+    arr["close"] = close
+    return arr
+
+
+def make_runtime_strategy(*, exit_signal=False, hedge_exit_signal=False,
+                          wants_hedge=False, raise_on_exit=False, raise_on_closed=False):
+    """Фейк рантайм-стратегии (под get_runtime_strategy)."""
+    class _S:
+        def __init__(self):
+            self.closed_calls = []
+        def compute_indicators(self, df):
+            return df
+        def compute_flat_indicators(self, df):
+            return df
+        def get_exit_signal(self, row, pos):
+            if raise_on_exit:
+                raise RuntimeError("exit boom")
+            return exit_signal
+        def get_hedge_exit_signal(self, row, pos):
+            return hedge_exit_signal
+        def wants_hedge(self):
+            return wants_hedge
+        def on_trade_closed(self, pos, reason):
+            if raise_on_closed:
+                raise RuntimeError("closed boom")
+            self.closed_calls.append((pos, reason))
+    return _S()
+
+
+def make_rsi(value):
+    """Фабрика фейк-класса RSI (под indicators.RSI). value=None → нет данных."""
+    import pandas as pd
+    class _RSI:
+        def get_rsi_talib(self, symbol, timeframe):
+            if value is None:
+                return None
+            return {"RSI": pd.Series([value])}
+    return _RSI
