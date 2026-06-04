@@ -13,7 +13,7 @@ import pytest
 
 from core.events import Event, EventType
 from tests.execution.fakes import (
-    make_stream, make_deal, make_mt5_position, make_runtime_strategy, make_rsi, make_rates,
+    make_stream, make_deal, make_mt5_position, make_runtime_strategy, make_rsi,
 )
 
 
@@ -501,3 +501,44 @@ async def test_dispatch_new_bar_then_run_triggers_exit(position_monitor_agent_fa
     await h.agent._on_new_bar(_bar_event("XAUUSD"))
     await h.agent.run()
     assert [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST]
+
+
+def test_trail_sell_breakeven_sets_entry(position_monitor_agent_factory):
+    # SELL breakeven: entry 1903 - ask 1900.5 = 2.5 >= be(1.0)*atr(2.0)=2.0 → candidate=entry=1903.0
+    h = position_monitor_agent_factory(streams={"s1": make_stream(magic=777, breakeven_atr=1.0, trail_atr=0)})
+    h.agent._apply_trailing_sl(_posd(type="SELL", open_price=1903.0, sl=0.0))
+    assert len(h.trading.modify_calls) == 1
+    assert h.trading.modify_calls[0]["new_sl"] == pytest.approx(1903.0)
+    assert 1001 in h.agent._be_done
+
+
+async def test_disappeared_stream_none_payload(position_monitor_agent_factory):
+    # ни by_magic, ни by_symbol не находят поток → stream_id=None в ORDER_CLOSED
+    h = position_monitor_agent_factory(positions=[], streams={}, status_seed={"XAUUSD": 1})
+    await h.agent._on_position_disappeared(_prev(magic=777))
+    closed = [e for e in h.bus.events if e.type == EventType.ORDER_CLOSED]
+    assert len(closed) == 1
+    assert closed[0].payload["stream_id"] is None
+
+
+async def test_check_rsi_exit_dispatches_to_legacy(position_monitor_agent_factory, monkeypatch):
+    # стратегия НЕ в STRATEGIES → _check_rsi_exit маршрутизирует в legacy-RSI
+    import indicators
+    monkeypatch.setattr(indicators, "RSI", make_rsi(40.0))   # BUY + <45 → CLOSE
+    stream = make_stream(magic=777, strategy="nonstrat")
+    h = position_monitor_agent_factory(streams={"s1": stream}, strategies={},
+                                       status_seed={"XAUUSD": 0})
+    await h.agent._check_rsi_exit({"symbol": "XAUUSD", "magic": 777, "ticket": 1001, "type": "BUY"})
+    assert [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST]
+
+
+async def test_run_error_path_sets_error_status(position_monitor_agent_factory, monkeypatch):
+    # исключение внутри run() → ловится, статус ERROR, без краша
+    from agents.base_agent import AgentStatus
+    h = position_monitor_agent_factory(positions=[make_mt5_position(magic=777)],
+                                       streams={"s1": make_stream(magic=777)})
+    def boom():
+        raise RuntimeError("positions boom")
+    monkeypatch.setattr(h.agent, "_get_positions_with_pnl", boom)
+    await h.agent.run()   # не должно бросить
+    assert h.agent.status == AgentStatus.ERROR
