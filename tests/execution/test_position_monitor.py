@@ -532,8 +532,10 @@ async def test_check_rsi_exit_dispatches_to_legacy(position_monitor_agent_factor
     assert [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST]
 
 
-async def test_run_error_path_sets_error_status(position_monitor_agent_factory, monkeypatch):
-    # исключение внутри run() → ловится, статус ERROR, без краша
+async def test_run_error_path_emits_error_status_event(position_monitor_agent_factory, monkeypatch):
+    # исключение внутри run() → ловится (без краша), эмитится AGENT_STATUS=error.
+    # Характеризация тонкости: финальный статус всё равно IDLE — run() безусловно
+    # эмитит IDLE в конце цикла (стр. 74), перетирая транзиентный ERROR.
     from agents.base_agent import AgentStatus
     h = position_monitor_agent_factory(positions=[make_mt5_position(magic=777)],
                                        streams={"s1": make_stream(magic=777)})
@@ -541,4 +543,6 @@ async def test_run_error_path_sets_error_status(position_monitor_agent_factory, 
         raise RuntimeError("positions boom")
     monkeypatch.setattr(h.agent, "_get_positions_with_pnl", boom)
     await h.agent.run()   # не должно бросить
-    assert h.agent.status == AgentStatus.ERROR
+    emitted = [e.payload["status"] for e in h.bus.events if e.type == EventType.AGENT_STATUS]
+    assert AgentStatus.ERROR in emitted          # ERROR наблюдаемо эмитнут
+    assert h.agent.status == AgentStatus.IDLE     # но финальный статус — IDLE
