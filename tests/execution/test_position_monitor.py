@@ -113,3 +113,61 @@ async def test_run_checks_exit_only_for_pending_symbols(position_monitor_agent_f
     await h.agent.run()
     assert [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST]
     assert h.agent._pending_exit_symbols == set()   # очищено
+
+
+def _prev(ticket=1001, symbol="XAUUSD", type="BUY", open_price=1899.0, magic=777):
+    return {"ticket": ticket, "symbol": symbol, "type": type, "open_price": open_price, "magic": magic}
+
+
+async def test_disappeared_emits_order_closed_and_resets_status(position_monitor_agent_factory):
+    h = position_monitor_agent_factory(
+        positions=[], streams={"s1": make_stream(magic=777)},
+        status_seed={"XAUUSD": 1},   # OPEN
+        deals=[make_deal(comment="tp hit")],
+    )
+    await h.agent._on_position_disappeared(_prev())
+    closed = [e for e in h.bus.events if e.type == EventType.ORDER_CLOSED]
+    assert len(closed) == 1
+    assert closed[0].payload["reason"] == "TP"
+    assert closed[0].payload["stream_id"] == "s1"
+    # статус сброшен OPEN→ALLOWED + TRADING_STATUS_CHANGED
+    assert h.status.status_of("XAUUSD") == 0
+    changed = [e for e in h.bus.events if e.type == EventType.TRADING_STATUS_CHANGED]
+    assert len(changed) == 1
+    assert changed[0].payload["status"] == 0
+
+
+async def test_disappeared_hedge_sibling_keeps_status(position_monitor_agent_factory):
+    # есть «сосед» по той же magic+symbol → статус НЕ сбрасывается
+    sibling = make_mt5_position(ticket=2002, symbol="XAUUSD", magic=777)
+    h = position_monitor_agent_factory(
+        positions=[sibling], streams={"s1": make_stream(magic=777)},
+        status_seed={"XAUUSD": 1},
+    )
+    await h.agent._on_position_disappeared(_prev(ticket=1001))
+    assert h.status.status_of("XAUUSD") == 1   # остался OPEN
+    assert [e for e in h.bus.events if e.type == EventType.TRADING_STATUS_CHANGED] == []
+
+
+async def test_disappeared_calls_on_trade_closed(position_monitor_agent_factory):
+    rstrat = make_runtime_strategy()
+    h = position_monitor_agent_factory(
+        positions=[], streams={"s1": make_stream(magic=777, strategy="strat")},
+        strategies={"strat": object()}, runtime_strategy=rstrat,
+        status_seed={"XAUUSD": 1}, deals=[make_deal(comment="manual")],
+    )
+    await h.agent._on_position_disappeared(_prev())
+    assert len(rstrat.closed_calls) == 1
+    assert rstrat.closed_calls[0][1] == "MANUAL"
+
+
+async def test_disappeared_on_trade_closed_exception_does_not_crash(position_monitor_agent_factory):
+    rstrat = make_runtime_strategy(raise_on_closed=True)
+    h = position_monitor_agent_factory(
+        positions=[], streams={"s1": make_stream(magic=777, strategy="strat")},
+        strategies={"strat": object()}, runtime_strategy=rstrat,
+        status_seed={"XAUUSD": 1}, deals=[make_deal(comment="manual")],
+    )
+    await h.agent._on_position_disappeared(_prev())   # не должно бросить
+    closed = [e for e in h.bus.events if e.type == EventType.ORDER_CLOSED]
+    assert len(closed) == 1   # ORDER_CLOSED всё равно был эмитнут до хука
