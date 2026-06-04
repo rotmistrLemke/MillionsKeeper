@@ -171,3 +171,29 @@ async def test_disappeared_on_trade_closed_exception_does_not_crash(position_mon
     await h.agent._on_position_disappeared(_prev())   # не должно бросить
     closed = [e for e in h.bus.events if e.type == EventType.ORDER_CLOSED]
     assert len(closed) == 1   # ORDER_CLOSED всё равно был эмитнут до хука
+
+
+@pytest.mark.parametrize("comment,expected", [
+    ("sl 1897.0", "SL"),
+    ("stop loss", "SL"),
+    ("tp reached", "TP"),
+    ("take profit", "TP"),
+    ("strategy:ema", "SIGNAL"),
+    ("manual close", "MANUAL"),
+])
+def test_classify_close_reason_from_comment(position_monitor_agent_factory, comment, expected):
+    h = position_monitor_agent_factory(deals=[make_deal(comment=comment)])
+    assert h.agent._classify_close_reason(1001) == expected
+
+
+def test_classify_close_reason_no_deals(position_monitor_agent_factory):
+    h = position_monitor_agent_factory(deals=[])
+    assert h.agent._classify_close_reason(1001) == "MANUAL"
+
+
+def test_classify_close_reason_exception(position_monitor_agent_factory, monkeypatch):
+    h = position_monitor_agent_factory()
+    def boom(*a, **k):
+        raise RuntimeError("hist boom")
+    monkeypatch.setattr(h.mt5, "history_deals_get", boom)
+    assert h.agent._classify_close_reason(1001) == "MANUAL"
