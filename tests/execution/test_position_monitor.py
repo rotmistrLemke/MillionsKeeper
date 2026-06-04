@@ -439,3 +439,48 @@ async def test_strategy_exit_exception_does_not_crash(position_monitor_agent_fac
     )
     await h.agent._check_strategy_exit(_main_pos(), stream)   # не должно бросить
     assert [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST] == []
+
+
+# ---------------------------------------------------------------------------
+# _check_legacy_rsi_exit
+# ---------------------------------------------------------------------------
+
+async def test_legacy_rsi_buy_exit(position_monitor_agent_factory, monkeypatch):
+    # BUY + RSI < 45 → RSI_EXIT_TRIGGERED + ORDER_CLOSE_REQUEST
+    import indicators
+    monkeypatch.setattr(indicators, "RSI", make_rsi(40.0))
+    stream = make_stream(magic=777, strategy="nonstrat")   # НЕ в STRATEGIES → legacy
+    h = position_monitor_agent_factory(streams={"s1": stream}, strategies={},
+                                       status_seed={"XAUUSD": 0})
+    await h.agent._check_legacy_rsi_exit({"symbol": "XAUUSD", "ticket": 1001, "type": "BUY"}, stream)
+    assert [e for e in h.bus.events if e.type == EventType.RSI_EXIT_TRIGGERED]
+    reqs = [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST]
+    assert len(reqs) == 1
+    assert reqs[0].payload["reason"].startswith("RSI=")
+
+
+async def test_legacy_rsi_sell_exit(position_monitor_agent_factory, monkeypatch):
+    import indicators
+    monkeypatch.setattr(indicators, "RSI", make_rsi(60.0))   # SELL + >55
+    stream = make_stream(magic=777, strategy="nonstrat")
+    h = position_monitor_agent_factory(streams={"s1": stream}, strategies={})
+    await h.agent._check_legacy_rsi_exit({"symbol": "XAUUSD", "ticket": 1001, "type": "SELL"}, stream)
+    assert [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST]
+
+
+async def test_legacy_rsi_no_exit_when_neutral(position_monitor_agent_factory, monkeypatch):
+    import indicators
+    monkeypatch.setattr(indicators, "RSI", make_rsi(50.0))   # BUY: 50 не <45
+    stream = make_stream(magic=777, strategy="nonstrat")
+    h = position_monitor_agent_factory(streams={"s1": stream}, strategies={})
+    await h.agent._check_legacy_rsi_exit({"symbol": "XAUUSD", "ticket": 1001, "type": "BUY"}, stream)
+    assert h.bus.events == []
+
+
+async def test_legacy_rsi_no_data_skips(position_monitor_agent_factory, monkeypatch):
+    import indicators
+    monkeypatch.setattr(indicators, "RSI", make_rsi(None))   # get_rsi_talib → None
+    stream = make_stream(magic=777, strategy="nonstrat")
+    h = position_monitor_agent_factory(streams={"s1": stream}, strategies={})
+    await h.agent._check_legacy_rsi_exit({"symbol": "XAUUSD", "ticket": 1001, "type": "BUY"}, stream)
+    assert h.bus.events == []
