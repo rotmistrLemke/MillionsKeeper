@@ -47,6 +47,13 @@
 - **Желаемое:** удалить мёртвый код либо восстановить сигнатуру (`self` + None-guard).
 - **Статус:** ⚠️ ОТКРЫТА (2026-06-03, слайс E1b). Зафиксировано тестами `tests/execution/test_trading_margin.py::test_legacy_setStopLoss_missing_self_param` и `::test_legacy_calculateStopLossOld_missing_self_param` (через `inspect.signature`). Прод НЕ правился.
 
+## 7. trading.Trading: мёртвые методы calculateStopLoss/calculateMaxMinValue
+
+- **Где:** [trading.py:159](../trading.py#L159) (`calculateStopLoss`) и [trading.py:468](../trading.py#L468) (`calculateMaxMinValue`).
+- **Что:** оба объявлены корректно (с `self`), но НИГДЕ не вызываются (проверено grep по проекту). `calculateStopLoss` мутирует `dict.symbolStopLossValue` (legacy-трейлинг по деньгам), `calculateMaxMinValue` считает экскурсию через `copy_rates_from_pos`. Актуальный трейлинг делает `PositionMonitorAgent._apply_trailing_sl` (ATR-based, через `modifySL`), эти методы — рудимент старой схемы.
+- **Желаемое:** удалить мёртвый код (либо подключить, если задумывался).
+- **Статус:** ⚠️ ОТКРЫТА (2026-06-04, слайс E3). Без тестов (мёртвый код, решение пользователя — не раздувать E3). Зафиксировано наблюдением при характеризации position_monitor.
+
 ---
 
 ## Связанные документы
@@ -55,3 +62,4 @@
 - `docs/superpowers/specs/2026-06-01-backtest-decomposition-design.md` — слайс C
 - `docs/superpowers/specs/2026-06-03-trading-margin-characterization-design.md` — слайс E1b (находки #5, #6)
 - Тесты-маркеры: `tests/strategies/test_contract.py` (fibonacci xfail), `tests/strategies/test_behavioral.py` (ema_triple_touch FINDING-комментарий), `tests/execution/test_trading_margin.py` (E1b: #5 double-count xfail, #6 legacy без self).
+- `docs/superpowers/specs/2026-06-04-position-monitor-characterization-design.md` — слайс E3 (наблюдение #7)

@@ -484,3 +484,20 @@ async def test_legacy_rsi_no_data_skips(position_monitor_agent_factory, monkeypa
     h = position_monitor_agent_factory(streams={"s1": stream}, strategies={})
     await h.agent._check_legacy_rsi_exit({"symbol": "XAUUSD", "ticket": 1001, "type": "BUY"}, stream)
     assert h.bus.events == []
+
+
+# ---------------------------------------------------------------------------
+# Task 11 / E3 — dispatch: _on_new_bar + run() → ORDER_CLOSE_REQUEST
+# ---------------------------------------------------------------------------
+
+async def test_dispatch_new_bar_then_run_triggers_exit(position_monitor_agent_factory):
+    pos = make_mt5_position(symbol="XAUUSD", type=0, magic=777, comment="s1:strat")
+    rstrat = make_runtime_strategy(exit_signal=True)
+    h = position_monitor_agent_factory(
+        positions=[pos], streams={"s1": make_stream(magic=777, strategy="strat")},
+        strategies={"strat": object()}, runtime_strategy=rstrat,
+        rates_df=pd.DataFrame({"close": [1.0] * 60}),
+    )
+    await h.agent._on_new_bar(_bar_event("XAUUSD"))
+    await h.agent.run()
+    assert [e for e in h.bus.events if e.type == EventType.ORDER_CLOSE_REQUEST]
