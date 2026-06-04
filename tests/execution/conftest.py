@@ -93,3 +93,61 @@ def execution_agent_factory(monkeypatch):
         )
 
     return make
+
+
+@pytest.fixture
+def position_monitor_agent_factory(monkeypatch):
+    """Фабрика PositionMonitorAgent с подменёнными зависимостями.
+
+    status → реальный TradingStatusRegistry(seed); streams.registry/STRATEGIES/
+    get_runtime_strategy/cache/sys.modules['MetaTrader5']/talib.ATR — фейки.
+    Прод не трогаем. trading не импортируется на уровне модуля.
+    """
+    from tests.execution.fakes import (
+        FakeMT5, FakeCache, FakeTrading, FakeBus, FakeRegistry, make_runtime_strategy,
+    )
+
+    def make(*, positions=None, streams=None, strategies=None, runtime_strategy=None,
+             status_seed=None, symbol="XAUUSD", rates_df=None, deals=None,
+             atr=2.0, modify_result=True):
+        import agents.position_monitor_agent as pm_mod
+        import streams as streams_mod
+        import strategies as strat_mod
+        import strategies.runtime as runtime_mod
+        import market_data_cache as mdc_mod
+        import talib
+        from trading_status import TradingStatusRegistry
+
+        fake_mt5 = FakeMT5()
+        fake_mt5.symbol_infos[symbol] = SimpleNamespace(point=0.01)
+        if deals is not None:
+            fake_mt5.deals = deals
+        fake_cache = FakeCache()
+        fake_cache.rates_df = rates_df
+        fake_trading = FakeTrading()
+        fake_trading.positions_list = positions or []
+        fake_trading._modify_result = modify_result
+        fake_registry = FakeRegistry(streams or {})
+        real_status = TradingStatusRegistry(
+            seed=status_seed if status_seed is not None else {symbol: 0}
+        )
+        strat_map = {} if strategies is None else strategies
+        rstrat = runtime_strategy if runtime_strategy is not None else make_runtime_strategy()
+
+        monkeypatch.setattr(pm_mod, "status", real_status)
+        monkeypatch.setattr(streams_mod, "registry", fake_registry)
+        monkeypatch.setattr(strat_mod, "STRATEGIES", strat_map)
+        monkeypatch.setattr(runtime_mod, "get_runtime_strategy", lambda name, sym: rstrat)
+        monkeypatch.setattr(mdc_mod, "cache", fake_cache)
+        monkeypatch.setitem(sys.modules, "MetaTrader5", fake_mt5)
+        monkeypatch.setattr(talib, "ATR", lambda h, l, c, timeperiod=14: [atr] * len(c))
+
+        agent = pm_mod.PositionMonitorAgent("PositionMonitor", FakeBus(), fake_trading,
+                                            poll_interval=0)
+        return SimpleNamespace(
+            agent=agent, bus=agent.bus, trading=fake_trading, mt5=fake_mt5,
+            cache=fake_cache, status=real_status, registry=fake_registry,
+            runtime_strategy=rstrat,
+        )
+
+    return make
