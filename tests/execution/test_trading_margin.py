@@ -214,16 +214,22 @@ def test_safetrade_exhausts_returns_max(patched_trading, monkeypatch):
 
 
 import inspect
-from trading import Trading
 
 
-def test_legacy_setStopLoss_missing_self_param():
+# Класс Trading берём из инстанса фикстуры (patched_trading лениво и безопасно
+# импортирует trading через permissive-стаб MT5). Модульный `from trading import
+# Trading` здесь НЕДОПУСТИМ: он форсирует ранний import trading на этапе коллекции
+# → trading.py:427 вычисляет mt5.ORDER_TYPE_BUY против неполного MT5-фейка
+# legacy-тестов (catch-22 E1) и загрязняет indicators.mt5 (ломает test_macd_atr).
+def test_legacy_setStopLoss_missing_self_param(patched_trading):
     # FINDING #legacy-no-self: setStopLoss объявлен без self → сломан при вызове как метод.
+    Trading = type(patched_trading.trading)
     params = list(inspect.signature(Trading.setStopLoss).parameters)
     assert params and params[0] != "self"
 
 
-def test_legacy_calculateStopLossOld_missing_self_param():
+def test_legacy_calculateStopLossOld_missing_self_param(patched_trading):
     # FINDING #legacy-no-self: calculateStopLossOld объявлен без self.
+    Trading = type(patched_trading.trading)
     params = list(inspect.signature(Trading.calculateStopLossOld).parameters)
     assert params and params[0] != "self"
