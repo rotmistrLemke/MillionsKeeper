@@ -197,3 +197,96 @@ def test_classify_close_reason_exception(position_monitor_agent_factory, monkeyp
         raise RuntimeError("hist boom")
     monkeypatch.setattr(h.mt5, "history_deals_get", boom)
     assert h.agent._classify_close_reason(1001) == "MANUAL"
+
+
+# ---------------------------------------------------------------------------
+# _apply_trailing_sl — характеризационные тесты (Task 7, E3)
+# ---------------------------------------------------------------------------
+
+def _posd(ticket=1001, symbol="XAUUSD", type="BUY", open_price=1899.0, sl=0.0, magic=777):
+    return {"ticket": ticket, "symbol": symbol, "type": type, "open_price": open_price,
+            "sl": sl, "magic": magic}
+
+
+def test_trail_no_stream_skips(position_monitor_agent_factory):
+    h = position_monitor_agent_factory(streams={})   # by_magic → None
+    h.agent._apply_trailing_sl(_posd())
+    assert h.trading.modify_calls == []
+
+
+def test_trail_no_be_no_trail_skips(position_monitor_agent_factory):
+    h = position_monitor_agent_factory(streams={"s1": make_stream(magic=777, breakeven_atr=0, trail_atr=0)})
+    h.agent._apply_trailing_sl(_posd())
+    assert h.trading.modify_calls == []
+
+
+def test_trail_rates_none_skips(position_monitor_agent_factory):
+    h = position_monitor_agent_factory(streams={"s1": make_stream(magic=777, trail_atr=1.0)})
+    h.mt5.rates = []                # len 0 < 15
+    h.agent._apply_trailing_sl(_posd())
+    assert h.trading.modify_calls == []
+
+
+def test_trail_atr_zero_skips(position_monitor_agent_factory):
+    h = position_monitor_agent_factory(streams={"s1": make_stream(magic=777, trail_atr=1.0)}, atr=0.0)
+    h.agent._apply_trailing_sl(_posd())
+    assert h.trading.modify_calls == []
+
+
+def test_trail_tick_none_skips(position_monitor_agent_factory):
+    h = position_monitor_agent_factory(streams={"s1": make_stream(magic=777, trail_atr=1.0)})
+    h.mt5.tick = None
+    h.agent._apply_trailing_sl(_posd())
+    assert h.trading.modify_calls == []
+
+
+def test_trail_buy_breakeven_sets_entry(position_monitor_agent_factory):
+    # bid 1900 - entry 1897 = 3.0 >= be(1.0)*atr(2.0)=2.0 → candidate=entry=1897.0
+    h = position_monitor_agent_factory(streams={"s1": make_stream(magic=777, breakeven_atr=1.0, trail_atr=0)})
+    h.agent._apply_trailing_sl(_posd(open_price=1897.0, sl=0.0))
+    assert len(h.trading.modify_calls) == 1
+    assert h.trading.modify_calls[0]["new_sl"] == pytest.approx(1897.0)
+    assert 1001 in h.agent._be_done
+
+
+def test_trail_buy_breakeven_idempotent(position_monitor_agent_factory):
+    h = position_monitor_agent_factory(streams={"s1": make_stream(magic=777, breakeven_atr=1.0, trail_atr=0)})
+    h.agent._apply_trailing_sl(_posd(open_price=1897.0))   # 1-й раз — двигает
+    h.agent._apply_trailing_sl(_posd(open_price=1897.0))   # 2-й — _be_done, trail off → нечего двигать
+    assert len(h.trading.modify_calls) == 1
+
+
+def test_trail_buy_trailing_sets_below_price(position_monitor_agent_factory):
+    # cand = bid 1900 - trail(1.0)*atr(2.0) = 1898.0
+    h = position_monitor_agent_factory(streams={"s1": make_stream(magic=777, breakeven_atr=0, trail_atr=1.0)})
+    h.agent._apply_trailing_sl(_posd(open_price=1899.0, sl=0.0))
+    assert h.trading.modify_calls[0]["new_sl"] == pytest.approx(1898.0)
+
+
+def test_trail_buy_does_not_move_sl_down(position_monitor_agent_factory):
+    # cur_sl=1899.0; cand=1898.0 < cur → не двигаем (и порог)
+    h = position_monitor_agent_factory(streams={"s1": make_stream(magic=777, trail_atr=1.0)})
+    h.agent._apply_trailing_sl(_posd(open_price=1899.0, sl=1899.0))
+    assert h.trading.modify_calls == []
+
+
+def test_trail_sell_trailing_sets_above_price(position_monitor_agent_factory):
+    # SELL: cand = ask 1900.5 + trail(1.0)*atr(2.0) = 1902.5
+    h = position_monitor_agent_factory(streams={"s1": make_stream(magic=777, trail_atr=1.0)})
+    h.agent._apply_trailing_sl(_posd(type="SELL", open_price=1902.0, sl=0.0))
+    assert h.trading.modify_calls[0]["new_sl"] == pytest.approx(1902.5)
+
+
+def test_trail_threshold_skips_small_move(position_monitor_agent_factory):
+    # cur_sl=1897.9; cand=1898.0; |Δ|=0.1 < 0.1*atr(2.0)=0.2 → не двигаем
+    h = position_monitor_agent_factory(streams={"s1": make_stream(magic=777, trail_atr=1.0)})
+    h.agent._apply_trailing_sl(_posd(open_price=1899.0, sl=1897.9))
+    assert h.trading.modify_calls == []
+
+
+def test_trail_modifysl_exception_does_not_crash(position_monitor_agent_factory):
+    h = position_monitor_agent_factory(streams={"s1": make_stream(magic=777, trail_atr=1.0)})
+    def boom(*a, **k):
+        raise RuntimeError("modify boom")
+    h.trading.modifySL = boom
+    h.agent._apply_trailing_sl(_posd(open_price=1899.0, sl=0.0))   # не должно бросить
