@@ -33,10 +33,25 @@
 - **Желаемое:** при отсутствии результата возвращать graceful-значение (например `{"order": None, ...}` или `None`), не кидая исключение.
 - **Статус:** ⚠️ ОТКРЫТА (2026-06-02, слайс E1). Зафиксирована xfail-тестом `tests/execution/test_trading_orders.py::TestOrderOpenFindings::test_order_send_none_should_not_crash` (`raises=AttributeError, strict=True`). Прод НЕ правился (E1 только характеризует); фикс — отдельным слайсом.
 
+## 5. checkMarginWithStopLoss: двойной учёт volume (квадратичные потенциальные убытки)
+
+- **Где:** [trading.py:410](../trading.py#L410) — `checkMarginWithStopLoss`, `potential_loss = pip_value * stop_loss_pips * volume`.
+- **Что:** `pip_value = self.calculatePipValue(symbol, volume, order_type)` уже умножен на `volume` (внутри `calculatePipValue`: `pip = point*contract_size*volume`). Повторное домножение на `volume` делает `potential_loss` квадратичным по объёму: `point*contract*sl_pips*volume²`. Для дробных лотов (<1) занижает оценку убытка, для крупных (>1) — завышает, искажая margin-ratio и решение «безопасно ли открыть». В отличие от этого, `calculateMaxVolumeWithMarginCheck` считает корректно (per-1-lot: `pip_value_per_lot * stop_loss_pips`, линейно).
+- **Желаемое:** линейная зависимость от объёма — использовать pip-per-lot (volume=1) либо не домножать на `volume` повторно.
+- **Статус:** ⚠️ ОТКРЫТА (2026-06-03, слайс E1b). Зафиксирована xfail-тестом `tests/execution/test_trading_margin.py::test_check_margin_double_counts_volume`. Прод НЕ правился (E1b только характеризует); фикс — отдельным слайсом.
+
+## 6. trading.Trading: мёртвые методы setStopLoss/calculateStopLossOld без self
+
+- **Где:** [trading.py:188](../trading.py#L188) (`calculateStopLossOld(symbol, priceCurrent, orderType)`) и [trading.py:199](../trading.py#L199) (`setStopLoss(ticket, new_sl, oldSl, orderType)`).
+- **Что:** оба объявлены как методы класса `Trading`, но БЕЗ `self` в первом параметре. При вызове как bound-метод `self` попадает в первый параметр (сдвиг аргументов) → объективно сломаны. Мёртвый код — нигде в проекте не вызываются. `setStopLoss` дополнительно дёргает `result.retcode` без None-guard (как находка #4). При случайном вызове `setStopLoss` НЕ падает (из-за совпадения `TargetType.LONG==0` со сдвинутым аргументом), а молча отправляет `order_send` с мусором (`position`=инстанс) — тихая порча.
+- **Желаемое:** удалить мёртвый код либо восстановить сигнатуру (`self` + None-guard).
+- **Статус:** ⚠️ ОТКРЫТА (2026-06-03, слайс E1b). Зафиксировано тестами `tests/execution/test_trading_margin.py::test_legacy_setStopLoss_missing_self_param` и `::test_legacy_calculateStopLossOld_missing_self_param` (через `inspect.signature`). Прод НЕ правился.
+
 ---
 
 ## Связанные документы
 
 - `docs/superpowers/specs/2026-05-31-strategy-test-harness-design.md` — слайс A
 - `docs/superpowers/specs/2026-06-01-backtest-decomposition-design.md` — слайс C
-- Тесты-маркеры: `tests/strategies/test_contract.py` (fibonacci xfail), `tests/strategies/test_behavioral.py` (ema_triple_touch FINDING-комментарий).
+- `docs/superpowers/specs/2026-06-03-trading-margin-characterization-design.md` — слайс E1b (находки #5, #6)
+- Тесты-маркеры: `tests/strategies/test_contract.py` (fibonacci xfail), `tests/strategies/test_behavioral.py` (ema_triple_touch FINDING-комментарий), `tests/execution/test_trading_margin.py` (E1b: #5 double-count xfail, #6 legacy без self).
