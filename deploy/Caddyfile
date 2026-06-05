@@ -1,0 +1,54 @@
+# TradingHouse — reverse proxy + auto-HTTPS через Let's Encrypt.
+#
+# Установка:
+#   1. Замените YOUR_DOMAIN на реальный домен (например, trade.example.com)
+#   2. Замените YOUR_EMAIL на e-mail для Let's Encrypt-уведомлений
+#   3. Положите этот файл как C:\Caddy\Caddyfile
+#   4. Запустите: caddy run --config C:\Caddy\Caddyfile
+#      или зарегистрируйте как сервис (см. install_caddy.ps1)
+#
+# Caddy автоматически:
+#   - получит и обновит SSL-сертификат
+#   - проксирует HTTP → HTTPS
+#   - поддержит WebSocket-подключения
+
+{
+    email YOUR_EMAIL
+}
+
+YOUR_DOMAIN {
+    # Reverse-proxy на бэкенд бота (TradingHouse слушает 127.0.0.1:8080).
+    # WebSocket /ws обрабатывается тем же proxy — заголовки Upgrade/Connection
+    # Caddy пробрасывает автоматически.
+    reverse_proxy 127.0.0.1:8080 {
+        # Передаём реальный IP клиента боту в логах.
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Базовые security-заголовки.
+    header {
+        # HSTS — заставляем браузер всегда ходить по HTTPS.
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        # Запрет загрузки в iframe — защита от clickjacking.
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Удаляем заголовок, который может выдавать stack.
+        -Server
+    }
+
+    # Логи запросов — полезно для аудита, ротация раз в неделю.
+    log {
+        output file C:\Caddy\logs\access.log {
+            roll_size 10mb
+            roll_keep 7
+        }
+        format json
+    }
+
+    # Доступ к health-эндпоинту без логирования (мониторинг шумит).
+    @health path /health
+    log_skip @health
+}

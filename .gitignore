@@ -1,6 +1,30 @@
 
 *.xlsx
 test*
-account.py
+# tests/ — каталог с тестами должен трекаться, несмотря на широкий паттерн test*
+!tests/
+!tests/**
+account*
+settings*
+# settings.py — несекретный конфиг (TF-карты, спреды, стоп-лоссы), должен
+# трекаться; реальные секреты — в account.py (остаётся под ignore).
+!settings.py
+active_state.json
+streams.json
+users.json
+.jwt_secret
+.env
+task.out.log
 # Игнорировать кэш Python
 __pycache__/
+
+# БД аномалий (создаётся локально)
+data/anomalies.db
+data/anomalies.db-wal
+data/anomalies.db-shm
+
+# Локальное окружение и инструменты
+.claude/
+.mcp.json
+notes/
+tools/_out/

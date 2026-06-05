@@ -1,0 +1,98 @@
+{
+  "summary": {
+    "total_trades": 11,
+    "win_rate": 0.0,
+    "total_pnl_points": -540.6119,
+    "max_drawdown_points": 540.6119
+  },
+  "trades": [
+    {
+      "type": "BUY",
+      "entry_price": 2000.3031,
+      "exit_price": 1999.7863,
+      "pnl_points": -53.6757,
+      "exit_reason": "SIGNAL",
+      "bars_held": 2
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1999.6884,
+      "exit_price": 2000.1066,
+      "pnl_points": -43.8233,
+      "exit_reason": "SIGNAL",
+      "bars_held": 3
+    },
+    {
+      "type": "BUY",
+      "entry_price": 2000.2934,
+      "exit_price": 1999.7149,
+      "pnl_points": -59.8458,
+      "exit_reason": "SIGNAL",
+      "bars_held": 3
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1999.7642,
+      "exit_price": 2000.2797,
+      "pnl_points": -53.5535,
+      "exit_reason": "SIGNAL",
+      "bars_held": 2
+    },
+    {
+      "type": "BUY",
+      "entry_price": 2000.2798,
+      "exit_price": 1999.7107,
+      "pnl_points": -58.9112,
+      "exit_reason": "SIGNAL",
+      "bars_held": 4
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1999.7455,
+      "exit_price": 2000.1977,
+      "pnl_points": -47.2171,
+      "exit_reason": "SIGNAL",
+      "bars_held": 1
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1999.822,
+      "exit_price": 2000.1476,
+      "pnl_points": -34.5611,
+      "exit_reason": "SIGNAL",
+      "bars_held": 1
+    },
+    {
+      "type": "BUY",
+      "entry_price": 2000.2099,
+      "exit_price": 1999.7632,
+      "pnl_points": -46.6774,
+      "exit_reason": "SIGNAL",
+      "bars_held": 1
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1999.7199,
+      "exit_price": 2000.1948,
+      "pnl_points": -49.4863,
+      "exit_reason": "SIGNAL",
+      "bars_held": 3
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1999.7663,
+      "exit_price": 2000.2526,
+      "pnl_points": -50.6259,
+      "exit_reason": "SIGNAL",
+      "bars_held": 1
+    },
+    {
+      "type": "BUY",
+      "entry_price": 2000.1284,
+      "exit_price": 1999.7261,
+      "pnl_points": -42.2344,
+      "exit_reason": "SIGNAL",
+      "bars_held": 6
+    }
+  ]
+}
