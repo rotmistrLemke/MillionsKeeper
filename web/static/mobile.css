@@ -1,0 +1,295 @@
+/* mobile.css — мобильная адаптация дашборда MillionsKeeper.
+   Все правила внутри @media (max-width: 767.98px) — десктоп не трогается. */
+
+/* === Фундамент === */
+@media (max-width: 767.98px) {
+  html { font-size: 15px; }
+  /* Скроллит .content (overflow-y:auto), а не body. Запас под парящий tab-bar
+     добавляем туда же, чтобы последние элементы не прятались под панелью. */
+  .content {
+    padding-bottom: 96px !important;
+    -webkit-overflow-scrolling: touch;   /* плавная инерция на iOS */
+    overscroll-behavior: contain;
+  }
+
+  /* Touch-цели ≥44px по Apple HIG / Material */
+  button, .btn-primary, .btn-secondary, .btn-close,
+  a.btn, select, input[type="button"], input[type="submit"] {
+    min-height: 44px;
+  }
+  /* Круглый аватар — не растягивать в овал */
+  .user-avatar { min-height: 0; width: 44px; height: 44px; flex-basis: 44px; min-width: 44px; }
+  .user-row-avatar { min-height: 0; width: 40px; height: 40px; flex-basis: 40px; min-width: 40px; }
+  .user-actions-toggle { min-height: 0; width: 36px; height: 36px; }
+
+  /* Без линии между header и balance — они смежные на мобиле */
+  header {
+    border-bottom: none;
+    box-shadow: none;
+  }
+  header::after { display: none; }
+  .account-bar { box-shadow: none; }
+
+  /* История сделок: компактные фильтры — без принудительной touch-высоты */
+  .hist-controls .toolbar-select,
+  .hist-controls .hist-period-btn,
+  .hist-controls .hist-period-tabs { min-height: 0; }
+  .hist-controls .toolbar-select {
+    box-sizing: border-box;
+    height: 34px;
+    line-height: 1;
+    font-size: 13px;
+    width: 100px;
+    padding: 8px 22px 8px 10px;
+    vertical-align: middle;
+  }
+  .hist-controls .hist-period-tabs { height: 34px; width: 200px; }
+  .hist-controls .hist-period-btn { height: 34px; font-size: 12px; }
+
+  /* Бэктест: даты не влезают на телефоне — компактные инпуты + сетка 2 кол. */
+  .bt-form { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .bt-form label.col-2 { grid-column: auto; }
+  .bt-form label.col-full { grid-column: 1 / -1; }
+  .bt-form input[type="date"] {
+    padding: 6px 6px;
+    font-size: 13px;
+    min-width: 0;
+  }
+  .bt-form input[type="date"]::-webkit-date-and-time-value { text-align: left; }
+  .bt-form input[type="date"]::-webkit-calendar-picker-indicator {
+    padding: 0;
+    margin-left: 2px;
+    opacity: 0.7;
+  }
+
+  /* iOS не зумит инпуты при focus, если font-size ≥ 16px */
+  input, select, textarea { font-size: 16px; }
+
+  /* Контейнеры */
+  .container, .content { padding: 12px; }
+
+  /* Любая таблица в фолбэке — горизонтальный скролл, не вылезает */
+  table { display: block; overflow-x: auto; max-width: 100%; }
+  /* Таблица пользователей — должна растягиваться на всю ширину, без block-обёртки */
+  .users-grid { display: table; overflow: visible; width: 100%; }
+
+  /* Верхняя горизонтальная лента табов — скрыта (заменяется нижним tab-bar) */
+  .tabs { display: none !important; }
+
+  /* Account-bar на мобильном — под header, до области контента.
+     В body (flex column) переставляем через order: header(0) → balance(1) → layout(2). */
+  header { order: 0; }
+  .account-bar {
+    order: 1;
+    flex-shrink: 0;
+    padding: 12px 16px;
+    border-top: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .layout { order: 2; }
+
+  .acc-balance-value { font-size: 24px; }
+  .acc-balance-label { font-size: 9px; }
+
+  /* Header ужимается */
+  .header, header { padding: 8px 12px; }
+}
+
+/* === Нижний tab-bar (виден ТОЛЬКО на мобильном) === */
+.mobile-tabbar { display: none; }
+@media (max-width: 767.98px) {
+  .mobile-tabbar { display: flex; }
+}
+
+/* === Парящий tab-bar с эффектом liquid glass === */
+@media (max-width: 767.98px) {
+  .mobile-tabbar {
+    position: fixed;
+    left: 12px; right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0));
+    z-index: 100;
+    height: 60px;
+    /* Liquid-glass: умеренный blur — на мобильном GPU тяжёлый saturate
+       и blur >14px дают заметный лаг при свайпе. */
+    background: rgba(24, 26, 32, 0.78);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    /* Изолируем стэкинг и репейнт, чтобы прокрутка не перерисовывала bar. */
+    will-change: transform;
+    contain: layout paint;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 22px;
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.45),
+      0 2px 6px rgba(0, 0, 0, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    /* лёгкий блик сверху */
+    overflow: hidden;
+  }
+  .mobile-tabbar::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0));
+    pointer-events: none;
+  }
+  .mtab {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 3px;
+    background: none; border: none;
+    color: var(--text-muted, #848e9c);
+    font-size: 10px;
+    padding: 6px 0;
+    min-height: 44px;
+    position: relative;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 0.15s, transform 0.15s;
+  }
+  .mtab:active { transform: scale(0.94); }
+  .mtab.active {
+    color: var(--primary, #f0b90b);
+  }
+  .mtab.active .mtab-icon {
+    filter: drop-shadow(0 0 6px rgba(240, 185, 11, 0.45));
+  }
+  .mtab-icon { width: 22px; height: 22px; transition: filter 0.15s; }
+  .mtab-label { line-height: 1; letter-spacing: 0.1px; }
+  .mtab-badge {
+    position: absolute;
+    top: 6px; right: 22%;
+    min-width: 16px; height: 16px; padding: 0 4px;
+    font-size: 10px; line-height: 16px;
+    border-radius: 8px;
+    background: var(--red, #ea3943); color: #fff;
+    text-align: center;
+    box-sizing: border-box;
+    box-shadow: 0 2px 6px rgba(234, 57, 67, 0.5);
+  }
+  .mtab-badge.hidden { display: none; }
+}
+
+/* Fallback для браузеров без backdrop-filter — делаем фон плотнее */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  @media (max-width: 767.98px) {
+    .mobile-tabbar { background: rgba(24, 26, 32, 0.95); }
+  }
+}
+
+/* === Bottom-sheet "Ещё" === */
+.sheet-backdrop { display: none; }
+@media (max-width: 767.98px) {
+  .sheet-backdrop {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex; align-items: flex-end;
+  }
+  .sheet-backdrop.hidden { display: none; }
+  .sheet {
+    width: 100%;
+    background: var(--surface, #181a20);
+    border-radius: 14px 14px 0 0;
+    padding: 8px 0 calc(16px + env(safe-area-inset-bottom, 0));
+    animation: sheet-slide-up 0.2s ease;
+  }
+  @keyframes sheet-slide-up {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+  .sheet-handle {
+    width: 40px; height: 4px;
+    margin: 6px auto 10px;
+    background: var(--text-muted, #848e9c);
+    opacity: 0.4;
+    border-radius: 2px;
+  }
+  .sheet-item {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 14px 20px;
+    background: none; border: none;
+    color: var(--text, #eaecef);
+    font-size: 15px; text-align: left;
+    cursor: pointer;
+    min-height: 44px;
+  }
+  .sheet-item:active { background: var(--surface2, #2b3139); }
+}
+
+/* === Positions: компактная карточка с переносом на мобильном === */
+@media (max-width: 767.98px) {
+  .pos-card {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    padding: 10px 12px;
+  }
+  .pos-card .pos-symbol { font-size: 15px; }
+  .pos-card .pos-pnl    { font-size: 16px; }
+}
+
+/* === Indicators: график 60vh + сетка 1-колонкой === */
+@media (max-width: 767.98px) {
+  .chart-container {
+    height: 60vh;
+    min-height: 320px;
+  }
+  .ind-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .ind-row {
+    padding: 8px 10px;
+    font-size: 12px;
+    gap: 8px;
+  }
+  .ind-symbol {
+    width: auto;
+    min-width: 80px;
+    font-size: 12.5px;
+  }
+  .ind-badges {
+    flex-wrap: wrap;
+  }
+}
+
+/* === Anomalies: мобильная полировка === */
+@media (max-width: 767.98px) {
+  .anomaly-grid {
+    grid-template-columns: 1fr;
+  }
+  .anomaly-filters {
+    flex-wrap: wrap;
+  }
+  .anomaly-filters .toolbar-select {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .anomaly-header {
+    flex-wrap: wrap;
+    font-size: 13px;
+    gap: 12px;
+  }
+  .anomaly-table th { padding: 4px 6px; font-size: 12px; }
+  .anomaly-table td {
+    padding: 22px 6px;
+    font-size: 12px;
+    vertical-align: middle;
+    line-height: 1.5;
+  }
+}
+
+/* === Stream form на мобильном: оставляем 2 колонки, поджимаем bottom === */
+@media (max-width: 767.98px) {
+  .stream-form-grid {
+    gap: 10px;
+  }
+  .stream-form-grid .sf-bottom {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .stream-form-grid .sf-actions {
+    margin-left: auto;
+  }
+}

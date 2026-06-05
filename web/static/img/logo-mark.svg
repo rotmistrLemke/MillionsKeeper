@@ -1,0 +1,68 @@
+<!--
+  MillionsKeeper · Logo Mark (variant A — "Vault Chart")
+  32×32 квадрат, золотой градиент Bybit, восходящие бары как чарт,
+  скруглённый угол справа-сверху = «keeper notch» (стилизованный keyhole).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="MillionsKeeper">
+  <defs>
+    <linearGradient id="mkGold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#FFD158"/>
+      <stop offset="55%" stop-color="#F7A600"/>
+      <stop offset="100%" stop-color="#D98B00"/>
+    </linearGradient>
+    <linearGradient id="mkBars" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%"  stop-color="#0B0E11" stop-opacity="0.92"/>
+      <stop offset="100%" stop-color="#0B0E11"/>
+    </linearGradient>
+    <filter id="mkGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Корпус: скруглённый квадрат с keeper-вырезом справа сверху -->
+  <path
+    fill="url(#mkGold)"
+    d="M6 1 H23
+       a3 3 0 0 1 3 3
+       v2.5
+       a2 2 0 0 0 2 2
+       h0
+       a3 3 0 0 1 3 3
+       V26
+       a3 3 0 0 1 -3 3
+       H6
+       a5 5 0 0 1 -5 -5
+       V6
+       a5 5 0 0 1 5 -5 Z"
+  />
+
+  <!-- Внутренняя обводка (subtle inset) -->
+  <path
+    fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="0.6"
+    d="M6.5 2 H23 a2.5 2.5 0 0 1 2.5 2.5 V7
+       a2.5 2.5 0 0 0 2.5 2.5 H28 a2.5 2.5 0 0 1 2.5 2.5 V25.5
+       a2.5 2.5 0 0 1 -2.5 2.5 H6 a4.5 4.5 0 0 1 -4.5 -4.5 V6.5 a4.5 4.5 0 0 1 4.5 -4.5 Z"
+  />
+
+  <!-- Восходящие бары: 4 свечи, высоты 8 / 12 / 18 / 22 -->
+  <g fill="url(#mkBars)">
+    <rect x="6"  y="20" width="3.5" height="6"  rx="1"/>
+    <rect x="11" y="16" width="3.5" height="10" rx="1"/>
+    <rect x="16" y="11" width="3.5" height="15" rx="1"/>
+    <rect x="21" y="7"  width="3.5" height="19" rx="1"/>
+  </g>
+
+  <!-- Trend-линия поверх баров -->
+  <path
+    d="M7.5 18 L12.5 14 L17.5 9 L22.5 5"
+    fill="none"
+    stroke="#0B0E11"
+    stroke-width="1.2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    opacity="0.85"
+  />
+  <!-- Вершина-«огонёк» -->
+  <circle cx="22.5" cy="5" r="1.6" fill="#0B0E11"/>
+  <circle cx="22.5" cy="5" r="0.9" fill="#FFD158" filter="url(#mkGlow)"/>
+</svg>

@@ -1,0 +1,11 @@
+MetaTrader5; sys_platform == "win32"
+python-telegram-bot
+pandas
+numpy
+TA-Lib
+python-dotenv
+fastapi
+uvicorn[standard]
+websockets
+python-jose[cryptography]
+passlib

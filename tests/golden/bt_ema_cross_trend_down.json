@@ -1,0 +1,122 @@
+{
+  "summary": {
+    "total_trades": 14,
+    "win_rate": 1.0,
+    "total_pnl_points": 6972.0,
+    "max_drawdown_points": 0
+  },
+  "trades": [
+    {
+      "type": "SELL",
+      "entry_price": 1800.98,
+      "exit_price": 1795.98,
+      "pnl_points": 498.0,
+      "exit_reason": "TP",
+      "bars_held": 5
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1794.98,
+      "exit_price": 1789.98,
+      "pnl_points": 498.0,
+      "exit_reason": "TP",
+      "bars_held": 5
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1788.98,
+      "exit_price": 1783.98,
+      "pnl_points": 498.0,
+      "exit_reason": "TP",
+      "bars_held": 5
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1778.98,
+      "exit_price": 1773.98,
+      "pnl_points": 498.0,
+      "exit_reason": "TP",
+      "bars_held": 5
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1772.98,
+      "exit_price": 1767.98,
+      "pnl_points": 498.0,
+      "exit_reason": "TP",
+      "bars_held": 5
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1766.98,
+      "exit_price": 1761.98,
+      "pnl_points": 498.0,
+      "exit_reason": "TP",
+      "bars_held": 5
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1760.98,
+      "exit_price": 1755.98,
+      "pnl_points": 498.0,
+      "exit_reason": "TP",
+      "bars_held": 5
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1754.98,
+      "exit_price": 1749.98,
+      "pnl_points": 498.0,
+      "exit_reason": "TP",
+      "bars_held": 5
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1748.98,
+      "exit_price": 1743.98,
+      "pnl_points": 498.0,
+      "exit_reason": "TP",
+      "bars_held": 5
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1742.98,
+      "exit_price": 1737.98,
+      "pnl_points": 498.0,
+      "exit_reason": "TP",
+      "bars_held": 5
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1736.98,
+      "exit_price": 1731.98,
+      "pnl_points": 498.0,
+      "exit_reason": "TP",
+      "bars_held": 5
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1730.98,
+      "exit_price": 1725.98,
+      "pnl_points": 498.0,
+      "exit_reason": "TP",
+      "bars_held": 5
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1724.98,
+      "exit_price": 1719.98,
+      "pnl_points": 498.0,
+      "exit_reason": "TP",
+      "bars_held": 5
+    },
+    {
+      "type": "SELL",
+      "entry_price": 1718.98,
+      "exit_price": 1713.98,
+      "pnl_points": 498.0,
+      "exit_reason": "TP",
+      "bars_held": 5
+    }
+  ]
+}
