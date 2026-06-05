@@ -79,3 +79,77 @@ async def test_bar_tf_zero_skips_tf_check(indicator_agent_factory):
     await _feed(h, {"symbol": "XAUUSD", "timeframe": 0})  # falsy → tf-проверка пропущена
     assert _ready(h) is not None
     assert rec and rec[0][0] == "default"
+
+
+async def test_strategy_path_when_in_STRATEGIES(indicator_agent_factory):
+    h = indicator_agent_factory(
+        streams={"s1": make_stream(symbol="XAUUSD", strategy="mystrat", timeframe=16385)},
+        strategies={"mystrat": object()},
+    )
+    rec = []
+    _stub_calcs(h, rec)
+    await _feed(h, {"symbol": "XAUUSD", "timeframe": 16385})
+    assert _ready(h).payload["via"] == "strategy"
+    assert rec[0][0] == "strategy"
+
+
+async def test_default_path_when_not_in_STRATEGIES(indicator_agent_factory):
+    h = indicator_agent_factory(
+        streams={"s1": make_stream(symbol="XAUUSD", strategy="default", timeframe=16385)},
+        strategies={"mystrat": object()},  # "default" ∉ STRATEGIES
+    )
+    rec = []
+    _stub_calcs(h, rec)
+    await _feed(h, {"symbol": "XAUUSD", "timeframe": 16385})
+    assert _ready(h).payload["via"] == "default"
+    assert rec[0][0] == "default"
+
+
+async def test_stream_id_injected(indicator_agent_factory):
+    h = indicator_agent_factory(
+        streams={"sX": make_stream(id="sX", symbol="XAUUSD", strategy="default", timeframe=16385)},
+    )
+    _stub_calcs(h, [])
+    await _feed(h, {"symbol": "XAUUSD", "timeframe": 16385})
+    assert _ready(h).payload["stream_id"] == "sX"
+
+
+async def test_correlation_id_passthrough(indicator_agent_factory):
+    h = indicator_agent_factory(
+        streams={"s1": make_stream(symbol="XAUUSD", strategy="default", timeframe=16385)},
+    )
+    _stub_calcs(h, [])
+    await _feed(h, {"symbol": "XAUUSD", "timeframe": 16385}, correlation_id="cid-9")
+    assert _ready(h).correlation_id == "cid-9"
+
+
+async def test_calculated_metric_increments(indicator_agent_factory):
+    h = indicator_agent_factory(
+        streams={"s1": make_stream(symbol="XAUUSD", strategy="default", timeframe=16385)},
+    )
+    _stub_calcs(h, [])
+    await _feed(h, {"symbol": "XAUUSD", "timeframe": 16385})
+    assert h.agent.metrics["calculated"] == 1
+
+
+async def test_status_sequence_on_success(indicator_agent_factory):
+    h = indicator_agent_factory(
+        streams={"s1": make_stream(symbol="XAUUSD", strategy="default", timeframe=16385)},
+    )
+    _stub_calcs(h, [])
+    await _feed(h, {"symbol": "XAUUSD", "timeframe": 16385})
+    # IDLE(старт) → RUNNING → IDLE(готово)
+    assert _statuses(h) == ["idle", "running", "idle"]
+
+
+async def test_calc_exception_sets_error_no_ready(indicator_agent_factory):
+    h = indicator_agent_factory(
+        streams={"s1": make_stream(symbol="XAUUSD", strategy="default", timeframe=16385)},
+    )
+    def boom(symbol, tf):
+        raise RuntimeError("calc boom")
+    h.agent._calc_indicators = boom
+    await _feed(h, {"symbol": "XAUUSD", "timeframe": 16385})
+    assert _ready(h) is None
+    assert _statuses(h)[-1] == "error"
+    assert h.agent.metrics["calculated"] == 0
