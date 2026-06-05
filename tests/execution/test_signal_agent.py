@@ -108,3 +108,62 @@ async def test_legacy_missing_keys_default_no_signal(signal_agent_factory):
     h = signal_agent_factory()
     await _feed(h, {"symbol": "XAUUSD"})  # ни одного legacy-ключа
     assert _run_signal(h).payload["signal"] == "NO_SIGNAL"
+
+
+async def test_correlation_id_passthrough(signal_agent_factory):
+    h = signal_agent_factory()
+    await _feed(h, {"symbol": "XAUUSD", "entry_signal": "BUY"},
+                correlation_id="cid-42")
+    assert _run_signal(h).correlation_id == "cid-42"
+
+
+async def test_trading_status_and_stream_id_passthrough(signal_agent_factory):
+    h = signal_agent_factory(status_map={"XAUUSD": 1})
+    await _feed(h, {"symbol": "XAUUSD", "entry_signal": "BUY", "stream_id": "s7"})
+    p = _run_signal(h).payload
+    assert p["trading_status"] == 1
+    assert p["stream_id"] == "s7"
+
+
+async def test_indicators_dict_keys_present(signal_agent_factory):
+    h = signal_agent_factory()
+    await _feed(h, {
+        "symbol": "XAUUSD", "entry_signal": "BUY",
+        "signal_ma": "BUY", "signal_critical_angle": "BUY",
+        "macd_signal": "BUY", "rsi_signal": "BUY",
+        "rsi_value": 55.0, "atr_value": 2.0, "adx_value": 30.0,
+        "ema8": 1900.0, "ema21": 1899.0,
+    })
+    ind = _run_signal(h).payload["indicators"]
+    assert ind == {
+        "ma": "BUY", "ma_angle": "BUY", "macd": "BUY", "rsi": "BUY",
+        "rsi_value": 55.0, "atr_value": 2.0, "adx_value": 30.0,
+        "ema8": 1900.0, "ema21": 1899.0,
+    }
+
+
+async def test_indicators_dict_missing_values_are_none(signal_agent_factory):
+    h = signal_agent_factory()
+    await _feed(h, {"symbol": "XAUUSD", "entry_signal": "BUY"})
+    ind = _run_signal(h).payload["indicators"]
+    assert ind["rsi_value"] is None
+    assert ind["atr_value"] is None
+    assert ind["ema8"] is None
+    # legacy-сигналы при отсутствии дефолтятся в "NO_SIGNAL"
+    assert ind["ma"] == "NO_SIGNAL"
+
+
+async def test_emits_agent_status_then_signal(signal_agent_factory):
+    h = signal_agent_factory()
+    await _feed(h, {"symbol": "XAUUSD", "entry_signal": "BUY"})
+    types = [e.type for e in h.bus.events]
+    # idle (старт) → running → SIGNAL_GENERATED
+    assert types.count(EventType.AGENT_STATUS) == 2
+    assert types[-1] == EventType.SIGNAL_GENERATED
+
+
+async def test_no_signal_does_not_increment_metrics(signal_agent_factory):
+    h = signal_agent_factory()
+    await _feed(h, {"symbol": "XAUUSD", "entry_signal": "NO_SIGNAL"})
+    assert h.agent.metrics["buy_signals"] == 0
+    assert h.agent.metrics["sell_signals"] == 0
