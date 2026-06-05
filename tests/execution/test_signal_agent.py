@@ -68,3 +68,43 @@ async def test_entry_signal_garbage_falls_to_legacy(signal_agent_factory):
         "macd_signal": "SELL", "rsi_signal": "SELL",
     })
     assert _run_signal(h).payload["signal"] == "SELL"
+
+
+async def test_legacy_all_buy(signal_agent_factory):
+    h = signal_agent_factory()
+    await _feed(h, {
+        "symbol": "XAUUSD",
+        "signal_ma": "BUY", "signal_critical_angle": "BUY",
+        "macd_signal": "BUY", "rsi_signal": "BUY",
+    })
+    assert _run_signal(h).payload["signal"] == "BUY"
+    assert h.agent.metrics["buy_signals"] == 1
+
+
+async def test_legacy_all_sell(signal_agent_factory):
+    h = signal_agent_factory()
+    await _feed(h, {
+        "symbol": "XAUUSD",
+        "signal_ma": "SELL", "signal_critical_angle": "SELL",
+        "macd_signal": "SELL", "rsi_signal": "SELL",
+    })
+    assert _run_signal(h).payload["signal"] == "SELL"
+    assert h.agent.metrics["sell_signals"] == 1
+
+
+async def test_legacy_mixed_is_no_signal(signal_agent_factory):
+    h = signal_agent_factory()
+    await _feed(h, {
+        "symbol": "XAUUSD",
+        "signal_ma": "BUY", "signal_critical_angle": "BUY",
+        "macd_signal": "BUY", "rsi_signal": "NO_SIGNAL",
+    })
+    assert _run_signal(h).payload["signal"] == "NO_SIGNAL"
+    assert h.agent.metrics["buy_signals"] == 0
+    assert h.agent.metrics["sell_signals"] == 0
+
+
+async def test_legacy_missing_keys_default_no_signal(signal_agent_factory):
+    h = signal_agent_factory()
+    await _feed(h, {"symbol": "XAUUSD"})  # ни одного legacy-ключа
+    assert _run_signal(h).payload["signal"] == "NO_SIGNAL"
