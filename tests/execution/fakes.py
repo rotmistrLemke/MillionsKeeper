@@ -30,6 +30,7 @@ class FakeMT5:
         self.selected = []                   # записанные symbol_select
         self._result = "default"             # "default" → построить успешный результат
         self._error = (1, "fake error")
+        self.terminal = SimpleNamespace(connected=True)   # terminal_info(); None → disconnected
 
     # --- настройка из тестов ---
     def set_result(self, retcode=None, order=12345, price=0.0):
@@ -72,6 +73,9 @@ class FakeMT5:
     def last_error(self):
         return self._error
 
+    def terminal_info(self):
+        return self.terminal
+
     def symbol_select(self, symbol, enable=True):
         self.selected.append((symbol, enable))
         return True
@@ -89,6 +93,7 @@ class FakeCache:
             balance=10000.0, equity=10000.0, margin_free=5000.0,
         )
         self.rates_df = None                 # get_rates (None → пусто)
+        self.invalidated = False
 
     def get_symbol_info(self, symbol):
         return self.symbol_info
@@ -102,12 +107,16 @@ class FakeCache:
     def get_rates(self, symbol, timeframe, bars=None):
         return self.rates_df
 
+    def invalidate(self):
+        self.invalidated = True
+
 
 class FakeStatus:
     def __init__(self):
         self.opened = []
         self._status = {}
         self._active = []
+        self._disabled = set()
 
     def mark_open(self, symbol):
         self.opened.append(symbol)
@@ -118,6 +127,12 @@ class FakeStatus:
 
     def active_symbols(self):
         return list(self._active)
+
+    def mark_disabled(self, symbol):
+        self._disabled.add(symbol)
+
+    def is_disabled(self, symbol):
+        return symbol in self._disabled
 
 
 def make_position(fm, *, ticket=555, type=None, volume=0.1, magic=777, tp=1950.0,
@@ -204,6 +219,9 @@ class FakeRegistry:
             if getattr(s, "magic", None) == magic:
                 return s
         return None
+
+    def enabled(self):
+        return [s for s in self._streams.values() if getattr(s, "enabled", True)]
 
 
 class FakeTrading:
@@ -317,3 +335,12 @@ def make_rsi(value):
                 return None
             return {"RSI": pd.Series([value])}
     return _RSI
+
+
+def make_bars_df(*, time, n=2, close=1.0):
+    """pandas DataFrame баров для cache.get_rates (market_data берёт .iloc[-1]['time']).
+
+    time: int (epoch) или pd.Timestamp — обе ветки нормализации в агенте.
+    """
+    import pandas as pd
+    return pd.DataFrame({"time": [time] * n, "close": [close] * n})
