@@ -174,3 +174,41 @@ def signal_agent_factory(monkeypatch):
         return SimpleNamespace(agent=agent, bus=agent.bus, status=fake_status)
 
     return make
+
+
+@pytest.fixture
+def market_data_agent_factory(monkeypatch):
+    """Фабрика MarketDataAgent с подменёнными зависимостями. Прод не трогаем.
+
+    Патчит streams.registry, agents.market_data_agent.status,
+    market_data_cache.cache, sys.modules['MetaTrader5']. poll_interval=0.
+    `trading` не импортируется (инвариант трека).
+    """
+    from tests.execution.fakes import FakeMT5, FakeCache, FakeStatus, FakeBus, FakeRegistry
+
+    def make(*, streams=None, rates_df=None, terminal=True, disabled=None):
+        import agents.market_data_agent as md_mod
+        import streams as streams_mod
+        import market_data_cache as mdc_mod
+
+        fake_mt5 = FakeMT5()
+        fake_mt5.terminal = None if terminal is None else fake_mt5.terminal
+        fake_cache = FakeCache()
+        fake_cache.rates_df = rates_df
+        fake_status = FakeStatus()
+        for sym in (disabled or []):
+            fake_status.mark_disabled(sym)
+        fake_registry = FakeRegistry(streams or {})
+
+        monkeypatch.setattr(streams_mod, "registry", fake_registry)
+        monkeypatch.setattr(md_mod, "status", fake_status)
+        monkeypatch.setattr(mdc_mod, "cache", fake_cache)
+        monkeypatch.setitem(sys.modules, "MetaTrader5", fake_mt5)
+
+        agent = md_mod.MarketDataAgent("MarketData", FakeBus(), poll_interval=0)
+        return SimpleNamespace(
+            agent=agent, bus=agent.bus, registry=fake_registry,
+            status=fake_status, cache=fake_cache, mt5=fake_mt5,
+        )
+
+    return make
