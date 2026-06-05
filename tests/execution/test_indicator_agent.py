@@ -255,3 +255,105 @@ async def test_calc_strategy_atr_and_adx_fallbacks(indicator_agent_factory):
     res = h.agent._calc_strategy("XAUUSD", "mystrat", 16385)
     assert res["atr_value"] == 3.0   # _get_float('atr') None → flat_atr
     assert res["adx_value"] == 0.0   # _get_float('flat_adx') None → 0.0
+
+
+def _patch_indicators(monkeypatch, *, ma=None, macd=None, rsi=None,
+                      atr=None, adx=None, alligator=None):
+    """Подменяет классы indicators.* фейками (дефолты — нейтральные)."""
+    import indicators
+    monkeypatch.setattr(indicators, "MovingAverage", ma or fake_moving_average())
+    monkeypatch.setattr(indicators, "MACD", macd or fake_macd())
+    monkeypatch.setattr(indicators, "RSI", rsi or fake_rsi_ind())
+    monkeypatch.setattr(indicators, "ATR", atr or fake_atr_ind(scalar=None))
+    monkeypatch.setattr(indicators, "ADX", adx or fake_adx_ind(values=[20.0]))
+    monkeypatch.setattr(indicators, "Alligator", alligator or fake_alligator())
+
+
+async def test_calc_indicators_dict_signals_extracted(indicator_agent_factory, monkeypatch):
+    h = indicator_agent_factory()
+    _patch_indicators(
+        monkeypatch,
+        ma=fake_moving_average(cross={"signal": "BUY"}, critical={"signal": "BUY"}),
+        macd=fake_macd(signal={"signal": "SELL"}),
+    )
+    res = h.agent._calc_indicators("XAUUSD", 16385)
+    assert res["signal_ma"] == "BUY"
+    assert res["signal_critical_angle"] == "BUY"
+    assert res["macd_signal"] == "SELL"
+
+
+async def test_calc_indicators_non_dict_signal_is_no_signal(indicator_agent_factory, monkeypatch):
+    h = indicator_agent_factory()
+    # cross возвращает не-dict → isinstance-guard → "NO_SIGNAL"
+    _patch_indicators(monkeypatch, ma=fake_moving_average(cross="BUY", critical=None))
+    res = h.agent._calc_indicators("XAUUSD", 16385)
+    assert res["signal_ma"] == "NO_SIGNAL"
+
+
+async def test_calc_indicators_rsi_none(indicator_agent_factory, monkeypatch):
+    h = indicator_agent_factory()
+    _patch_indicators(monkeypatch, rsi=fake_rsi_ind(rsi_series=None))
+    res = h.agent._calc_indicators("XAUUSD", 16385)
+    assert res["rsi_signal"] == "NO_SIGNAL"
+    assert res["rsi_value"] is None
+
+
+async def test_calc_indicators_rsi_too_short(indicator_agent_factory, monkeypatch):
+    h = indicator_agent_factory()
+    _patch_indicators(monkeypatch, rsi=fake_rsi_ind(rsi_series=[50.0, 51.0]))  # len 2 < 3
+    res = h.agent._calc_indicators("XAUUSD", 16385)
+    assert res["rsi_signal"] == "NO_SIGNAL"
+    assert res["rsi_value"] is None
+
+
+async def test_calc_indicators_rsi_full(indicator_agent_factory, monkeypatch):
+    h = indicator_agent_factory()
+    _patch_indicators(
+        monkeypatch,
+        rsi=fake_rsi_ind(rsi_series=[40.0, 45.0, 60.0], signal={"signal": "BUY"}),
+    )
+    res = h.agent._calc_indicators("XAUUSD", 16385)
+    assert res["rsi_value"] == 60.0
+    assert res["rsi_signal"] == "BUY"
+
+
+async def test_calc_indicators_atr_series_vs_scalar(indicator_agent_factory, monkeypatch):
+    h = indicator_agent_factory()
+    _patch_indicators(monkeypatch, atr=fake_atr_ind(series=[1.0, 2.5]))
+    res = h.agent._calc_indicators("XAUUSD", 16385)
+    assert res["atr_value"] == 2.5  # float(.iloc[-1])
+
+    h2 = indicator_agent_factory()
+    _patch_indicators(monkeypatch, atr=fake_atr_ind(scalar=7.0))  # без .iloc
+    res2 = h2.agent._calc_indicators("XAUUSD", 16385)
+    assert res2["atr_value"] == 7.0  # как есть
+
+
+async def test_calc_indicators_ema_from_ma(indicator_agent_factory, monkeypatch):
+    h = indicator_agent_factory()
+    _patch_indicators(monkeypatch, ma=fake_moving_average(ma_value=1234.0))
+    res = h.agent._calc_indicators("XAUUSD", 16385)
+    assert res["ema8"] == 1234.0
+    assert res["ema21"] == 1234.0
+
+
+async def test_calc_indicators_adx_value_and_empty(indicator_agent_factory, monkeypatch):
+    h = indicator_agent_factory()
+    _patch_indicators(monkeypatch, adx=fake_adx_ind(values=[33.0]))
+    res = h.agent._calc_indicators("XAUUSD", 16385)
+    assert res["adx_value"] == 33.0
+
+    h2 = indicator_agent_factory()
+    _patch_indicators(monkeypatch, adx=fake_adx_ind(values=[]))  # пусто → 0.0
+    res2 = h2.agent._calc_indicators("XAUUSD", 16385)
+    assert res2["adx_value"] == 0.0
+
+
+async def test_calc_indicators_result_has_symbol_and_keys(indicator_agent_factory, monkeypatch):
+    h = indicator_agent_factory()
+    _patch_indicators(monkeypatch)
+    res = h.agent._calc_indicators("XAUUSD", 16385)
+    assert res["symbol"] == "XAUUSD"
+    for k in ("signal_ma", "signal_critical_angle", "macd_signal", "rsi_signal",
+              "rsi_value", "atr_value", "adx_value", "ema8", "ema21"):
+        assert k in res
