@@ -153,3 +153,105 @@ async def test_calc_exception_sets_error_no_ready(indicator_agent_factory):
     assert _ready(h) is None
     assert _statuses(h)[-1] == "error"
     assert h.agent.metrics["calculated"] == 0
+
+
+async def test_calc_strategy_df_none_minimal(indicator_agent_factory):
+    h = indicator_agent_factory(
+        rates_df=None,
+        runtime_strategy=make_indicator_strategy(),
+    )
+    res = h.agent._calc_strategy("XAUUSD", "mystrat", 16385)
+    assert res == {"symbol": "XAUUSD", "strategy": "mystrat",
+                   "entry_signal": "NO_SIGNAL", "is_flat": True}
+
+
+async def test_calc_strategy_df_too_short_minimal(indicator_agent_factory):
+    h = indicator_agent_factory(
+        rates_df=make_bars_df(time=1000, n=10),  # < 50
+        runtime_strategy=make_indicator_strategy(),
+    )
+    res = h.agent._calc_strategy("XAUUSD", "mystrat", 16385)
+    assert res["entry_signal"] == "NO_SIGNAL"
+    assert res["is_flat"] is True
+    assert "indicators_raw" not in res
+
+
+async def test_calc_strategy_flat_no_signal(indicator_agent_factory):
+    h = indicator_agent_factory(
+        rates_df=make_bars_df(time=1000, n=60),
+        runtime_strategy=make_indicator_strategy(flat=True, entry_signal="BUY"),
+    )
+    res = h.agent._calc_strategy("XAUUSD", "mystrat", 16385)
+    # flat=True → signal не запрашивается → NO_SIGNAL
+    assert res["entry_signal"] == "NO_SIGNAL"
+    assert res["is_flat"] is True
+
+
+async def test_calc_strategy_not_flat_buy(indicator_agent_factory):
+    h = indicator_agent_factory(
+        rates_df=make_bars_df(time=1000, n=60),
+        runtime_strategy=make_indicator_strategy(flat=False, entry_signal="BUY"),
+    )
+    res = h.agent._calc_strategy("XAUUSD", "mystrat", 16385)
+    assert res["entry_signal"] == "BUY"
+    assert res["is_flat"] is False
+
+
+async def test_calc_strategy_not_flat_none_signal(indicator_agent_factory):
+    h = indicator_agent_factory(
+        rates_df=make_bars_df(time=1000, n=60),
+        runtime_strategy=make_indicator_strategy(flat=False, entry_signal=None),
+    )
+    res = h.agent._calc_strategy("XAUUSD", "mystrat", 16385)
+    assert res["entry_signal"] == "NO_SIGNAL"  # signal or "NO_SIGNAL"
+
+
+async def test_calc_strategy_indicators_raw_collected(indicator_agent_factory):
+    h = indicator_agent_factory(
+        rates_df=make_bars_df(time=1000, n=60,
+                              extra_cols={"rsi": 55.0, "ema8": 1900.0}),
+        runtime_strategy=make_indicator_strategy(
+            flat=False, entry_signal="BUY",
+            indicator_cols=("rsi", "ema8", "missing_col")),
+    )
+    res = h.agent._calc_strategy("XAUUSD", "mystrat", 16385)
+    assert res["indicators_raw"] == {"rsi": 55.0, "ema8": 1900.0}  # missing_col пропущен
+
+
+async def test_calc_strategy_indicators_raw_skips_nan(indicator_agent_factory):
+    import math
+    h = indicator_agent_factory(
+        rates_df=make_bars_df(time=1000, n=60, extra_cols={"rsi": math.nan}),
+        runtime_strategy=make_indicator_strategy(
+            flat=False, entry_signal="BUY", indicator_cols=("rsi",)),
+    )
+    res = h.agent._calc_strategy("XAUUSD", "mystrat", 16385)
+    assert res["indicators_raw"] == {}  # NaN пропущен
+    assert res["rsi_value"] is None     # _get_float тоже None
+
+
+async def test_calc_strategy_legacy_fields_and_getfloat(indicator_agent_factory):
+    h = indicator_agent_factory(
+        rates_df=make_bars_df(time=1000, n=60,
+                              extra_cols={"rsi": 60.0, "ema8": 1900.0, "ema21": 1899.0}),
+        runtime_strategy=make_indicator_strategy(flat=False, entry_signal="BUY"),
+    )
+    res = h.agent._calc_strategy("XAUUSD", "mystrat", 16385)
+    assert res["signal_ma"] == "NO_SIGNAL"
+    assert res["signal_critical_angle"] == "NO_SIGNAL"
+    assert res["macd_signal"] == "NO_SIGNAL"
+    assert res["rsi_signal"] == "NO_SIGNAL"
+    assert res["rsi_value"] == 60.0
+    assert res["ema8"] == 1900.0
+    assert res["ema21"] == 1899.0
+
+
+async def test_calc_strategy_atr_and_adx_fallbacks(indicator_agent_factory):
+    h = indicator_agent_factory(
+        # нет 'atr' и нет 'flat_adx'; есть 'flat_atr'
+        rates_df=make_bars_df(time=1000, n=60, extra_cols={"flat_atr": 3.0}),
+        runtime_strategy=make_indicator_strategy(flat=False, entry_signal="BUY"),
+    )
+    res = h.agent._calc_strategy("XAUUSD", "mystrat", 16385)
+    assert res["atr_value"] == 3.0   # _get_float('atr') None → flat_atr
+    assert res["adx_value"] == 0.0   # _get_float('flat_adx') None → 0.0
