@@ -337,10 +337,111 @@ def make_rsi(value):
     return _RSI
 
 
-def make_bars_df(*, time, n=2, close=1.0):
+def make_bars_df(*, time, n=2, close=1.0, extra_cols=None):
     """pandas DataFrame баров для cache.get_rates (market_data берёт .iloc[-1]['time']).
 
     time: int (epoch) или pd.Timestamp — обе ветки нормализации в агенте.
+    extra_cols: dict[str, value] — доп. колонки (значение тиражируется по n строкам);
+                нужно для проверки сбора indicators_raw в IndicatorAgent._calc_strategy.
     """
     import pandas as pd
-    return pd.DataFrame({"time": [time] * n, "close": [close] * n})
+    data = {"time": [time] * n, "close": [close] * n}
+    if extra_cols:
+        for col, val in extra_cols.items():
+            data[col] = [val] * n
+    return pd.DataFrame(data)
+
+
+def make_indicator_strategy(*, flat=False, entry_signal=None,
+                            indicator_cols=(), flat_cols=()):
+    """Фейк рантайм-стратегии под IndicatorAgent._calc_strategy (get_runtime_strategy).
+
+    compute_indicators/compute_flat_indicators возвращают df как есть;
+    is_flat/get_entry_signal/indicator_columns/flat_indicator_columns конфигурируемы.
+    """
+    class _S:
+        def compute_indicators(self, df):
+            return df
+        def compute_flat_indicators(self, df):
+            return df
+        def is_flat(self, row):
+            return flat
+        def get_entry_signal(self, row):
+            return entry_signal
+        def indicator_columns(self):
+            return list(indicator_cols)
+        def flat_indicator_columns(self):
+            return list(flat_cols)
+    return _S()
+
+
+def fake_moving_average(*, cross=None, critical=None, ma_value=1900.0):
+    """Фабрика фейк-класса indicators.MovingAverage (инстанцируется без аргументов)."""
+    _cross = cross if cross is not None else {"signal": "NO_SIGNAL"}
+    _critical = critical if critical is not None else {"signal": "NO_SIGNAL"}
+    class _MA:
+        def get_ma_for_symbol(self, symbol, timeframe, period,
+                              ma_type='EMA', price_type='close', bars=100):
+            import pandas as pd
+            return pd.Series([ma_value])
+        def ma_cross_signal(self, fast_ma, slow_ma, symbol, atr_value=None):
+            return _cross
+        def ma_critical_angle(self, fast_ma, slow_ma, symbol, atr_value=None):
+            return _critical
+    return _MA
+
+
+def fake_macd(*, calc=(1.0, 2.0, 3.0), signal=None):
+    """Фабрика фейк-класса indicators.MACD. calc → (hist, prev_hist, signal_line)."""
+    _signal = signal if signal is not None else {"signal": "NO_SIGNAL"}
+    class _M:
+        def calculate_macd_manual(self, symbol, timeframe,
+                                  fast_ema=12, slow_ema=26, signal_period=9):
+            return calc
+        def MACD_signal(self, hist_line, prev_hist_line, signal_line):
+            return _signal
+    return _M
+
+
+def fake_rsi_ind(*, rsi_series=None, signal=None):
+    """Фабрика фейк-класса indicators.RSI. rsi_series → list|None; None → нет данных."""
+    _signal = signal if signal is not None else {"signal": "NO_SIGNAL"}
+    class _R:
+        def get_rsi_talib(self, symbol, timeframe, period=14, bars=100):
+            import pandas as pd
+            if rsi_series is None:
+                return None
+            return {"RSI": pd.Series(rsi_series)}
+        def RSI_signal(self, rsi, prev_rsi, prev2_rsi):
+            return _signal
+    return _R
+
+
+def fake_atr_ind(*, series=None, scalar=None):
+    """Фабрика фейк-класса indicators.ATR. series → list (вернёт Series); иначе scalar."""
+    class _A:
+        def calculate_atr(self, symbol, timeframe, bars=50):
+            import pandas as pd
+            if series is not None:
+                return pd.Series(series)
+            return scalar
+    return _A
+
+
+def fake_adx_ind(*, values=None):
+    """Фабрика фейк-класса indicators.ADX. ADX() → (values, None, None)."""
+    class _A:
+        def ADX(self, high, low, close, adx_period):
+            return (values, None, None)
+    return _A
+
+
+def fake_alligator(*, df=None):
+    """Фабрика фейк-класса indicators.Alligator. Df() → DataFrame с high/low/close."""
+    class _A:
+        def Df(self, symbol, timeframe):
+            import pandas as pd
+            if df is not None:
+                return df
+            return pd.DataFrame({"high": [1.0], "low": [1.0], "close": [1.0]})
+    return _A
