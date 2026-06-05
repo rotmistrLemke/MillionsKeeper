@@ -151,3 +151,26 @@ def position_monitor_agent_factory(monkeypatch):
         )
 
     return make
+
+
+@pytest.fixture
+def signal_agent_factory(monkeypatch):
+    """Фабрика SignalAgent с подменённым status. Прод не трогаем.
+
+    Драйв: положить INDICATORS_READY-event в agent._queue, затем `await agent.run()`
+    (run читает ровно одно событие из очереди и завершается).
+    """
+    from tests.execution.fakes import FakeStatus, FakeBus
+
+    def make(*, status_map=None):
+        import agents.signal_agent as sa_mod
+
+        fake_status = FakeStatus()
+        if status_map:
+            fake_status._status.update(status_map)
+        monkeypatch.setattr(sa_mod, "status", fake_status)
+
+        agent = sa_mod.SignalAgent("Signal", FakeBus())
+        return SimpleNamespace(agent=agent, bus=agent.bus, status=fake_status)
+
+    return make
