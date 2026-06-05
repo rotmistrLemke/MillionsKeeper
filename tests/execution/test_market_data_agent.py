@@ -90,3 +90,48 @@ async def test_terminal_connected(market_data_agent_factory):
     )
     await h.agent.run()
     assert EventType.MT5_CONNECTED in _types(h)
+
+
+async def test_first_sight_records_no_new_bar(market_data_agent_factory):
+    h = market_data_agent_factory(
+        streams={"s1": make_stream(symbol="XAUUSD", timeframe=16385)},
+        rates_df=make_bars_df(time=1000),
+    )
+    await h.agent.run()
+    assert h.agent.metrics["new_bars"] == 0
+    assert EventType.NEW_BAR not in _types(h)
+    assert h.agent._last_bar_times[("XAUUSD", 16385)] == 1000
+
+
+async def test_second_run_greater_time_emits_new_bar(market_data_agent_factory):
+    h = market_data_agent_factory(
+        streams={"s1": make_stream(symbol="XAUUSD", timeframe=16385)},
+        rates_df=make_bars_df(time=1000),
+    )
+    await h.agent.run()                       # первый показ
+    h.cache.rates_df = make_bars_df(time=2000)
+    await h.agent.run()                       # новая свеча
+    bars = [e for e in h.bus.events if e.type == EventType.NEW_BAR]
+    assert len(bars) == 1
+    assert bars[0].payload == {"symbol": "XAUUSD", "bar_time": 2000, "timeframe": 16385}
+
+
+async def test_second_run_equal_time_no_new_bar(market_data_agent_factory):
+    h = market_data_agent_factory(
+        streams={"s1": make_stream(symbol="XAUUSD", timeframe=16385)},
+        rates_df=make_bars_df(time=1000),
+    )
+    await h.agent.run()
+    await h.agent.run()                       # тот же time
+    assert EventType.NEW_BAR not in _types(h)
+
+
+async def test_second_run_lesser_time_no_new_bar(market_data_agent_factory):
+    h = market_data_agent_factory(
+        streams={"s1": make_stream(symbol="XAUUSD", timeframe=16385)},
+        rates_df=make_bars_df(time=2000),
+    )
+    await h.agent.run()
+    h.cache.rates_df = make_bars_df(time=1000)
+    await h.agent.run()                       # время «откатилось»
+    assert EventType.NEW_BAR not in _types(h)
