@@ -54,3 +54,39 @@ async def test_current_pairs_distinct_symbols(market_data_agent_factory):
     await h.agent.run()
     assert h.agent.metrics["symbols"] == 2
     assert h.agent.metrics["pairs"] == 3
+
+
+async def test_emits_cache_invalidated(market_data_agent_factory):
+    h = market_data_agent_factory(
+        streams={"s1": make_stream(symbol="XAUUSD")},
+        rates_df=make_bars_df(time=1000),
+    )
+    await h.agent.run()
+    assert h.cache.invalidated is True
+    assert _payload(h, EventType.MARKET_CACHE_INVALIDATED) == {"pairs": 1}
+
+
+async def test_terminal_disconnected(market_data_agent_factory):
+    h = market_data_agent_factory(
+        streams={"s1": make_stream(symbol="XAUUSD")},
+        rates_df=make_bars_df(time=1000),
+        terminal=None,
+    )
+    await h.agent.run()
+    types = _types(h)
+    assert EventType.MT5_DISCONNECTED in types
+    assert EventType.MT5_CONNECTED not in types
+    assert EventType.NEW_BAR not in types
+    # последний AGENT_STATUS — error
+    statuses = [e.payload["status"] for e in h.bus.events
+                if e.type == EventType.AGENT_STATUS]
+    assert statuses[-1] == "error"
+
+
+async def test_terminal_connected(market_data_agent_factory):
+    h = market_data_agent_factory(
+        streams={"s1": make_stream(symbol="XAUUSD")},
+        rates_df=make_bars_df(time=1000),
+    )
+    await h.agent.run()
+    assert EventType.MT5_CONNECTED in _types(h)
