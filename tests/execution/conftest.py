@@ -212,3 +212,44 @@ def market_data_agent_factory(monkeypatch):
         )
 
     return make
+
+
+@pytest.fixture
+def indicator_agent_factory(monkeypatch):
+    """Фабрика IndicatorAgent с подменёнными зависимостями. Прод не трогаем.
+
+    Патчит streams.registry, strategies.STRATEGIES, market_data_cache.cache,
+    и (опц.) strategies.runtime.get_runtime_strategy. `trading` не импортируется.
+
+    Драйв run(): положить NEW_BAR-event в agent._queue, затем `await agent.run()`.
+    _calc_strategy/_calc_indicators можно подменить на инстансе прямо в тесте
+    (для изоляции dispatch). _calc_indicators-тесты сами патчат indicators.* через
+    отдельный аргумент monkeypatch.
+    """
+    from tests.execution.fakes import FakeCache, FakeBus, FakeRegistry
+
+    def make(*, streams=None, strategies=None, rates_df=None, runtime_strategy=None):
+        import agents.indicator_agent as ia_mod
+        import streams as streams_mod
+        import strategies as strat_mod
+        import strategies.runtime as runtime_mod
+        import market_data_cache as mdc_mod
+
+        fake_cache = FakeCache()
+        fake_cache.rates_df = rates_df
+        fake_registry = FakeRegistry(streams or {})
+        strat_map = {} if strategies is None else strategies
+
+        monkeypatch.setattr(streams_mod, "registry", fake_registry)
+        monkeypatch.setattr(strat_mod, "STRATEGIES", strat_map)
+        monkeypatch.setattr(mdc_mod, "cache", fake_cache)
+        if runtime_strategy is not None:
+            monkeypatch.setattr(runtime_mod, "get_runtime_strategy",
+                                lambda name, sym: runtime_strategy)
+
+        agent = ia_mod.IndicatorAgent("Indicator", FakeBus())
+        return SimpleNamespace(
+            agent=agent, bus=agent.bus, registry=fake_registry, cache=fake_cache,
+        )
+
+    return make
