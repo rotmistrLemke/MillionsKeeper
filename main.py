@@ -72,6 +72,8 @@ async def main():
     from agents.history_agent       import HistoryAgent
     from agents.backtest_agent      import BacktestAgent
     from agents.account_agent       import AccountAgent
+    from agents.connection_agent     import ConnectionAgent
+    from agents.telegram_agent       import TelegramAgent
     from agents.anomaly_scanner_agent import AnomalyScannerAgent
     from anomaly.store import AnomalyStore
     from anomaly.detector import DetectorConfig
@@ -107,6 +109,8 @@ async def main():
         HistoryAgent("History",        bus, poll_interval=300.0),
         BacktestAgent("Backtest",      bus),
         AccountAgent("Account",        bus, poll_interval=30.0),
+        ConnectionAgent("Connection", bus, mt5_auth, poll_interval=15.0),
+        TelegramAgent("Telegram",     bus),
         anomaly_agent,
     ]
 
