@@ -58,9 +58,10 @@ def test_mixed_trades_pinned():
     assert m["profit_factor"] == pytest.approx(15.0 / 7.0)
     assert m["avg_win"] == pytest.approx(7.5) and m["avg_loss"] == pytest.approx(-3.5)
     assert m["expectancy"] == pytest.approx(2.0)
-    # equity cum: 10,6,11,8 → peak 11, max dd 3 (money), pct 3/11*100
-    assert m["max_drawdown_money"] == pytest.approx(3.0)
-    assert m["max_drawdown_pct"] == pytest.approx(3.0 / 11.0 * 100.0)
+    # equity cum: 10,6,11,8 → max peak-to-trough decline = 4 (пик 10 → дно 6);
+    # pct = max_dd_money / глоб.пик(11) * 100 (конвенция compute())
+    assert m["max_drawdown_money"] == pytest.approx(4.0)
+    assert m["max_drawdown_pct"] == pytest.approx(4.0 / 11.0 * 100.0)
     assert m["longest_loss_streak"] == 1
     assert m["sharpe"] is not None
     assert m["period_days"] == pytest.approx(300.0 / 86400.0)
