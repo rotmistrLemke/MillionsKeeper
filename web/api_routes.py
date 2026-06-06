@@ -919,3 +919,45 @@ async def delete_user(username: str,
     if not ok:
         raise HTTPException(status_code=404, detail=f"Пользователь {username} не найден")
     return {"ok": True}
+
+
+@router.get("/performance")
+async def get_performance():
+    """Live go/no-go: метрики+вердикт по счёту и per-strategy. Только чтение store."""
+    import time as _time
+    import math
+    from performance.store import PerformanceStore
+    from performance import metrics as perf_metrics
+    from performance.evaluator import evaluate
+    import streams
+
+    store = PerformanceStore()
+    try:
+        trades = store.closed_trades()
+    finally:
+        store.close()
+
+    magic_map = {int(s.magic): s.strategy for s in streams.registry.all()}
+
+    def _json_safe(m: dict) -> dict:
+        out = {}
+        for k, v in m.items():
+            if isinstance(v, float) and (math.isinf(v) or math.isnan(v)):
+                out[k] = None
+            else:
+                out[k] = v
+        return out
+
+    acc = perf_metrics.compute(trades)
+    acc_v = evaluate(acc)
+    by_strat = perf_metrics.per_strategy(trades, magic_map)
+    by_strat_out = {}
+    for name, m in by_strat.items():
+        v = evaluate(m, is_strategy=True)
+        by_strat_out[name] = {**_json_safe(m), "verdict": {"status": v["status"], "reasons": v["reasons"]}}
+
+    return {
+        "account": {**_json_safe(acc), "verdict": {"status": acc_v["status"], "reasons": acc_v["reasons"]}},
+        "by_strategy": by_strat_out,
+        "generated_at": int(_time.time()),
+    }

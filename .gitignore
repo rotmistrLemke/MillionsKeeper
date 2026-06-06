@@ -28,3 +28,4 @@ data/anomalies.db-shm
 .mcp.json
 notes/
 tools/_out/
+performance.db

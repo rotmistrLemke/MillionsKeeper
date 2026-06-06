@@ -34,6 +34,7 @@ class HistoryAgent(BaseAgent):
             _latest_snapshot = snapshot
             self.metrics["today_pnl"] = snapshot.get("today", {}).get("profit", 0.0)
             await self.emit(EventType.HISTORY_SNAPSHOT, snapshot)
+            await asyncio.get_event_loop().run_in_executor(None, self._persist_track)
             await self.emit_status(AgentStatus.IDLE, f"Сегодня: {self.metrics['today_pnl']:+.2f}$")
         except Exception as e:
             self._logger.error(f"History load error: {e}")
@@ -152,3 +153,39 @@ class HistoryAgent(BaseAgent):
                     today["deals"].append(item)
 
         return {"today": today, "week": week, "month": month}
+
+    def _persist_track(self) -> None:
+        """Аддитивная запись closed-сделок + equity в performance-store.
+        Изолировано от _load_history; никогда не роняет агент (всё в try)."""
+        try:
+            from datetime import datetime, timedelta
+            import MetaTrader5 as mt5
+            from performance.store import record_poll
+
+            now = datetime.now()
+            date_from = now - timedelta(days=90)
+            date_to = now + timedelta(hours=3)
+            deals = mt5.history_deals_get(date_from, date_to)
+
+            records = []
+            for d in (deals or []):
+                # закрытая сделка: entry==1 (OUT), type buy/sell
+                if getattr(d, "entry", None) != 1 or d.type not in (0, 1):
+                    continue
+                records.append({
+                    "ticket": int(d.ticket), "time": int(d.time),
+                    "magic": int(getattr(d, "magic", 0) or 0),
+                    "symbol": getattr(d, "symbol", None), "type": int(d.type),
+                    "entry": int(d.entry), "volume": float(getattr(d, "volume", 0.0)),
+                    "price": float(getattr(d, "price", 0.0)), "profit": float(d.profit),
+                    "commission": float(getattr(d, "commission", 0.0)),
+                    "swap": float(getattr(d, "swap", 0.0)),
+                })
+
+            info = mt5.account_info()
+            balance = float(getattr(info, "balance", 0.0)) if info else 0.0
+            equity = float(getattr(info, "equity", 0.0)) if info else 0.0
+
+            record_poll(records, balance, equity)
+        except Exception as e:
+            self._logger.warning(f"performance persist failed: {e}")
