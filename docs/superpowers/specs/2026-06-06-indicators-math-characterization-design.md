@@ -67,9 +67,10 @@
 
 ### `test_geometry.py` — зависят от `point` (FakeCache `point=0.01`)
 
-- `Alligator.angle` — `atan2(y, pairX/2)`, `degrees`, округление `int(f"{:.0f}")`.
-  **Находка #8:** `degrees=False` фактически игнорируется (тернарник пинит градусы из-за порядка
-  вычислений/формата) — пинним текущее поведение **проходящим** тестом + комментарий.
+- `Alligator.angle` — `atan2(y, pairX/2)`, тернарник по `degrees` работает корректно:
+  `True`→градусы (`int(f"{degrees(ar):.0f}")`), `False`→округлённые радианы (`int(f"{ar:.0f}")`).
+  Пинним обе ветки (на нашем входе: `True`→6, `False`→0, SELL→−63). Округление `int(f"{:.0f}")`
+  (round-half-to-even) — отметить комментарием. Не находка.
 - `Alligator.CountDecimalPlace` — `abs(Decimal(str(point)).as_tuple().exponent)`.
 - `MovingAverage._get_angles` — `len<2`/NaN→None; `atr_value` Series (`.iloc[-1]`) vs scalar;
   деление на `point`; делегирование `Alligator.angle`.
@@ -77,7 +78,7 @@
   (зеркало→SELL); `angles is None`→no_signal-dict; поле `strength`.
 - `MovingAverage.ma_critical_angle` — порог `angle_fast>65`→BUY / `<-65`→SELL / иначе NO_SIGNAL.
 - `AdaptiveMovingAverage.checkFlat` — talib.KAMA(10) + порог угла `>4 ∨ <-4`→`value:False`.
-  **Находка #9:** строка 101 `if math.degrees else ...` — `math.degrees` это функция (всегда truthy),
+  **Находка #8:** строка 101 `if math.degrees else ...` — `math.degrees` это функция (всегда truthy),
   else-ветка мёртвая → всегда градусная ветка. Пинним проходящим тестом + комментарий.
 
 ### `test_data_methods.py` — обёртки над `cache.get_rates` (FakeCache rates + None-guards)
@@ -108,10 +109,12 @@
 
 ## План находок (фиксируем, не чиним)
 
-1. **#8** `Alligator.angle` `degrees=False` игнорируется.
-2. **#9** `AdaptiveMovingAverage.checkFlat` строка 101 `if math.degrees` — else-ветка мёртвая.
-3. `ADX.ADX` вложенный `else` (строки 401–403, `tmp_pos==tmp_neg`→оба 0) — поведенчески корректно,
+1. **#8** `AdaptiveMovingAverage.checkFlat` строка 101 `if math.degrees` — `math.degrees` это функция
+   (всегда truthy), else-ветка мёртвая → `degrees`-семантика отсутствует. Латентный баг, пинним
+   проходящим тестом + запись в known-issues.
+2. `ADX.ADX` вложенный `else` (строки 401–403, `tmp_pos==tmp_neg`→оба 0) — поведенчески корректно,
    только комментарий, не баг.
+3. `Alligator.angle` тернарник по `degrees` корректен — НЕ находка (ранее ошибочно помечалось).
 
 Прочие расхождения при написании разбираем по факту (xfail или пиннинг); прод нетронут.
 
