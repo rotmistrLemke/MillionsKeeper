@@ -192,6 +192,10 @@ class FakeBus:
     def subscribe(self, event_type, handler):
         self.subscriptions.append((event_type, handler))
 
+    def unsubscribe(self, event_type, handler):
+        subs = getattr(self, "subscriptions", [])
+        self.subscriptions = [(t, h) for (t, h) in subs if h is not handler]
+
     async def publish(self, ev):
         self.events.append(ev)
 
