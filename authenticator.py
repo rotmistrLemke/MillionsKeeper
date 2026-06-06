@@ -68,7 +68,16 @@ class MT5Auth:
         except Exception as e:
             error_msg = f"Ошибка при авторизации: {str(e)}"
             print(error_msg)
-    
+
+    def reconnect(self) -> bool:
+        """Повторная инициализация + логин (для ConnectionAgent). Не кидает; True при успехе."""
+        try:
+            self.initialize_connection()
+            return bool(self.login())
+        except Exception as e:
+            print(f"MT5 reconnect failed: {e}")
+            return False
+
     def logout(self):
         """Завершение сессии"""
         if self.authorized:
