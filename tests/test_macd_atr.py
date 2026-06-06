@@ -26,6 +26,16 @@ fake_mt5.symbol_info = lambda s: SimpleNamespace(point=0.0001)
 sys.modules['MetaTrader5'] = fake_mt5
 
 import indicators
+import market_data_cache
+# Принудительно биндим фейк в УЖЕ импортированные модули. Если market_data_cache был
+# импортирован раньше (другим тест-файлом, например tests/indicators/*) при активном
+# реальном MetaTrader5, его модульный глобал mt5 указывает на реальный пакет, и
+# ATR.calculate_atr через cache.get_rates позвал бы реальный copy_rates_from_pos
+# (-10004 «No IPC connection»). Явное присваивание делает этот тест независимым от
+# порядка сборки/прогона pytest. Кэш сбрасываем, чтобы ключи не были загрязнены.
+market_data_cache.mt5 = fake_mt5
+indicators.mt5 = fake_mt5
+market_data_cache.cache.invalidate()
 from indicators import MACD, ATR
 
 class TestMACDATR(unittest.TestCase):
