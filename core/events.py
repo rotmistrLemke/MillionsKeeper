@@ -48,6 +48,7 @@ class EventType(str, Enum):
 
     # System
     AGENT_STATUS             = "agent.status"
+    AGENT_STALE              = "agent.stale"
     TRADING_STATUS_CHANGED   = "trading.status_changed"
     ACCOUNT_UPDATE           = "account.update"
 
