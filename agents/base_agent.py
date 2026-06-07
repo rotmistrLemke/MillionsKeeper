@@ -65,6 +65,7 @@ class BaseAgent(ABC):
             try:
                 await self.run()
                 self.last_run = datetime.now()
+                registry.heartbeat(self.name, getattr(self, "poll_interval", None))
             except asyncio.CancelledError:
                 await self.emit_status(AgentStatus.STOPPED)
                 break
