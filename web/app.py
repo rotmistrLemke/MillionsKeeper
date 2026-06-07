@@ -54,9 +54,15 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
 @app.get("/health")
 async def health():
-    """Health check для reverse-proxy / мониторинга."""
+    """Health check: overall + per-agent liveness. Всегда 200 (degraded не роняет бэкенд)."""
+    from datetime import datetime
+    from core.agent_registry import registry
+    from core.health import build_report
+    report = build_report(list(registry._agents.values()), datetime.now())
     return {
-        "status": "ok",
+        "status": report["overall"],     # обратная совместимость reverse-proxy
+        "overall": report["overall"],
+        "agents": report["agents"],
         "ws_clients": ws_manager.connection_count,
     }
 
