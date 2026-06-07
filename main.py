@@ -74,6 +74,7 @@ async def main():
     from agents.account_agent       import AccountAgent
     from agents.connection_agent     import ConnectionAgent
     from agents.telegram_agent       import TelegramAgent
+    from agents.watchdog_agent       import WatchdogAgent
     from agents.anomaly_scanner_agent import AnomalyScannerAgent
     from anomaly.store import AnomalyStore
     from anomaly.detector import DetectorConfig
@@ -111,6 +112,7 @@ async def main():
         AccountAgent("Account",        bus, poll_interval=30.0),
         ConnectionAgent("Connection", bus, mt5_auth, poll_interval=15.0),
         TelegramAgent("Telegram",     bus),
+        WatchdogAgent("Watchdog",     bus, poll_interval=60.0),
         anomaly_agent,
     ]
 
