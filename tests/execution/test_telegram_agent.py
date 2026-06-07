@@ -66,3 +66,10 @@ async def test_startup_ping_once(monkeypatch):
     except asyncio.TimeoutError:
         pass
     assert any("start" in s.lower() for s in sent)
+
+
+async def test_on_agent_stale_alerts(monkeypatch):
+    agent, sent = _make(monkeypatch)
+    await agent._on_agent_stale(_ev(EventType.AGENT_STALE,
+                                    {"agent": "MarketData", "silent_sec": 120}))
+    assert len(sent) == 1 and "MarketData" in sent[0] and "stale" in sent[0].lower()

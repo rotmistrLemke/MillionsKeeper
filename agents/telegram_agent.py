@@ -68,12 +68,18 @@ class TelegramAgent(BaseAgent):
             self._last_state[agent] = "ok"
             await self._send(f"✅ Agent {agent} recovered")
 
+    async def _on_agent_stale(self, ev) -> None:
+        agent = ev.payload.get("agent")
+        silent = ev.payload.get("silent_sec")
+        await self._send(f"⚠️ Agent {agent} stale ({silent}s без heartbeat)")
+
     def _subscribe(self) -> None:
         if self._subscribed:
             return
         self.bus.subscribe(EventType.MT5_DISCONNECTED, self._on_mt5_disconnected)
         self.bus.subscribe(EventType.MT5_CONNECTED, self._on_mt5_connected)
         self.bus.subscribe(EventType.AGENT_STATUS, self._on_agent_status)
+        self.bus.subscribe(EventType.AGENT_STALE, self._on_agent_stale)
         self._subscribed = True
 
     async def run(self):
