@@ -417,6 +417,8 @@ footer{background:var(--bg-elev);padding:60px 0 30px;border-top:1px solid var(--
       <a href="#track" class="btn btn-primary btn-lg">▶ Открыть live equity</a>
       <a href="#pricing" class="btn btn-secondary btn-lg">Попробовать demo бесплатно</a>
     </div>
+    <!-- PLACEHOLDER: числа ниже ВЫДУМАНЫ для верстки. Заменить реальными из MyFXBook
+         перед публикацией (см. docs/ops/myfxbook-runbook.md). НЕ публиковать как факт. -->
     <div class="hero-stats">
       <div class="hero-stat"><div class="l">Live дней</div><div class="v accent">247</div></div>
       <div class="hero-stat"><div class="l">Сделок</div><div class="v">4 832</div></div>
@@ -469,14 +471,18 @@ footer{background:var(--bg-elev);padding:60px 0 30px;border-top:1px solid var(--
       Это не скриншот и не обещание. Это публичный счёт у регулируемого брокера с открытым
       Investor-паролем — вы можете зайти в MT5 и убедиться сами.
     </p>
+    <!-- MYFXBOOK-INTEGRATION: точка drop-in. Подключение — docs/ops/myfxbook-runbook.md.
+         До реального счёта: ссылка-плейсхолдер, числа ВЫДУМАНЫ (PLACEHOLDER), SVG — заглушка. -->
     <div class="live-track">
       <div class="track-header">
         <div class="track-title">
           <h3>MillionsKeeper · Portfolio Live</h3>
           <p>FTMO Challenge · $10 000 · XAUUSD + EURUSD · с 2025-09-10</p>
         </div>
-        <a href="#" class="track-myfx">⌕ Открыть на MyFXBook →</a>
+        <!-- TODO(myfxbook): заменить на реальный публичный URL портфеля -->
+        <a href="MYFXBOOK_PORTFOLIO_URL" class="track-myfx">⌕ Открыть на MyFXBook →</a>
       </div>
+      <!-- PLACEHOLDER: числа ВЫДУМАНЫ. Заменить реальными из MyFXBook перед публикацией. -->
       <div class="track-stats">
         <div class="track-stat"><div class="l">Equity</div><div class="v">$12 343</div></div>
         <div class="track-stat"><div class="l">Доходность</div><div class="v green">+23.4%</div></div>
@@ -486,6 +492,11 @@ footer{background:var(--bg-elev);padding:60px 0 30px;border-top:1px solid var(--
         <div class="track-stat"><div class="l">Sharpe</div><div class="v">1.42</div></div>
       </div>
       <div class="equity-chart">
+        <!-- MYFXBOOK WIDGET SLOT: при подключении заменить SVG-заглушку ниже на реальный
+             iframe из генератора виджетов MyFXBook (см. runbook шаг 3). Пример:
+             <iframe src="https://widgets.myfxbook.com/api/get-custom-widget.png?id=MYFXBOOK_WIDGET_ID&..."
+                     width="100%" height="220" frameborder="0" scrolling="no"></iframe>
+        -->
         <svg class="equity-svg" viewBox="0 0 800 220" preserveAspectRatio="none">
           <defs>
             <linearGradient id="eqg" x1="0" y1="0" x2="0" y2="1">
