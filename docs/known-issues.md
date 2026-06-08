@@ -31,35 +31,35 @@
 - **Где:** [trading.py:61-70](../trading.py#L61) — `orderOpen`, финальный `return`.
 - **Что:** при `mt5.order_send(...) → None` (реальный отказ брокера) или когда `type` не LONG/SHORT, `result` остаётся `None`; код печатает `mt5.last_error()`, но затем безусловно исполняет `return {"order": result.order, ...}` → `AttributeError: 'NoneType' object has no attribute 'order'`. Обработчик падает вместо мягкой деградации на денежном пути.
 - **Желаемое:** при отсутствии результата возвращать graceful-значение (например `{"order": None, ...}` или `None`), не кидая исключение.
-- **Статус:** ⚠️ ОТКРЫТА (2026-06-02, слайс E1). Зафиксирована xfail-тестом `tests/execution/test_trading_orders.py::TestOrderOpenFindings::test_order_send_none_should_not_crash` (`raises=AttributeError, strict=True`). Прод НЕ правился (E1 только характеризует); фикс — отдельным слайсом.
+- **Статус:** ✅ ЗАКРЫТА (2026-06-06, фикс-батч). `orderOpen` при `not result` теперь возвращает graceful-dict `{"order": None, "price": None, ...}` вместо краша. Тест `test_order_send_none_should_not_crash` переведён xfail→passing (проверяет graceful-возврат). Коммит `ad8520c`.
 
 ## 5. checkMarginWithStopLoss: двойной учёт volume (квадратичные потенциальные убытки)
 
 - **Где:** [trading.py:410](../trading.py#L410) — `checkMarginWithStopLoss`, `potential_loss = pip_value * stop_loss_pips * volume`.
 - **Что:** `pip_value = self.calculatePipValue(symbol, volume, order_type)` уже умножен на `volume` (внутри `calculatePipValue`: `pip = point*contract_size*volume`). Повторное домножение на `volume` делает `potential_loss` квадратичным по объёму: `point*contract*sl_pips*volume²`. Для дробных лотов (<1) занижает оценку убытка, для крупных (>1) — завышает, искажая margin-ratio и решение «безопасно ли открыть». В отличие от этого, `calculateMaxVolumeWithMarginCheck` считает корректно (per-1-lot: `pip_value_per_lot * stop_loss_pips`, линейно).
 - **Желаемое:** линейная зависимость от объёма — использовать pip-per-lot (volume=1) либо не домножать на `volume` повторно.
-- **Статус:** ⚠️ ОТКРЫТА (2026-06-03, слайс E1b). Зафиксирована xfail-тестом `tests/execution/test_trading_margin.py::test_check_margin_double_counts_volume`. Прод НЕ правился (E1b только характеризует); фикс — отдельным слайсом.
+- **Статус:** ✅ ЗАКРЫТА (2026-06-06, фикс-батч). Убрано повторное домножение на `volume`: `potential_loss = pip_value * stop_loss_pips` (pip_value уже × volume → линейно). Тест `test_check_margin_double_counts_volume` переведён xfail→passing (доказывает линейность удвоением volume); `test_check_margin_happy` перепинен на линейный ratio (5000/110). Коммит `08a9d74`.
 
 ## 6. trading.Trading: мёртвые методы setStopLoss/calculateStopLossOld без self
 
 - **Где:** [trading.py:188](../trading.py#L188) (`calculateStopLossOld(symbol, priceCurrent, orderType)`) и [trading.py:199](../trading.py#L199) (`setStopLoss(ticket, new_sl, oldSl, orderType)`).
 - **Что:** оба объявлены как методы класса `Trading`, но БЕЗ `self` в первом параметре. При вызове как bound-метод `self` попадает в первый параметр (сдвиг аргументов) → объективно сломаны. Мёртвый код — нигде в проекте не вызываются. `setStopLoss` дополнительно дёргает `result.retcode` без None-guard (как находка #4). При случайном вызове `setStopLoss` НЕ падает (из-за совпадения `TargetType.LONG==0` со сдвинутым аргументом), а молча отправляет `order_send` с мусором (`position`=инстанс) — тихая порча.
 - **Желаемое:** удалить мёртвый код либо восстановить сигнатуру (`self` + None-guard).
-- **Статус:** ⚠️ ОТКРЫТА (2026-06-03, слайс E1b). Зафиксировано тестами `tests/execution/test_trading_margin.py::test_legacy_setStopLoss_missing_self_param` и `::test_legacy_calculateStopLossOld_missing_self_param` (через `inspect.signature`). Прод НЕ правился.
+- **Статус:** ✅ ЗАКРЫТА (2026-06-06, фикс-батч). Оба мёртвых метода удалены из `trading.py`; 2 inspect-теста удалены. Ноль ссылок в репо. Коммит `28978b6`.
 
 ## 7. trading.Trading: мёртвые методы calculateStopLoss/calculateMaxMinValue
 
 - **Где:** [trading.py:159](../trading.py#L159) (`calculateStopLoss`) и [trading.py:468](../trading.py#L468) (`calculateMaxMinValue`).
 - **Что:** оба объявлены корректно (с `self`), но НИГДЕ не вызываются (проверено grep по проекту). `calculateStopLoss` мутирует `dict.symbolStopLossValue` (legacy-трейлинг по деньгам), `calculateMaxMinValue` считает экскурсию через `copy_rates_from_pos`. Актуальный трейлинг делает `PositionMonitorAgent._apply_trailing_sl` (ATR-based, через `modifySL`), эти методы — рудимент старой схемы.
 - **Желаемое:** удалить мёртвый код (либо подключить, если задумывался).
-- **Статус:** ⚠️ ОТКРЫТА (2026-06-04, слайс E3). Без тестов (мёртвый код, решение пользователя — не раздувать E3). Зафиксировано наблюдением при характеризации position_monitor.
+- **Статус:** ✅ ЗАКРЫТА (2026-06-06, фикс-батч). Оба мёртвых метода удалены из `trading.py`. Ноль ссылок в репо. Коммит `28978b6`.
 
 ## 8. AdaptiveMovingAverage.checkFlat: мёртвая else-ветка (`if math.degrees`)
 
 - **Где:** [indicators.py:101](../indicators.py#L101) — `checkFlat`, выбор градусы/радианы.
 - **Что:** `angle = int(f"{math.degrees(angle_rad):.0f}") if math.degrees else int(f"{angle_rad:.0f}")`. Условие тернарника — функция `math.degrees` (всегда truthy), а не переменная/параметр. Поэтому else-ветка недостижима, а идея «выбирать радианы/градусы» отсутствует — всегда градусы. Сравнить с корректным `Alligator.angle` (там тернарник по параметру `degrees`).
 - **Желаемое:** либо параметр `degrees` (как в `Alligator.angle`), либо убрать мёртвую ветку.
-- **Статус:** ⚠️ ОТКРЫТА (2026-06-06, слайс E6). Характеризована проходящим тестом `tests/indicators/test_geometry.py::test_checkflat_dead_else_branch_finding8`. Прод НЕ правился (E6 только характеризует).
+- **Статус:** ✅ ЗАКРЫТА (2026-06-06, фикс-батч). Мёртвая ветка убрана: `angle = int(f"{math.degrees(angle_rad):.0f}")` (поведение сохранено — градусы всегда использовались). Обсолет-тест `test_checkflat_dead_else_branch_finding8` удалён. Коммит `f3a997f`.
 
 ---
 
