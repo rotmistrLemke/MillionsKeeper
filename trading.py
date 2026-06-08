@@ -342,7 +342,7 @@ class Trading:
                 return False, 0
 
             pip_value = self.calculatePipValue(symbol, volume, order_type)
-            potential_loss = pip_value * stop_loss_pips * volume
+            potential_loss = pip_value * stop_loss_pips
 
             total_required = margin_required + potential_loss
             margin_ratio = free_margin / total_required

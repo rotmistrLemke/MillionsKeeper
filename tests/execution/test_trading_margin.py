@@ -134,13 +134,13 @@ def test_maxvol_clamps_to_volume_min(patched_trading):
 
 
 def test_check_margin_happy(patched_trading):
-    # pip_value=calculatePipValue(vol 0.1)=0.01*100*0.1=0.1;
-    # potential_loss=0.1*100*0.1=1.0; total=margin(100)+1.0=101; ratio=5000/101≈49.5 ≥1.2
+    # pip_value=calculatePipValue(vol 0.1)=0.01*100*0.1=0.1 (уже включает volume, линейно);
+    # potential_loss=pip_value*sl=0.1*100=10.0; total=margin(100)+10.0=110; ratio=5000/110≈45.45 ≥1.2
     ok, ratio = patched_trading.trading.checkMarginWithStopLoss(
         "XAUUSD", 0.1, patched_trading.mt5.ORDER_TYPE_BUY, 100
     )
     assert ok is True
-    assert ratio == pytest.approx(5000 / 101)
+    assert ratio == pytest.approx(5000 / 110)
 
 
 def test_check_margin_account_none(patched_trading):
@@ -160,19 +160,35 @@ def test_check_margin_exception_returns_false_zero(patched_trading, monkeypatch)
     assert patched_trading.trading.checkMarginWithStopLoss("XAUUSD", 0.1, 0, 100) == (False, 0)
 
 
-@pytest.mark.xfail(reason="находка #double-count: potential_loss = pip_value*sl*volume, "
-                          "а pip_value уже умножен на volume → квадрат по volume; "
-                          "желаемое — линейная зависимость (см. docs/known-issues.md)")
 def test_check_margin_double_counts_volume(patched_trading):
-    # free=300, vol=1.5, sl=100, margin=100.
-    # АКТУАЛЬНО (квадрат): pip_value=0.01*100*1.5=1.5; loss=1.5*100*1.5=225; total=325;
-    #   ratio=300/325≈0.923 < 1.2 → (False).
-    # ЖЕЛАЕМО (линейно): loss=pip_per_lot(1.0)*100*1.5=150; total=250; ratio=300/250=1.2 ≥1.2 → True.
+    # free=300, vol=1.5, sl=100, margin=100 (фикс, не масштабируется по volume).
+    # ИСПРАВЛЕНО (линейно по volume): pip_value = calculatePipValue(vol=1.5) = 0.01*100*1.5 = 1.5
+    #   (уже включает volume); potential_loss = pip_value*sl = 1.5*100 = 150;
+    #   total = margin(100) + 150 = 250; ratio = 300/250 = 1.2 → ok=True, ratio==1.2.
+    # БАГ (квадрат по volume, было): potential_loss = pip_value*sl*volume = 1.5*100*1.5 = 225;
+    #   total=325; ratio=300/325≈0.923 < 1.2 → (False) — старый код проваливал бы этот тест.
     patched_trading.cache.account_info.margin_free = 300.0
-    ok, _ratio = patched_trading.trading.checkMarginWithStopLoss(
+    ok, ratio = patched_trading.trading.checkMarginWithStopLoss(
         "XAUUSD", 1.5, patched_trading.mt5.ORDER_TYPE_BUY, 100
     )
-    assert ok is True   # желаемое поведение; сейчас код даёт False → xfail
+    assert ok is True
+    assert ratio == pytest.approx(1.2)
+
+    # Удваиваем volume: pip_value тоже удваивается (1.5→3.0), и при ЛИНЕЙНОЙ зависимости
+    # potential_loss должен УДВОИТЬСЯ (150→300), а не учетвериться (как при квадрате, 225→900).
+    patched_trading.cache.account_info.margin_free = 300.0
+    _ok2, ratio2 = patched_trading.trading.checkMarginWithStopLoss(
+        "XAUUSD", 3.0, patched_trading.mt5.ORDER_TYPE_BUY, 100
+    )
+    # total2 = margin(100) + pip_value(3.0)*sl(100) = 100 + 300 = 400; ratio2 = 300/400 = 0.75
+    assert ratio2 == pytest.approx(0.75)
+    # Линейность: total_required растёт линейно с volume →
+    #   (total2 - margin) == 2 * (total1 - margin), т.е. potential_loss удваивается вместе с volume.
+    total1 = patched_trading.cache.account_info.margin_free / ratio
+    total2 = patched_trading.cache.account_info.margin_free / ratio2
+    loss1 = total1 - 100.0
+    loss2 = total2 - 100.0
+    assert loss2 == pytest.approx(2 * loss1)
 
 
 def test_safetrade_zero_max_returns_zero(patched_trading, monkeypatch):
