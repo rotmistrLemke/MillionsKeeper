@@ -102,10 +102,3 @@ def test_checkflat_constant_is_flat(indicators_cache):
     df = pd.DataFrame({"close": [1900.0] * 30})
     res = AdaptiveMovingAverage().checkFlat(df, "X", {}, atr_value=3.0)
     assert res == {"value": True, "angle": 0}
-
-
-def test_checkflat_dead_else_branch_finding8():
-    """Находка #8: строка 101 `if math.degrees else ...` — условие это ФУНКЦИЯ
-    math.degrees (всегда truthy), поэтому else-ветка недостижима, а параметр degrees
-    отсутствует как идея. Характеризуем сам факт. Прод не трогаем (см. known-issues #8)."""
-    assert bool(math.degrees) is True  # условие всегда истинно → градусная ветка

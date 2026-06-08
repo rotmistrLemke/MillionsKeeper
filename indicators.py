@@ -98,7 +98,7 @@ class AdaptiveMovingAverage:
         point = cache.get_symbol_info(symbol).point
         y = (lastAma - prevAma) / point
         angle_rad = math.atan2(y, x/2)
-        angle = int(f"{math.degrees(angle_rad):.0f}") if math.degrees else int(f"{angle_rad:.0f}")
+        angle = int(f"{math.degrees(angle_rad):.0f}")
 
         if angle > 4 or angle < -4:
             return {"value": False, "angle": angle}
