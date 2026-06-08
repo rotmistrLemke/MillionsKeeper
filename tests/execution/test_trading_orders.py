@@ -175,14 +175,12 @@ class TestModifySL:
 
 
 class TestOrderOpenFindings:
-    @pytest.mark.xfail(
-        reason="находка E1: при order_send→None строка trading.py:70 'result.order' "
-               "даёт AttributeError; желаемое поведение — graceful-возврат без падения",
-        raises=AttributeError, strict=True,
-    )
     def test_order_send_none_should_not_crash(self, patched_trading):
         t = patched_trading
         t.mt5.set_result_none()
-        # Желаемое: не падать, а вернуть результат с order=None (или None).
+        # Желаемое: не падать, а вернуть graceful-результат с order=None.
         out = t.trading.orderOpen("S", TargetType.LONG, 0.1, "c")
         assert out["order"] is None
+        assert out["price"] is None
+        assert out["symbol"] == "S"
+        assert out["targetType"] == TargetType.LONG

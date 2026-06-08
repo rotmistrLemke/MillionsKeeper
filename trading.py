@@ -60,9 +60,10 @@ class Trading:
             result = mt5.order_send(request)
         if not result:
             print(mt5.last_error())
-        elif result.retcode != mt5.TRADE_RETCODE_DONE:
-                print("4. order_send failed, retcode={}".format(result.retcode))
-                print("   result", result)
+            return {"order": None, "price": None, "symbol": symbol, "targetType": type}
+        if result.retcode != mt5.TRADE_RETCODE_DONE:
+            print("4. order_send failed, retcode={}".format(result.retcode))
+            print("   result", result)
         else:
             status.mark_open(symbol)
             print(f"Пара {symbol} Ордер {result.order} цена {result.price} статус торговли: {status.status_of(symbol)}")
