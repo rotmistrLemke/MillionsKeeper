@@ -1,8 +1,13 @@
 # TradingHouse — reverse proxy + auto-HTTPS через Let's Encrypt.
 #
 # Установка:
-#   1. Замените YOUR_DOMAIN на реальный домен (например, trade.example.com)
-#   2. Замените YOUR_EMAIL на e-mail для Let's Encrypt-уведомлений
+#   1. Замените YOUR_EMAIL на e-mail для Let's Encrypt-уведомлений
+#   2. Домен ниже — апекс tradinghouse.space. Если у вас другой домен,
+#      замените имя в строке site-блока. ВАЖНО: имя должно ТОЧНО
+#      совпадать с тем, что открывают в браузере, иначе Caddy отдаёт
+#      самоподписанный (недоверенный) сертификат-заглушку.
+#      Нужен и www? Допишите через запятую: tradinghouse.space, www.tradinghouse.space
+#      — но тогда заведите корректную A-запись на www (см. ниже).
 #   3. Положите этот файл как C:\Caddy\Caddyfile
 #   4. Запустите: caddy run --config C:\Caddy\Caddyfile
 #      или зарегистрируйте как сервис (см. install_caddy.ps1)
@@ -11,20 +16,27 @@
 #   - получит и обновит SSL-сертификат
 #   - проксирует HTTP → HTTPS
 #   - поддержит WebSocket-подключения
+#
+# Требования для выдачи сертификата:
+#   - A-запись DNS на АПЕКС (@) указывает на IPv4 сервера
+#   - НЕТ лишних AAAA (IPv6) записей на парковку хостера — Let's Encrypt
+#     предпочитает IPv6 и будет валидировать именно его (частая причина
+#     провала: AAAA ведёт на чужой хост → 404 на challenge)
+#   - порт 80 и 443 открыты из интернета (HTTP-01 / TLS-ALPN-01 challenge)
+#   - если домен на Cloudflare — proxy ВЫКЛЮЧЕН (серое облачко)
 
 {
     email YOUR_EMAIL
 }
 
-YOUR_DOMAIN {
+tradinghouse.space {
     # Reverse-proxy на бэкенд бота (TradingHouse слушает 127.0.0.1:8080).
     # WebSocket /ws обрабатывается тем же proxy — заголовки Upgrade/Connection
     # Caddy пробрасывает автоматически.
     reverse_proxy 127.0.0.1:8080 {
-        # Передаём реальный IP клиента боту в логах.
+        # Реальный IP клиента боту в логах. X-Forwarded-For/-Proto Caddy
+        # проставляет сам, дублировать их через header_up не нужно.
         header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
     }
 
     # Базовые security-заголовки.
