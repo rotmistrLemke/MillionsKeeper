@@ -1,8 +1,11 @@
 # TradingHouse — reverse proxy + auto-HTTPS через Let's Encrypt.
 #
 # Установка:
-#   1. Замените YOUR_DOMAIN на реальный домен (например, trade.example.com)
-#   2. Замените YOUR_EMAIL на e-mail для Let's Encrypt-уведомлений
+#   1. Замените YOUR_EMAIL на e-mail для Let's Encrypt-уведомлений
+#   2. Домен ниже — апекс tradinghouse.space + www. Если у вас другой домен,
+#      замените оба имени в строке site-блока. ВАЖНО: имя должно ТОЧНО
+#      совпадать с тем, что открывают в браузере, иначе Caddy отдаёт
+#      самоподписанный (недоверенный) сертификат-заглушку.
 #   3. Положите этот файл как C:\Caddy\Caddyfile
 #   4. Запустите: caddy run --config C:\Caddy\Caddyfile
 #      или зарегистрируйте как сервис (см. install_caddy.ps1)
@@ -11,12 +14,17 @@
 #   - получит и обновит SSL-сертификат
 #   - проксирует HTTP → HTTPS
 #   - поддержит WebSocket-подключения
+#
+# Требования для выдачи сертификата:
+#   - A-запись DNS на АПЕКС (@) и на www указывает на IP сервера
+#   - порт 80 открыт из интернета (Let's Encrypt HTTP-01 challenge)
+#   - если домен на Cloudflare — proxy ВЫКЛЮЧЕН (серое облачко)
 
 {
     email YOUR_EMAIL
 }
 
-YOUR_DOMAIN {
+tradinghouse.space, www.tradinghouse.space {
     # Reverse-proxy на бэкенд бота (TradingHouse слушает 127.0.0.1:8080).
     # WebSocket /ws обрабатывается тем же proxy — заголовки Upgrade/Connection
     # Caddy пробрасывает автоматически.
