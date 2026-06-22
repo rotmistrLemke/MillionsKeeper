@@ -85,7 +85,7 @@ class PositionMonitorAgent(BaseAgent):
         symbol = prev_pos["symbol"]
         stream = streams_mod.registry.by_magic(prev_pos.get("magic"))
         if stream is None:
-            stream = streams_mod.registry.by_symbol(symbol)
+            stream = streams_mod.registry.by_symbol_first(symbol)
 
         reason = await asyncio.get_event_loop().run_in_executor(
             None, self._classify_close_reason, prev_pos["ticket"]
@@ -100,8 +100,8 @@ class PositionMonitorAgent(BaseAgent):
             "magic": prev_pos.get("magic"),
         })
 
-        # Сбрасываем статус торговли обратно в 0, чтобы можно было открыть новую позицию.
-        # Для hedge-стратегий держим status=1, пока существует ХОТЯ БЫ одна позиция по
+        # Сбрасываем статус потока, чтобы можно было открыть новую позицию.
+        # Для hedge-стратегий держим поток открытым, пока существует ХОТЯ БЫ одна позиция по
         # этому magic (иначе закрытие одной ноги откроет новый вход поверх оставшейся).
         magic = int(prev_pos.get("magic") or 0)
         sibling_open = False
@@ -110,13 +110,13 @@ class PositionMonitorAgent(BaseAgent):
                 if p["magic"] == magic and p["symbol"] == symbol and p["ticket"] != prev_pos["ticket"]:
                     sibling_open = True
                     break
-        if status.is_open(symbol) and not sibling_open:
-            status.mark_allowed(symbol)
+        if stream is not None and not sibling_open:
+            streams_mod.registry.mark_stream_closed(stream.id)
             await self.emit(EventType.TRADING_STATUS_CHANGED, {
                 "symbol": symbol,
                 "status": 0,
                 "reason": f"position_closed:{reason}",
-                "stream_id": stream.id if stream else None,
+                "stream_id": stream.id,
             })
 
         if stream is not None and stream.strategy in STRATEGIES:

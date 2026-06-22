@@ -142,22 +142,28 @@ class ExecutionAgent(BaseAgent):
         p = event.payload
         symbol = p["symbol"]
         signal = p["signal"]
-        trading_status = status.status_of(symbol)
 
         if signal == "NO_SIGNAL":
             await self.emit_status(AgentStatus.IDLE, f"{symbol}: NO_SIGNAL")
             return
-        if trading_status != 0:
+        if status.is_disabled(symbol):
             await self.emit_status(
                 AgentStatus.IDLE,
-                f"{symbol}: сигнал {signal} отброшен (trading_status={trading_status})"
+                f"{symbol}: сигнал {signal} отброшен (символ выключен)"
             )
             return
 
         stream_id = p.get("stream_id")
-        stream = streams_mod.registry.get(stream_id) if stream_id else streams_mod.registry.by_symbol(symbol)
+        stream = streams_mod.registry.get(stream_id) if stream_id else streams_mod.registry.by_symbol_first(symbol)
         if stream is None or not stream.enabled:
             await self.emit_status(AgentStatus.IDLE, f"{symbol}: нет активного потока")
+            return
+
+        if streams_mod.registry.is_stream_open(stream.id):
+            await self.emit_status(
+                AgentStatus.IDLE,
+                f"{symbol}: сигнал {signal} отброшен (поток «{stream.name}» уже открыт)"
+            )
             return
 
         night_blocked, night_reason = self._is_night_block()
@@ -215,7 +221,7 @@ class ExecutionAgent(BaseAgent):
                         self._logger.error(f"Open hedge failed {symbol}: {he}")
                         await self.emit(EventType.ORDER_ERROR, {"symbol": symbol, "error": f"hedge:{he}"})
 
-                status.mark_open(symbol)
+                streams_mod.registry.mark_stream_open(stream.id)
                 await self.emit(EventType.TRADING_STATUS_CHANGED, {
                     "symbol": symbol,
                     "status": 1,

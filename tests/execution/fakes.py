@@ -208,11 +208,15 @@ class FakeRegistry:
     def __init__(self, streams=None):
         # streams: dict[id -> stream]
         self._streams = dict(streams or {})
+        self._open_streams: set[str] = set()
 
     def get(self, stream_id):
         return self._streams.get(stream_id)
 
     def by_symbol(self, symbol):
+        return [s for s in self._streams.values() if s.symbol == symbol]
+
+    def by_symbol_first(self, symbol):
         for s in self._streams.values():
             if s.symbol == symbol:
                 return s
@@ -226,6 +230,15 @@ class FakeRegistry:
 
     def enabled(self):
         return [s for s in self._streams.values() if getattr(s, "enabled", True)]
+
+    def is_stream_open(self, stream_id):
+        return stream_id in self._open_streams
+
+    def mark_stream_open(self, stream_id):
+        self._open_streams.add(stream_id)
+
+    def mark_stream_closed(self, stream_id):
+        self._open_streams.discard(stream_id)
 
 
 class FakeTrading:

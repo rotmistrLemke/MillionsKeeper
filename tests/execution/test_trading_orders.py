@@ -58,14 +58,9 @@ class TestOrderOpen:
         assert req["tp"] == 1950.0 and isinstance(req["tp"], float)
         assert req["magic"] == 777 and isinstance(req["magic"], int)
 
-    def test_mark_open_called_on_done(self, patched_trading):
+    def test_mark_open_not_called_in_trading_layer(self, patched_trading):
+        """mark_open перенесён в ExecutionAgent (per-stream); trading.py не трогает status."""
         t = patched_trading
-        t.trading.orderOpen("XAUUSDrfd", TargetType.LONG, 0.1, "c")
-        assert t.status.opened == ["XAUUSDrfd"]
-
-    def test_mark_open_not_called_when_retcode_not_done(self, patched_trading):
-        t = patched_trading
-        t.mt5.set_result(retcode=10004, order=999, price=1900.0)  # REQUOTE, не DONE
         t.trading.orderOpen("XAUUSDrfd", TargetType.LONG, 0.1, "c")
         assert t.status.opened == []
 

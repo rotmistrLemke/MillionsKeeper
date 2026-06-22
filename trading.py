@@ -65,8 +65,7 @@ class Trading:
             print("4. order_send failed, retcode={}".format(result.retcode))
             print("   result", result)
         else:
-            status.mark_open(symbol)
-            print(f"Пара {symbol} Ордер {result.order} цена {result.price} статус торговли: {status.status_of(symbol)}")
+            print(f"Пара {symbol} Ордер {result.order} цена {result.price}")
 
         return {"order": result.order, "price": result.price, "symbol": symbol, "targetType": type}
 

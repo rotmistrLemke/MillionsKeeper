@@ -122,30 +122,32 @@ def _prev(ticket=1001, symbol="XAUUSD", type="BUY", open_price=1899.0, magic=777
 async def test_disappeared_emits_order_closed_and_resets_status(position_monitor_agent_factory):
     h = position_monitor_agent_factory(
         positions=[], streams={"s1": make_stream(magic=777)},
-        status_seed={"XAUUSD": 1},   # OPEN
+        status_seed={"XAUUSD": 0},
         deals=[make_deal(comment="tp hit")],
     )
+    h.registry.mark_stream_open("s1")
     await h.agent._on_position_disappeared(_prev())
     closed = [e for e in h.bus.events if e.type == EventType.ORDER_CLOSED]
     assert len(closed) == 1
     assert closed[0].payload["reason"] == "TP"
     assert closed[0].payload["stream_id"] == "s1"
-    # статус сброшен OPEN→ALLOWED + TRADING_STATUS_CHANGED
-    assert h.status.status_of("XAUUSD") == 0
+    # статус потока сброшен + TRADING_STATUS_CHANGED
+    assert not h.registry.is_stream_open("s1")
     changed = [e for e in h.bus.events if e.type == EventType.TRADING_STATUS_CHANGED]
     assert len(changed) == 1
     assert changed[0].payload["status"] == 0
 
 
 async def test_disappeared_hedge_sibling_keeps_status(position_monitor_agent_factory):
-    # есть «сосед» по той же magic+symbol → статус НЕ сбрасывается
+    # есть «сосед» по той же magic+symbol → поток НЕ закрывается
     sibling = make_mt5_position(ticket=2002, symbol="XAUUSD", magic=777)
     h = position_monitor_agent_factory(
         positions=[sibling], streams={"s1": make_stream(magic=777)},
-        status_seed={"XAUUSD": 1},
+        status_seed={"XAUUSD": 0},
     )
+    h.registry.mark_stream_open("s1")
     await h.agent._on_position_disappeared(_prev(ticket=1001))
-    assert h.status.status_of("XAUUSD") == 1   # остался OPEN
+    assert h.registry.is_stream_open("s1")   # остался OPEN
     assert [e for e in h.bus.events if e.type == EventType.TRADING_STATUS_CHANGED] == []
 
 

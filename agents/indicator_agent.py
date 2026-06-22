@@ -8,12 +8,12 @@ from core.events import EventType, Event
 
 class IndicatorAgent(BaseAgent):
     """
-    Подписывается на NEW_BAR. Ищет поток по символу:
+    Подписывается на NEW_BAR. Ищет ВСЕ потоки по символу:
       - нет потока (или поток выключен)          → пропускаем.
       - таймфрейм потока ≠ таймфрейм события     → пропускаем.
       - стратегия потока ∈ STRATEGIES            → считаем индикаторы и entry-сигнал.
       - иначе (default/legacy)                    → считаем legacy-индикаторы MA+MACD+RSI.
-    Публикует INDICATORS_READY с полем stream_id.
+    Публикует INDICATORS_READY с полем stream_id для КАЖДОГО подходящего потока.
     """
     description = "Расчёт индикаторов активной стратегии потока"
 
@@ -36,33 +36,39 @@ class IndicatorAgent(BaseAgent):
         symbol = p["symbol"]
         bar_tf = int(p.get("timeframe") or 0)
 
-        stream = streams_mod.registry.by_symbol(symbol)
-        if stream is None or not stream.enabled:
-            return
-        if bar_tf and int(stream.timeframe) != bar_tf:
+        matching = [
+            s for s in streams_mod.registry.by_symbol(symbol)
+            if s.enabled and (not bar_tf or int(s.timeframe) == bar_tf)
+        ]
+        if not matching:
             return
 
-        use_strategy = stream.strategy in STRATEGIES
-        await self.emit_status(
-            AgentStatus.RUNNING,
-            f"Индикаторы {symbol} ({stream.strategy if use_strategy else 'default'}) [{stream.name}]"
-        )
-        try:
-            if use_strategy:
-                result = await asyncio.get_event_loop().run_in_executor(
-                    None, self._calc_strategy, symbol, stream.strategy, int(stream.timeframe)
-                )
-            else:
-                result = await asyncio.get_event_loop().run_in_executor(
-                    None, self._calc_indicators, symbol, int(stream.timeframe)
-                )
-            result["stream_id"] = stream.id
-            self.metrics["calculated"] = self.metrics.get("calculated", 0) + 1
-            await self.emit(EventType.INDICATORS_READY, result, correlation_id=event.correlation_id)
+        had_error = False
+        for stream in matching:
+            use_strategy = stream.strategy in STRATEGIES
+            await self.emit_status(
+                AgentStatus.RUNNING,
+                f"Индикаторы {symbol} ({stream.strategy if use_strategy else 'default'}) [{stream.name}]"
+            )
+            try:
+                if use_strategy:
+                    result = await asyncio.get_event_loop().run_in_executor(
+                        None, self._calc_strategy, symbol, stream.strategy, int(stream.timeframe)
+                    )
+                else:
+                    result = await asyncio.get_event_loop().run_in_executor(
+                        None, self._calc_indicators, symbol, int(stream.timeframe)
+                    )
+                result["stream_id"] = stream.id
+                self.metrics["calculated"] = self.metrics.get("calculated", 0) + 1
+                await self.emit(EventType.INDICATORS_READY, result, correlation_id=event.correlation_id)
+            except Exception as e:
+                self._logger.error(f"Indicator calc failed for {symbol}/{stream.name}: {e}")
+                await self.emit_status(AgentStatus.ERROR, str(e))
+                had_error = True
+
+        if not had_error:
             await self.emit_status(AgentStatus.IDLE, f"Готово: {symbol}")
-        except Exception as e:
-            self._logger.error(f"Indicator calc failed for {symbol}: {e}")
-            await self.emit_status(AgentStatus.ERROR, str(e))
 
     def _calc_strategy(self, symbol: str, strategy_name: str, tf: int) -> dict:
         from market_data_cache import cache

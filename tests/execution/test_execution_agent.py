@@ -50,10 +50,18 @@ async def test_no_signal_does_not_open(execution_agent_factory):
     assert h.trading.open_calls == []
 
 
-async def test_trading_status_nonzero_rejects(execution_agent_factory):
+async def test_disabled_symbol_rejects(execution_agent_factory):
     stream = make_stream(symbol="XAUUSD")
     h = execution_agent_factory(streams={"s1": stream}, now=datetime(2026, 6, 3, 12, 0))
-    h.status._status["XAUUSD"] = 1   # OPEN
+    h.status.mark_disabled("XAUUSD")
+    await h.agent._handle_signal(_signal_event(signal="BUY"))
+    assert h.trading.open_calls == []
+
+
+async def test_stream_already_open_rejects(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD")
+    h = execution_agent_factory(streams={"s1": stream}, now=datetime(2026, 6, 3, 12, 0))
+    h.registry.mark_stream_open("s1")
     await h.agent._handle_signal(_signal_event(signal="BUY"))
     assert h.trading.open_calls == []
 
@@ -432,7 +440,7 @@ async def test_open_happy_emits_order_opened_and_status_changed(execution_agent_
     assert p["stream_id"] == "s1"
     assert p["magic"] == 777
 
-    assert "XAUUSD" in h.status.opened   # status.mark_open вызван
+    assert h.registry.is_stream_open("s1")   # mark_stream_open вызван
 
     changed = [e for e in h.bus.events if e.type == EventType.TRADING_STATUS_CHANGED]
     assert len(changed) == 1

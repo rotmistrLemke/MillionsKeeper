@@ -49,6 +49,20 @@ class StreamRegistry:
         self._streams: dict[str, TradingStream] = {}
         self._lock = threading.RLock()
         self._next_seq = 1
+        self._open_streams: set[str] = set()
+
+    # ── Per-stream OPEN tracking ─────────────────────────────────────
+    def is_stream_open(self, stream_id: str) -> bool:
+        with self._lock:
+            return stream_id in self._open_streams
+
+    def mark_stream_open(self, stream_id: str) -> None:
+        with self._lock:
+            self._open_streams.add(stream_id)
+
+    def mark_stream_closed(self, stream_id: str) -> None:
+        with self._lock:
+            self._open_streams.discard(stream_id)
 
     # ── Read ──────────────────────────────────────────────────────────
     def all(self) -> list[TradingStream]:
@@ -62,7 +76,11 @@ class StreamRegistry:
         with self._lock:
             return self._streams.get(stream_id)
 
-    def by_symbol(self, symbol: str) -> Optional[TradingStream]:
+    def by_symbol(self, symbol: str) -> list[TradingStream]:
+        with self._lock:
+            return [s for s in self._streams.values() if s.symbol == symbol]
+
+    def by_symbol_first(self, symbol: str) -> Optional[TradingStream]:
         with self._lock:
             for s in self._streams.values():
                 if s.symbol == symbol:
@@ -107,9 +125,6 @@ class StreamRegistry:
         with self._lock:
             if len(self._streams) >= MAX_STREAMS:
                 raise ValueError(f"Достигнут лимит потоков ({MAX_STREAMS})")
-            for s in self._streams.values():
-                if s.symbol == symbol:
-                    raise ValueError(f"Пара {symbol} уже закреплена за потоком «{s.name}»")
             stream = TradingStream(
                 id=self._allocate_id_locked(),
                 name=(name or "").strip() or symbol,
@@ -135,11 +150,6 @@ class StreamRegistry:
             stream = self._streams.get(stream_id)
             if stream is None:
                 raise KeyError(stream_id)
-            new_symbol = fields.get("symbol")
-            if new_symbol and new_symbol != stream.symbol:
-                for s in self._streams.values():
-                    if s.id != stream_id and s.symbol == new_symbol:
-                        raise ValueError(f"Пара {new_symbol} уже закреплена за потоком «{s.name}»")
             for k in ("name", "strategy", "symbol", "timeframe",
                       "volume", "sl_atr", "tp_atr", "deposit",
                       "breakeven_atr", "trail_atr", "enabled"):
