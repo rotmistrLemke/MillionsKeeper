@@ -1,4 +1,4 @@
-MetaTrader5==5.0.5388; sys_platform == "win32"
+MetaTrader5==5.0.5488; sys_platform == "win32"
 python-telegram-bot==22.5
 pandas==2.3.3
 numpy==2.3.4
