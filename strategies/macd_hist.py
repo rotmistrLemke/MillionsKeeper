@@ -1,13 +1,11 @@
 """
-Стратегия: MACD Histogram (знак гистограммы)
+Стратегия: MACD Histogram vs Signal
 
 Вход:
-  BUY:  MACD_hist > 0
-  SELL: MACD_hist < 0
+  BUY:  MACD_hist > MACD_signal
+  SELL: MACD_hist < MACD_signal
 
-Выход (переворот сигнала):
-  BUY:  MACD_hist < 0
-  SELL: MACD_hist > 0
+Выход: только по SL или TP.
 
 Работает на любом таймфрейме — таймфрейм задаётся в бэктесте.
 """
@@ -19,7 +17,7 @@ from strategies.base import BaseStrategy
 
 class MacdHistStrategy(BaseStrategy):
     name = "macd_hist"
-    description = "MACD Histogram — вход/выход по знаку гистограммы MACD"
+    description = "MACD Histogram vs Signal — вход по пересечению, выход по SL/TP"
     default_timeframe = "H1"
 
     def __init__(self, fast=12, slow=26, signal=9,
@@ -54,13 +52,12 @@ class MacdHistStrategy(BaseStrategy):
 
     def get_entry_signal(self, row):
         h = row.get('macd_hist')
-        if h is None or pd.isna(h):
+        s = row.get('macd_signal')
+        if h is None or s is None or pd.isna(h) or pd.isna(s):
             return None
-        desired = 'BUY' if h > 0 else ('SELL' if h < 0 else None)
+        desired = 'BUY' if h > s else ('SELL' if h < s else None)
         if desired is None:
             return None
-        # После TP-выхода блокируем ту же сторону — ждём противоположный сигнал,
-        # который одновременно снимает блокировку и становится точкой входа.
         if self._blocked_side == desired:
             return None
         self._blocked_side = None
@@ -73,13 +70,6 @@ class MacdHistStrategy(BaseStrategy):
             self._blocked_side = None
 
     def get_exit_signal(self, row, position: dict) -> bool:
-        h = row.get('macd_hist')
-        if h is None or pd.isna(h):
-            return False
-        if position['type'] == 'BUY' and h < 0:
-            return True
-        if position['type'] == 'SELL' and h > 0:
-            return True
         return False
 
     def get_sl_tp(self, row, signal: str, point: float):

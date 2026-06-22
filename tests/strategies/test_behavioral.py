@@ -154,16 +154,17 @@ def test_fibonacci_flat_no_signals():
 
 
 # ── macd_hist ─────────────────────────────────────────────────────────────
-# BUY при macd_hist>0, SELL при <0. На линейном тренде hist≈0, поэтому ускорение.
+# BUY при hist > signal, SELL при hist < signal.
+# В устойчивом тренде signal далеко от нуля, hist ~ 0 → сигнал контртрендовый.
 
-def test_macd_hist_accelerating_up_gives_buy():
-    closes = list(2000 + np.cumsum(np.arange(300) * 0.05))  # ускоряющийся рост
-    assert _last_signal(MacdHistStrategy(), builders.from_closes(closes)) == "BUY"
-
-
-def test_macd_hist_accelerating_down_gives_sell():
-    closes = list(2000 - np.cumsum(np.arange(300) * 0.05))
+def test_macd_hist_accelerating_up_gives_sell():
+    closes = list(2000 + np.cumsum(np.arange(300) * 0.05))
     assert _last_signal(MacdHistStrategy(), builders.from_closes(closes)) == "SELL"
+
+
+def test_macd_hist_accelerating_down_gives_buy():
+    closes = list(2000 - np.cumsum(np.arange(300) * 0.05))
+    assert _last_signal(MacdHistStrategy(), builders.from_closes(closes)) == "BUY"
 
 
 # ── default_hedge ─────────────────────────────────────────────────────────
