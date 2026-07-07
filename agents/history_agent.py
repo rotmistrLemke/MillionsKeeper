@@ -59,6 +59,40 @@ class HistoryAgent(BaseAgent):
     # Теги, которые бот пишет в deal.comment при закрытии через order_send.
     _BOT_TAGS = {"SL", "TP", "SIGNAL", "RSI", "MANUAL"}
 
+    @staticmethod
+    def _strategy_from_comment(comment: str) -> str | None:
+        """Разбирает comment входного ордера «s6:default» / «s6:default:H»
+        → ключ стратегии («default»). None, если формат не распознан."""
+        parts = (comment or "").strip().split(":")
+        if len(parts) >= 2 and parts[0].startswith("s") and parts[1]:
+            return parts[1]
+        return None
+
+    @classmethod
+    def _deal_strategy(cls, in_d, out_d) -> tuple[str | None, str | None]:
+        """Стратегия/поток закрытой сделки. Приоритет: magic → поток из реестра;
+        фолбэк — разбор comment входного ордера. Возвращает (strategy_key, stream_name)."""
+        magic = 0
+        for d in (in_d, out_d):
+            if d is not None:
+                magic = int(getattr(d, "magic", 0) or 0)
+                if magic:
+                    break
+        if magic:
+            try:
+                import streams as streams_mod
+                stream = streams_mod.registry.by_magic(magic)
+                if stream is not None:
+                    return stream.strategy, stream.name
+            except Exception:
+                pass
+        # Фолбэк: comment входного ордера (поток мог быть удалён из реестра).
+        if in_d is not None:
+            key = cls._strategy_from_comment(getattr(in_d, "comment", "") or "")
+            if key:
+                return key, None
+        return None, None
+
     @classmethod
     def _deal_reason(cls, d) -> str:
         """Причина закрытия: приоритет у тега бота в comment → MT5 reason-код."""
@@ -127,6 +161,8 @@ class HistoryAgent(BaseAgent):
                     # Реальное направление позиции — из IN-сделки.
                     position_type = "BUY" if in_d.type == 0 else "SELL"
 
+                strategy, stream_name = self._deal_strategy(in_d, d)
+
                 item = {
                     "ticket":        d.ticket,
                     "symbol":        d.symbol,
@@ -142,6 +178,10 @@ class HistoryAgent(BaseAgent):
                     "open_price":    open_price,
                     "close_price":   float(d.price) if getattr(d, "price", None) is not None else None,
                     "position_type": position_type,
+                    # Пометка потока/стратегии, по которой был выставлен ордер.
+                    "strategy":      strategy,
+                    "stream_name":   stream_name,
+                    "magic":         int(getattr(d, "magic", 0) or 0),
                 }
                 month["profit"] += d.profit
                 month["deals"].append(item)

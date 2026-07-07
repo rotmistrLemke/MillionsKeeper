@@ -930,16 +930,19 @@ function renderHistDeals() {
   table.innerHTML = `
     <table class="hist-deals">
       <tr>
-        <th>Инструмент</th><th>Тип</th><th style="text-align:right">P&L $</th><th></th>
+        <th>Инструмент</th><th>Тип</th><th>Стратегия</th><th style="text-align:right">P&L $</th><th></th>
       </tr>
       ${page.map((d, i) => {
         const globalIdx = start + i;
         const pc = (d.profit || 0) >= 0 ? 'pnl-pos' : 'pnl-neg';
         const type = d.type || '';
         const sign = (d.profit || 0) >= 0 ? '+' : '';
+        const stratText = d.stream_name || (d.strategy ? _strategyLabel(d.strategy) : '');
+        const stratTitle = d.strategy ? _strategyLabel(d.strategy) : '';
         return `<tr>
           <td class="hist-sym">${escapeHtml(d.symbol || '—')}</td>
           <td><span class="pos-type type-${type.toLowerCase()}">${type}</span></td>
+          <td class="hist-strat" title="${escapeHtml(stratTitle)}">${escapeHtml(stratText || '—')}</td>
           <td class="${pc}" style="text-align:right;font-variant-numeric:tabular-nums">${sign}${fmt(d.profit || 0)}$</td>
           <td style="text-align:right;width:1%">
             <button class="btn-icon" title="Подробнее" onclick="showTradeInfo(${globalIdx})">${infoIcon}</button>
@@ -947,7 +950,7 @@ function renderHistDeals() {
         </tr>`;
       }).join('')}
       <tr style="border-top:2px solid var(--border);font-weight:600">
-        <td colspan="2" style="color:var(--text-muted)">Итого:</td>
+        <td colspan="3" style="color:var(--text-muted)">Итого:</td>
         <td class="${totalClass}" style="text-align:right">${totalProfit>=0?'+':''}${fmt(totalProfit)}$</td>
         <td></td>
       </tr>
@@ -988,6 +991,8 @@ function showTradeInfo(idx) {
   const sign = pnl >= 0 ? '+' : '';
   const pnlClass = pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
   const reason = d.reason || '—';
+  const strat = d.strategy ? _strategyLabel(d.strategy) : '—';
+  const stratFull = d.stream_name ? `${escapeHtml(d.stream_name)} · ${escapeHtml(strat)}` : escapeHtml(strat);
   const time = (d.time || '').toString().substring(0, 19);
   const row = (k, v) => `<div class="si-row"><span class="si-k">${k}</span><span class="si-v">${v}</span></div>`;
   const html = `
@@ -1004,6 +1009,7 @@ function showTradeInfo(idx) {
           ${row('Время', time || '—')}
           ${row('Объём', d.volume != null ? d.volume + ' лот' : '—')}
           ${row('Тикет', d.ticket ? '#' + d.ticket : '—')}
+          ${row('Стратегия', stratFull)}
           ${row('Причина', escapeHtml(reason))}
         </div>
       </div>

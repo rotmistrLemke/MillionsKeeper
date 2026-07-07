@@ -452,6 +452,15 @@ td { font-size: 13px; }
 .hist-section .stats-grid { margin-bottom: 12px; }
 
 .hist-deals-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+/* Колонка стратегии в таблице истории: компактно, с обрезкой длинных названий */
+.hist-deals td.hist-strat {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted, #8a8f98);
+  font-size: 12px;
+}
 .hist-controls {
   display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;
 }
