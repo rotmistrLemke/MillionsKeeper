@@ -5,10 +5,9 @@
   BUY:  EMA50 выше EMA200
   SELL: EMA50 ниже EMA200
 
-Выход:
-  - По SL/TP (если заданы множители ATR; 0 = выкл)
-  - Либо по противоположному сигналу: BUY закрывается когда EMA50 < EMA200,
-    SELL закрывается когда EMA50 > EMA200.
+Выход: только по SL/TP (множители ATR; 0 = выкл).
+После выхода по SL/TP та же сторона не переоткрывается, пока EMA50/EMA200
+не пересекутся в обратную сторону (блокировка _blocked_side).
 
 SL/TP задаются множителями ATR через конструктор (sl_atr_mult, tp_atr_mult).
 В бэктесте/лайве пользовательские sl_atr / tp_atr из формы перекрывают
@@ -22,7 +21,7 @@ from strategies.base import BaseStrategy
 
 class EmaCrossStrategy(BaseStrategy):
     name = "ema_cross"
-    description = "EMA 50/200 Cross — вход по взаимному положению EMA, выход по SL/TP или обратному сигналу"
+    description = "EMA 50/200 Cross — вход по взаимному положению EMA, выход только по SL/TP"
     default_timeframe = "H1"
 
     def __init__(self, fast=50, slow=200, atr_period=14,
@@ -32,6 +31,9 @@ class EmaCrossStrategy(BaseStrategy):
         self.atr_period = atr_period
         self.sl_atr_mult = float(sl_atr_mult or 0.0)
         self.tp_atr_mult = float(tp_atr_mult or 0.0)
+        # Сторона, заблокированная после выхода по SL/TP.
+        # Снимается при появлении противоположного сигнала.
+        self._blocked_side = None
 
     def compute_indicators(self, df):
         close = df['close'].values.astype(float)
@@ -55,21 +57,22 @@ class EmaCrossStrategy(BaseStrategy):
         ema200 = row.get('ema200')
         if ema50 is None or ema200 is None or pd.isna(ema50) or pd.isna(ema200):
             return None
-        if ema50 > ema200:
-            return 'BUY'
-        if ema50 < ema200:
-            return 'SELL'
-        return None
+        desired = 'BUY' if ema50 > ema200 else ('SELL' if ema50 < ema200 else None)
+        if desired is None:
+            return None
+        if self._blocked_side == desired:
+            return None
+        self._blocked_side = None
+        return desired
+
+    def on_trade_closed(self, position: dict, reason: str) -> None:
+        if reason in ('TP', 'SL'):
+            self._blocked_side = position.get('type')
+        else:
+            self._blocked_side = None
 
     def get_exit_signal(self, row, position: dict) -> bool:
-        ema50  = row.get('ema50')
-        ema200 = row.get('ema200')
-        if ema50 is None or ema200 is None or pd.isna(ema50) or pd.isna(ema200):
-            return False
-        if position['type'] == 'BUY' and ema50 < ema200:
-            return True
-        if position['type'] == 'SELL' and ema50 > ema200:
-            return True
+        # Выход только по SL/TP — сигнального выхода нет.
         return False
 
     def get_sl_tp(self, row, signal: str, point: float):
