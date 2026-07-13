@@ -55,24 +55,6 @@ const STRATEGY_META = {
       { col: 'atr',         label: 'ATR'      },
     ],
   },
-  sr_bounce: {
-    name: 'Отскок от поддержки и сопротивления',
-    desc: [
-      'Отскок от уровней поддержки/сопротивления по подтверждённым свинг-пивотам.',
-      '<b>Уровни:</b> swing high/low в окне ±5 баров',
-      '<b>Вход:</b>',
-      'BUY: Касание поддержки (в пределах 0.3×ATR) + бычье закрытие',
-      'SELL: Касание сопротивления (в пределах 0.3×ATR) + медвежье закрытие',
-      '<b>SL:</b> за уровнем (1×ATR) &nbsp; <b>TP:</b> противоположный уровень (мин. 1.5×ATR)',
-      '<b>Выход:</b> закрытие по другую сторону уровня (пробой)',
-      '<b>Таймфрейм:</b> любой',
-    ],
-    indicators: [
-      { col: 'support',    label: 'Support' },
-      { col: 'resistance', label: 'Resist'  },
-      { col: 'atr',        label: 'ATR'     },
-    ],
-  },
   ema_pullback: {
     name: 'Откат к EMA50 по тренду EMA200',
     desc: [
@@ -109,25 +91,6 @@ const STRATEGY_META = {
       { col: 'atr',    label: 'ATR'    },
     ],
   },
-  ema_cross_inverse: {
-    name: 'Контрсигнал на пересечении EMA8/21',
-    desc: [
-      'Инверсия EMA Cross — сделки открываются в противоположную сторону.',
-      '<b>Вход:</b>',
-      'SELL: EMA8 пересекает EMA21 снизу вверх',
-      'BUY: EMA8 пересекает EMA21 сверху вниз',
-      '<b>Выход:</b>',
-      'SELL: EMA8 пересекает EMA21 сверху вниз',
-      'BUY: EMA8 пересекает EMA21 снизу вверх',
-      '<b>SL:</b> 3 × ATR &nbsp; <b>TP:</b> выключен',
-      '<b>Таймфрейм:</b> любой',
-    ],
-    indicators: [
-      { col: 'ema8',  label: 'EMA8'  },
-      { col: 'ema21', label: 'EMA21' },
-      { col: 'atr',   label: 'ATR'   },
-    ],
-  },
   cci_rsi: {
     name: 'Импульс CCI с фильтрами RSI и EMA200',
     desc: [
@@ -144,24 +107,6 @@ const STRATEGY_META = {
       { col: 'rsi',   label: 'RSI(14)' },
       { col: 'ema200',label: 'EMA200'  },
       { col: 'atr',   label: 'ATR'     },
-    ],
-  },
-  fibonacci_retracement: {
-    name: 'Откат по уровням Фибоначчи',
-    desc: [
-      'Откат к уровням Фибоначчи 38.2%–50% после импульсного движения.',
-      '<b>Вход:</b>',
-      'BUY: Бычий 5-барный импульс → откат 38.2–50% → подтверждающая свеча',
-      'SELL: Медвежий 5-барный импульс → откат 38.2–50% → подтверждающая свеча',
-      '<b>SL:</b> ниже уровня 61.8% &nbsp; <b>TP:</b> до экстремума импульса',
-      '<b>Таймфрейм:</b> H1',
-    ],
-    indicators: [
-      { col: 'imp_high',    label: 'Imp High' },
-      { col: 'imp_low',     label: 'Imp Low'  },
-      { col: 'fib_382_bull',label: 'Fib 38.2%'},
-      { col: 'fib_500_bull',label: 'Fib 50%'  },
-      { col: 'atr',         label: 'ATR'       },
     ],
   },
   macd_hist: {
@@ -209,31 +154,6 @@ const STRATEGY_META = {
       { col: 'atr',         label: 'ATR'    },
     ],
   },
-  default_inverse: {
-    name: 'Контртренд во флэте (инверсия основной)',
-    desc: [
-      'Инверсия основной стратегии: когда фильтры MA + MACD + RSI согласованы,',
-      'открываем позицию в противоположную сторону.',
-      '<b>Вход:</b>',
-      'SELL: EMA8 &gt; EMA21 + MACD бычий + RSI 55..70, растёт',
-      'BUY:  EMA8 &lt; EMA21 + MACD медвежий + RSI 30..45, падает',
-      '<b>Выход (инверсия RSI-выхода default):</b>',
-      'BUY закрывается при RSI &gt; 50',
-      'SELL закрывается при RSI &lt; 50',
-      '<b>Флэт-фильтр (инвертирован):</b> торгуем ТОЛЬКО во флэте.',
-      'Флэт = 2 из 3: ADX &lt; 20, BB-ширина ниже средней, ATR ниже среднего.',
-      '<b>SL/TP:</b> не заданы стратегией — управляются множителями SL/TP (×ATR).',
-      '<b>Таймфрейм:</b> H1 (рекомендуется)',
-    ],
-    indicators: [
-      { col: 'ema8',        label: 'EMA8'   },
-      { col: 'ema21',       label: 'EMA21'  },
-      { col: 'macd_line',   label: 'MACD'   },
-      { col: 'macd_signal', label: 'Signal' },
-      { col: 'rsi',         label: 'RSI'    },
-      { col: 'atr',         label: 'ATR'    },
-    ],
-  },
   sar_adx: {
     name: 'Разворот Parabolic SAR с фильтром ADX',
     desc: [
@@ -251,24 +171,6 @@ const STRATEGY_META = {
       { col: 'plus_di',  label: '+DI'     },
       { col: 'minus_di', label: '−DI'     },
       { col: 'atr',      label: 'ATR'     },
-    ],
-  },
-  donchian_breakout: {
-    name: 'Пробой канала Дончиана',
-    desc: [
-      'Пробой канала Дончиана (20 баров) с ATR-фильтром волатильности.',
-      '<b>Вход:</b>',
-      'BUY: Закрытие выше верхней границы канала + ATR &gt; среднего ATR',
-      'SELL: Закрытие ниже нижней границы канала + ATR &gt; среднего ATR',
-      '<b>SL:</b> 2 × ATR &nbsp; <b>TP:</b> 3 × ATR',
-      '<b>Выход:</b> возврат к средней линии канала',
-      '<b>Таймфрейм:</b> H1',
-    ],
-    indicators: [
-      { col: 'dc_upper',  label: 'DC Upper' },
-      { col: 'dc_lower',  label: 'DC Lower' },
-      { col: 'dc_middle', label: 'DC Mid'   },
-      { col: 'atr',       label: 'ATR'      },
     ],
   },
   triple_ema: {
@@ -1241,17 +1143,12 @@ function onBtStrategyChange() {
 const STREAM_TF_OPTIONS = ['M1','M5','M15','M30','H1','H4','D1'];
 const STREAM_STRATEGY_OPTIONS = [
   ['default',              'Трендовый вход по MA + MACD + RSI'],
-  ['sr_bounce',            'Отскок от поддержки и сопротивления'],
   ['ema_pullback',         'Откат к EMA50 по тренду EMA200'],
   ['ema_cross',            'Пересечение EMA50 и EMA200'],
-  ['ema_cross_inverse',    'Контрсигнал на пересечении EMA8/21'],
   ['cci_rsi',              'Импульс CCI с фильтрами RSI и EMA200'],
-  ['fibonacci_retracement','Откат по уровням Фибоначчи'],
   ['macd_hist',            'Смена знака гистограммы MACD'],
   ['default_hedge',        'Двусторонний хедж по MA + MACD + RSI'],
-  ['default_inverse',      'Контртренд во флэте (инверсия основной)'],
   ['sar_adx',              'Разворот Parabolic SAR с фильтром ADX'],
-  ['donchian_breakout',    'Пробой канала Дончиана'],
   ['triple_ema',           'Импульс по трём EMA (8/21/50)'],
   ['mean_revert_ema',      'Возврат к средней EMA10/20'],
   ['ema50_pullback',       'Свинг-откат к EMA50 (H4/D1)'],

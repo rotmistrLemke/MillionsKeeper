@@ -8,16 +8,11 @@ import numpy as np
 import pandas as pd
 
 from strategies.ema_cross import EmaCrossStrategy
-from strategies.sr_bounce import SrBounceStrategy
 from strategies.ema_pullback import EmaPullbackStrategy
-from strategies.ema_cross_inverse import EmaCrossInverseStrategy
 from strategies.cci_rsi import CciRsiStrategy
-from strategies.fibonacci_retracement import FibonacciRetracementStrategy
 from strategies.macd_hist import MacdHistStrategy
 from strategies.default_hedge import DefaultHedgeStrategy
-from strategies.default_inverse import DefaultInverseStrategy
 from strategies.ema_scalp import EmaScalpStrategy
-from strategies.bollinger_scalp import BollingerScalpStrategy
 from strategies.stochastic_scalp import StochasticScalpStrategy
 from strategies.mean_revert_ema import MeanRevertEmaStrategy
 from strategies.ema50_pullback import Ema50PullbackStrategy
@@ -73,22 +68,6 @@ def test_ema_cross_downtrend_gives_sell():
     assert _last_signal(EmaCrossStrategy(), builders.trend_down()) == "SELL"
 
 
-# ── sr_bounce ─────────────────────────────────────────────────────────────
-# BUY: low касается support (в пределах tol×ATR) + бычья свеча + close>support.
-
-def test_sr_bounce_support_retest_gives_buy():
-    # Формируем свинг-low (~1979), отход вверх, возврат вниз — затем
-    # крафтовый бычий бар, чей low касается поддержки и закрытие выше открытия.
-    a = list(np.linspace(2000, 1980, 15))
-    b = list(np.linspace(1980, 2010, 15))
-    c = list(np.linspace(2010, 1986, 14))
-    df0 = builders.from_closes(a + b + c)
-    s = SrBounceStrategy()
-    support = s.compute_indicators(df0.copy())["support"].iloc[-1]
-    df = _append_bar(df0, open_=1981.0, high=1986.0, low=support - 0.1, close=1985.0)
-    assert _last_signal(s, df) == "BUY"
-
-
 # ── ema_pullback ──────────────────────────────────────────────────────────
 # BUY: close>EMA200 + low касается EMA50 + бычий пин/поглощение.
 
@@ -98,20 +77,6 @@ def test_ema_pullback_uptrend_pin_gives_buy():
                      open_=2145.0, high=2146.0, low=2136.0, close=2145.5)
     # Крафтовый бар: маленькое бычье тело + длинная нижняя тень до EMA50.
     assert _last_signal(EmaPullbackStrategy(), df) == "BUY"
-
-
-# ── ema_cross_inverse ─────────────────────────────────────────────────────
-# Инверсия: cross_up (EMA8 вверх) → SELL; cross_down → BUY.
-
-def test_ema_cross_inverse_cross_up_gives_sell():
-    # Плоская история (EMA8≈EMA21) + резкий скачок вверх → cross_up → SELL.
-    df = builders.from_closes([2000.0] * 299 + [2100.0])
-    assert _last_signal(EmaCrossInverseStrategy(), df) == "SELL"
-
-
-def test_ema_cross_inverse_cross_down_gives_buy():
-    df = builders.from_closes([2000.0] * 299 + [1900.0])
-    assert _last_signal(EmaCrossInverseStrategy(), df) == "BUY"
 
 
 # ── cci_rsi ───────────────────────────────────────────────────────────────
@@ -134,23 +99,6 @@ def test_cci_rsi_cross_down_gives_sell():
 # cci_rsi не подавляет входы во флэте: на builders.flat() выдаёт 16 сигналов
 # (8 BUY + 8 SELL) при последовательном прогоне — flat→None тест неприменим
 # (проверка только последнего бара давала ложную уверенность).
-
-
-# ── fibonacci_retracement ─────────────────────────────────────────────────
-# BUY: бычий импульс (5 баров) + откат в зону 38.2–61.8% + бычье подтверждение.
-
-def test_fibonacci_bull_retracement_gives_buy():
-    base = [2000.0] * 270
-    impulse = [2000 + (k + 1) * 4 for k in range(5)]   # сильный 5-барный импульс
-    df0 = builders.from_closes(base + impulse)
-    # Крафтовый бар отката: бычий пин с длинной нижней тенью, закрытие в зоне фибо.
-    df = _append_bar(df0, open_=2009.0, high=2010.0, low=2002.0, close=2009.5)
-    assert _last_signal(FibonacciRetracementStrategy(), df) == "BUY"
-
-
-def test_fibonacci_flat_no_signals():
-    # На всём флэт-ряду fibonacci не находит импульса/отката — ни одного входа.
-    assert _any_signal_sequential(FibonacciRetracementStrategy(), builders.flat()) == set()
 
 
 # ── macd_hist ─────────────────────────────────────────────────────────────
@@ -185,16 +133,6 @@ def test_default_hedge_breathing_downtrend_gives_sell():
     assert _any_signal_sequential(DefaultHedgeStrategy(), builders.from_closes(closes)) == {"SELL"}
 
 
-# ── default_inverse ───────────────────────────────────────────────────────
-# Торгует ТОЛЬКО во флэте и инвертирует совмещённый сигнал MA+MACD+RSI.
-# Флэт-данные → появляются сигналы (поэтому flat→None тест здесь НЕ применим).
-
-def test_default_inverse_trades_in_flat():
-    seen = _any_signal_sequential(DefaultInverseStrategy(), builders.flat())
-    assert seen  # хотя бы один вход во флэте (BUY или SELL)
-    assert seen <= {"BUY", "SELL"}
-
-
 # ── sar_adx (ema_scalp) ───────────────────────────────────────────────────
 
 def test_sar_adx_smoke_no_exception():
@@ -206,24 +144,6 @@ def test_sar_adx_smoke_no_exception():
     df = s.compute_flat_indicators(df)
     for i in range(len(df)):
         s.get_entry_signal(df.iloc[i])  # не должно бросать
-
-
-# ── donchian_breakout (bollinger_scalp) ───────────────────────────────────
-# BUY: close>верхняя граница Donchian + ATR>средний ATR (нужна растущая волатильность).
-
-def test_donchian_breakout_accel_up_gives_buy():
-    closes = list(2000 + np.cumsum(np.arange(300) * 0.05))  # ускорение → ATR>avg, новые хаи
-    assert _last_signal(BollingerScalpStrategy(), builders.from_closes(closes)) == "BUY"
-
-
-def test_donchian_breakout_accel_down_gives_sell():
-    closes = list(2000 - np.cumsum(np.arange(300) * 0.05))
-    assert _last_signal(BollingerScalpStrategy(), builders.from_closes(closes)) == "SELL"
-
-
-def test_donchian_breakout_flat_no_signals():
-    # На всём флэт-ряду ATR ниже среднего/нет пробоя — ни одного входа.
-    assert _any_signal_sequential(BollingerScalpStrategy(), builders.flat()) == set()
 
 
 # ── triple_ema (stochastic_scalp) ─────────────────────────────────────────

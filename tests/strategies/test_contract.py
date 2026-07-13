@@ -1,8 +1,7 @@
 """A1: контракт BaseStrategy — проверяется для каждой стратегии реестра.
 
-Фикстура `strategy` (из conftest) параметризована по всем 20 стратегиям.
+Фикстура `strategy` (из conftest) параметризована по всем стратегиям реестра.
 """
-import pytest
 import pandas as pd
 
 from tests.strategies import builders
@@ -41,14 +40,6 @@ def test_compute_indicators_preserves_length(strategy):
 
 def test_get_sl_tp_ordering_on_valid_row(strategy):
     """На строке с готовыми индикаторами SL/TP, если заданы, корректно упорядочены."""
-    if strategy.name == "fibonacci_retracement":
-        pytest.xfail(
-            "FINDING(verify on real data): fibonacci_retracement BUY TP = imp_high "
-            "(shift(1).rolling(n).max()). На монотонном синтетическом аптренде imp_high "
-            "всегда < текущей цены, поэтому TP < price. На реальных данных вход происходит "
-            "на откате, где imp_high может быть выше — проверить через golden-тест на "
-            "реальном CSV, является ли это настоящим риском."
-        )
     df = _computed(strategy, builders.trend_up())
     row = df.iloc[-1]  # последняя строка — индикаторы не NaN
     price = row["close"]
