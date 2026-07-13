@@ -5,6 +5,7 @@ from strategies.ema_pullback import EmaPullbackStrategy
 from strategies.ema_cross import EmaCrossStrategy
 from strategies.cci_rsi import CciRsiStrategy
 from strategies.macd_hist import MacdHistStrategy
+from strategies.aroon import AroonStrategy
 from strategies.default_hedge import DefaultHedgeStrategy
 from strategies.mean_revert_ema import MeanRevertEmaStrategy
 from strategies.ema50_pullback import Ema50PullbackStrategy
@@ -21,6 +22,7 @@ STRATEGIES = {
     'ema_cross':             EmaCrossStrategy,
     'cci_rsi':               CciRsiStrategy,
     'macd_hist':             MacdHistStrategy,
+    'aroon':                 AroonStrategy,
     'default_hedge':         DefaultHedgeStrategy,
     # Скальпинговые (предыдущие)
     'sar_adx':               EmaScalpStrategy,

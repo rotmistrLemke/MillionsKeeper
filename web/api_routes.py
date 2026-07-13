@@ -198,7 +198,7 @@ async def get_symbols(user: auth.UserRecord = Depends(get_current_user)):
 # фронт мог нарисовать соответствующий синтетический пример.
 _STRATEGY_FAMILY_HINTS = {
     "mean_revert":   ["overstretch", "mean_revert", "rejection"],
-    "trend_follow":  ["pullback", "ema_cross", "triple", "phase", "combined"],
+    "trend_follow":  ["pullback", "ema_cross", "triple", "phase", "combined", "aroon"],
     "scalp":         ["scalp", "sar_adx", "stochastic"],
     "momentum":      ["macd", "cci", "rsi"],
     "hedge":         ["hedge"],

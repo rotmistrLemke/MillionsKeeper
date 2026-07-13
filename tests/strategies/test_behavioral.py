@@ -11,6 +11,7 @@ from strategies.ema_cross import EmaCrossStrategy
 from strategies.ema_pullback import EmaPullbackStrategy
 from strategies.cci_rsi import CciRsiStrategy
 from strategies.macd_hist import MacdHistStrategy
+from strategies.aroon import AroonStrategy
 from strategies.default_hedge import DefaultHedgeStrategy
 from strategies.ema_scalp import EmaScalpStrategy
 from strategies.stochastic_scalp import StochasticScalpStrategy
@@ -113,6 +114,18 @@ def test_macd_hist_accelerating_up_gives_sell():
 def test_macd_hist_accelerating_down_gives_buy():
     closes = list(2000 - np.cumsum(np.arange(300) * 0.05))
     assert _last_signal(MacdHistStrategy(), builders.from_closes(closes)) == "BUY"
+
+
+# ── aroon ─────────────────────────────────────────────────────────────────
+# BUY: Aroon Up > Aroon Down (устойчивый аптренд → каждый бар новый хай →
+# Up=100, Down→0). SELL зеркально на даунтренде.
+
+def test_aroon_uptrend_gives_buy():
+    assert _last_signal(AroonStrategy(), builders.trend_up()) == "BUY"
+
+
+def test_aroon_downtrend_gives_sell():
+    assert _last_signal(AroonStrategy(), builders.trend_down()) == "SELL"
 
 
 # ── default_hedge ─────────────────────────────────────────────────────────
