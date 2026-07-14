@@ -296,8 +296,9 @@ def test_open_order_none_when_volume_nonpositive(execution_agent_factory):
 
 
 def test_open_order_sltp_buy(execution_agent_factory):
-    # BUY: entry=ask=1900.5; sl=1900.5-1.5*2=1897.5; tp=1900.5+3.0*2=1906.5; round digits=2.
-    stream = make_stream(symbol="XAUUSD", volume=0.1, sl_atr=1.5, tp_atr=3.0)
+    # point=0.01. BUY: entry=ask=1900.5; sl=1900.5-300*0.01=1897.5;
+    # tp=1900.5+600*0.01=1906.5; round digits=2.
+    stream = make_stream(symbol="XAUUSD", volume=0.1, sl_points=300, tp_points=600)
     h = execution_agent_factory(strategies={})
     h.agent._open_order(stream, "BUY", {"atr_value": 2.0})
     call = h.trading.open_calls[0]
@@ -306,8 +307,8 @@ def test_open_order_sltp_buy(execution_agent_factory):
 
 
 def test_open_order_sltp_sell(execution_agent_factory):
-    # SELL: entry=bid=1900.0; sl=1900.0+1.5*2=1903.0; tp=1900.0-3.0*2=1894.0.
-    stream = make_stream(symbol="XAUUSD", volume=0.1, sl_atr=1.5, tp_atr=3.0)
+    # SELL: entry=bid=1900.0; sl=1900.0+300*0.01=1903.0; tp=1900.0-600*0.01=1894.0.
+    stream = make_stream(symbol="XAUUSD", volume=0.1, sl_points=300, tp_points=600)
     h = execution_agent_factory(strategies={})
     h.agent._open_order(stream, "SELL", {"atr_value": 2.0})
     call = h.trading.open_calls[0]
@@ -315,8 +316,8 @@ def test_open_order_sltp_sell(execution_agent_factory):
     assert call["tp"] == pytest.approx(1894.0)
 
 
-def test_open_order_no_sltp_when_multipliers_zero(execution_agent_factory):
-    stream = make_stream(symbol="XAUUSD", volume=0.1, sl_atr=0.0, tp_atr=0.0)
+def test_open_order_no_sltp_when_points_zero(execution_agent_factory):
+    stream = make_stream(symbol="XAUUSD", volume=0.1, sl_points=0.0, tp_points=0.0)
     h = execution_agent_factory(strategies={})
     h.agent._open_order(stream, "BUY", {"atr_value": 2.0})
     call = h.trading.open_calls[0]
@@ -325,7 +326,7 @@ def test_open_order_no_sltp_when_multipliers_zero(execution_agent_factory):
 
 def test_open_order_trailing_strategy_zeroes_tp(execution_agent_factory):
     stream = make_stream(symbol="XAUUSD", strategy="trail", volume=0.1,
-                         sl_atr=1.5, tp_atr=3.0)
+                         sl_points=300, tp_points=600)
     h = execution_agent_factory(strategies={"trail": make_strategy(trailing=True)})
     h.agent._open_order(stream, "BUY", {"atr_value": 2.0})
     call = h.trading.open_calls[0]
@@ -333,12 +334,15 @@ def test_open_order_trailing_strategy_zeroes_tp(execution_agent_factory):
     assert call["tp"] == 0.0                       # TP принудительно обнулён
 
 
-def test_open_order_atr_zero_no_sltp(execution_agent_factory):
-    stream = make_stream(symbol="XAUUSD", volume=0.1, sl_atr=1.5, tp_atr=3.0)
+def test_open_order_sltp_independent_of_atr(execution_agent_factory):
+    # SL/TP заданы в пунктах → выставляются даже при atr=0
+    # (раньше ATR=0 обнулял уровни, т.к. они считались от ATR).
+    stream = make_stream(symbol="XAUUSD", volume=0.1, sl_points=300, tp_points=600)
     h = execution_agent_factory(strategies={})
     h.agent._open_order(stream, "BUY", {"atr_value": 0})
     call = h.trading.open_calls[0]
-    assert call["sl"] == 0.0 and call["tp"] == 0.0
+    assert call["sl"] == pytest.approx(1897.5)
+    assert call["tp"] == pytest.approx(1906.5)
 
 
 def test_strategy_wants_hedge_true(execution_agent_factory):

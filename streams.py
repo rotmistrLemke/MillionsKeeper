@@ -1,6 +1,7 @@
 """
 Торговые потоки (TradingStream).
 Один поток = уникальная пара (strategy, symbol) с собственным TF, объёмом, SL/TP и magic.
+SL/TP/breakeven/trail задаются в пунктах (symbol_info.point), 0 = выкл.
 Правила: максимум MAX_STREAMS потоков, одна пара может быть закреплена только за одним потоком.
 
 Magic выдаётся из диапазона [MAGIC_BASE .. MAGIC_BASE + MAX_STREAMS - 1] и привязывает
@@ -29,12 +30,12 @@ class TradingStream:
     symbol: str
     timeframe: int     # mt5.TIMEFRAME_* (int enum)
     volume: float
-    sl_atr: float
-    tp_atr: float
+    sl_points: float
+    tp_points: float
     magic: int
-    deposit: float = 0.0        # выделенный поток-бюджет ($); используется для per-stream DD
-    breakeven_atr: float = 0.0  # после +N×ATR прибыли двигаем SL в точку входа (0 = выкл)
-    trail_atr: float = 0.0      # трейлинг SL = high - N×ATR (BUY), low + N×ATR (SELL); 0 = выкл
+    deposit: float = 0.0           # выделенный поток-бюджет ($); используется для per-stream DD
+    breakeven_points: float = 0.0  # после +N пунктов прибыли двигаем SL в точку входа (0 = выкл)
+    trail_points: float = 0.0      # трейлинг SL = high - N пунктов (BUY), low + N (SELL); 0 = выкл
     enabled: bool = True
 
     def to_dict(self) -> dict:
@@ -118,9 +119,9 @@ class StreamRegistry:
 
     def create(self, *, name: str, strategy: str, symbol: str,
                timeframe: int, volume: float = 0.0,
-               sl_atr: float = 0.0, tp_atr: float = 0.0,
+               sl_points: float = 0.0, tp_points: float = 0.0,
                deposit: float = 0.0,
-               breakeven_atr: float = 0.0, trail_atr: float = 0.0,
+               breakeven_points: float = 0.0, trail_points: float = 0.0,
                enabled: bool = True) -> TradingStream:
         with self._lock:
             if len(self._streams) >= MAX_STREAMS:
@@ -132,12 +133,12 @@ class StreamRegistry:
                 symbol=symbol,
                 timeframe=int(timeframe),
                 volume=float(volume or 0.0),
-                sl_atr=float(sl_atr or 0.0),
-                tp_atr=float(tp_atr or 0.0),
+                sl_points=float(sl_points or 0.0),
+                tp_points=float(tp_points or 0.0),
                 magic=self._allocate_magic_locked(),
                 deposit=float(deposit or 0.0),
-                breakeven_atr=float(breakeven_atr or 0.0),
-                trail_atr=float(trail_atr or 0.0),
+                breakeven_points=float(breakeven_points or 0.0),
+                trail_points=float(trail_points or 0.0),
                 enabled=bool(enabled),
             )
             self._streams[stream.id] = stream
@@ -151,12 +152,12 @@ class StreamRegistry:
             if stream is None:
                 raise KeyError(stream_id)
             for k in ("name", "strategy", "symbol", "timeframe",
-                      "volume", "sl_atr", "tp_atr", "deposit",
-                      "breakeven_atr", "trail_atr", "enabled"):
+                      "volume", "sl_points", "tp_points", "deposit",
+                      "breakeven_points", "trail_points", "enabled"):
                 if k in fields and fields[k] is not None:
                     v = fields[k]
-                    if k in ("volume", "sl_atr", "tp_atr", "deposit",
-                             "breakeven_atr", "trail_atr"):
+                    if k in ("volume", "sl_points", "tp_points", "deposit",
+                             "breakeven_points", "trail_points"):
                         v = float(v)
                     elif k == "timeframe":
                         v = int(v)
@@ -196,12 +197,12 @@ class StreamRegistry:
                     symbol=str(d["symbol"]),
                     timeframe=int(tf),
                     volume=float(d.get("volume", 0.0) or 0.0),
-                    sl_atr=float(d.get("sl_atr", 0.0) or 0.0),
-                    tp_atr=float(d.get("tp_atr", 0.0) or 0.0),
+                    sl_points=float(d.get("sl_points", 0.0) or 0.0),
+                    tp_points=float(d.get("tp_points", 0.0) or 0.0),
                     magic=int(d.get("magic") or 0),
                     deposit=float(d.get("deposit", 0.0) or 0.0),
-                    breakeven_atr=float(d.get("breakeven_atr", 0.0) or 0.0),
-                    trail_atr=float(d.get("trail_atr", 0.0) or 0.0),
+                    breakeven_points=float(d.get("breakeven_points", 0.0) or 0.0),
+                    trail_points=float(d.get("trail_points", 0.0) or 0.0),
                     enabled=bool(d.get("enabled", True)),
                 )
                 self._streams[stream.id] = stream

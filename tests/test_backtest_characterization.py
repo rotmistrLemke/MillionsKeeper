@@ -63,6 +63,6 @@ def test_strategy_engine_characterization(name, cls, shape, request):
     res = _run_strategy_on_df(
         cls(), df, point=0.01, symbol_info=None, skip_weekend_filter=False,
         spread_points=2, deposit=0.0, risk_pct=80, fixed_volume=0.0,
-        sl_atr_mult=1.5, tp_atr_mult=2.5, breakeven_atr_mult=0.0, trail_atr_mult=0.0,
+        sl_points=150, tp_points=250, breakeven_points=0.0, trail_points=0.0,
     )
     _check(f"bt_{name}_{shape}", res, request)

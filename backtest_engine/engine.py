@@ -188,8 +188,8 @@ def _run_default_on_df(df, *, point, symbol_info, skip_weekend_filter,
 def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=0,
                           deposit=0.0, risk_pct=80, fixed_volume=0.0,
                           date_from=None, date_to=None,
-                          sl_atr_mult=0.0, tp_atr_mult=0.0,
-                          breakeven_atr_mult=0.0, trail_atr_mult=0.0):
+                          sl_points=0.0, tp_points=0.0,
+                          breakeven_points=0.0, trail_points=0.0):
     rates = load_rates(symbol, timeframe, bars, date_from, date_to)
     if rates is None or len(rates) < 100:
         print(f"  Недостаточно данных для {symbol}")
@@ -203,28 +203,19 @@ def run_strategy_backtest(strategy, symbol, timeframe, bars=2000, spread_points=
         strategy, df, point=point, symbol_info=symbol_info,
         skip_weekend_filter=_is_daily_or_higher_tf(timeframe),
         spread_points=spread_points, deposit=deposit, risk_pct=risk_pct,
-        fixed_volume=fixed_volume, sl_atr_mult=sl_atr_mult, tp_atr_mult=tp_atr_mult,
-        breakeven_atr_mult=breakeven_atr_mult, trail_atr_mult=trail_atr_mult,
+        fixed_volume=fixed_volume, sl_points=sl_points, tp_points=tp_points,
+        breakeven_points=breakeven_points, trail_points=trail_points,
     )
 
 
 def _run_strategy_on_df(strategy, df, *, point, symbol_info, skip_weekend_filter,
                         spread_points=0, deposit=0.0, risk_pct=80, fixed_volume=0.0,
-                        sl_atr_mult=0.0, tp_atr_mult=0.0,
-                        breakeven_atr_mult=0.0, trail_atr_mult=0.0):
+                        sl_points=0.0, tp_points=0.0,
+                        breakeven_points=0.0, trail_points=0.0):
     df = strategy.compute_indicators(df)
 
-    # ATR нужен для SL/TP/breakeven/trail — считаем, если стратегия не предоставила.
-    need_atr = (sl_atr_mult > 0 or tp_atr_mult > 0
-                or breakeven_atr_mult > 0 or trail_atr_mult > 0)
-    if need_atr and 'atr' not in df.columns:
-        import talib
-        df['atr'] = talib.ATR(
-            df['high'].values.astype(float),
-            df['low'].values.astype(float),
-            df['close'].values.astype(float),
-            timeperiod=14,
-        )
+    # SL/TP/breakeven/trail задаются в пунктах — ATR движку не нужен.
+    # Дефолты стратегии (get_sl_tp) используют свой 'atr' из compute_indicators.
 
     pip_value_per_lot = 1
 
@@ -295,42 +286,42 @@ def _run_strategy_on_df(strategy, df, *, point, symbol_info, skip_weekend_filter
             continue
 
         # Breakeven + trailing SL — перед проверкой SL/TP.
-        # Breakeven: после прохода +breakeven_mult × ATR в нашу сторону двигаем
-        # SL в цену входа. Trail: SL не ниже (high - trail_mult × ATR) для BUY
-        # / не выше (low + trail_mult × ATR) для SELL. SL только ужесточается.
-        if position is not None and (breakeven_atr_mult > 0 or trail_atr_mult > 0):
-            atr_val = row.get('atr') if 'atr' in row.index else None
-            if atr_val is not None and not pd.isna(atr_val) and atr_val > 0:
-                entry = position['entry_price']
-                cur_sl = position.get('sl')
-                if position['type'] == 'BUY':
-                    new_sl = cur_sl
-                    if breakeven_atr_mult > 0 and not position.get('_be_done'):
-                        if row['high'] - entry >= breakeven_atr_mult * atr_val:
-                            cand = entry
-                            if new_sl is None or cand > new_sl:
-                                new_sl = cand
-                            position['_be_done'] = True
-                    if trail_atr_mult > 0:
-                        cand = row['high'] - trail_atr_mult * atr_val
+        # Breakeven: после прохода +breakeven_points пунктов в нашу сторону двигаем
+        # SL в цену входа. Trail: SL не ниже (high - trail_points) для BUY
+        # / не выше (low + trail_points) для SELL. SL только ужесточается.
+        if position is not None and (breakeven_points > 0 or trail_points > 0):
+            be_offset    = breakeven_points * point
+            trail_offset = trail_points * point
+            entry = position['entry_price']
+            cur_sl = position.get('sl')
+            if position['type'] == 'BUY':
+                new_sl = cur_sl
+                if breakeven_points > 0 and not position.get('_be_done'):
+                    if row['high'] - entry >= be_offset:
+                        cand = entry
                         if new_sl is None or cand > new_sl:
                             new_sl = cand
-                    if new_sl is not None and new_sl != cur_sl:
-                        position['sl'] = new_sl
-                else:
-                    new_sl = cur_sl
-                    if breakeven_atr_mult > 0 and not position.get('_be_done'):
-                        if entry - row['low'] >= breakeven_atr_mult * atr_val:
-                            cand = entry
-                            if new_sl is None or cand < new_sl:
-                                new_sl = cand
-                            position['_be_done'] = True
-                    if trail_atr_mult > 0:
-                        cand = row['low'] + trail_atr_mult * atr_val
+                        position['_be_done'] = True
+                if trail_points > 0:
+                    cand = row['high'] - trail_offset
+                    if new_sl is None or cand > new_sl:
+                        new_sl = cand
+                if new_sl is not None and new_sl != cur_sl:
+                    position['sl'] = new_sl
+            else:
+                new_sl = cur_sl
+                if breakeven_points > 0 and not position.get('_be_done'):
+                    if entry - row['low'] >= be_offset:
+                        cand = entry
                         if new_sl is None or cand < new_sl:
                             new_sl = cand
-                    if new_sl is not None and new_sl != cur_sl:
-                        position['sl'] = new_sl
+                        position['_be_done'] = True
+                if trail_points > 0:
+                    cand = row['low'] + trail_offset
+                    if new_sl is None or cand < new_sl:
+                        new_sl = cand
+                if new_sl is not None and new_sl != cur_sl:
+                    position['sl'] = new_sl
 
         # SL/TP проверяем до weekend-skip: даже в «блокированные» часы (пт 23:00)
         # цена ещё ходит, и стоп/тейк должны срабатывать.
@@ -410,25 +401,25 @@ def _run_strategy_on_df(strategy, df, *, point, symbol_info, skip_weekend_filter
 
                 sl, tp = strategy.get_sl_tp(row, signal, point)
 
-                # Пользовательские множители SL/TP переопределяют значения стратегии.
+                # Пользовательские SL/TP в пунктах переопределяют значения стратегии.
                 # 0 = не использовать соответствующий уровень.
                 # Стратегии с трейлинг-выходом (uses_trailing_exit) сохраняют
                 # свой TP=None, иначе фиксированный TP закроет позицию до того,
                 # как трейлинг успеет развиться.
                 trailing = bool(getattr(strategy, 'uses_trailing_exit', lambda: False)())
-                if sl_atr_mult > 0 or (tp_atr_mult > 0 and not trailing):
-                    atr_val = row.get('atr') if 'atr' in row.index else None
-                    if atr_val is not None and not pd.isna(atr_val) and atr_val > 0:
-                        if sl_atr_mult > 0:
-                            sl = (entry_price - sl_atr_mult * atr_val) if signal == 'BUY' \
-                                 else (entry_price + sl_atr_mult * atr_val)
-                        elif not trailing:
-                            sl = None
-                        if tp_atr_mult > 0 and not trailing:
-                            tp = (entry_price + tp_atr_mult * atr_val) if signal == 'BUY' \
-                                 else (entry_price - tp_atr_mult * atr_val)
-                        elif tp_atr_mult <= 0 and not trailing:
-                            tp = None
+                if sl_points > 0 or (tp_points > 0 and not trailing):
+                    if sl_points > 0:
+                        offset = sl_points * point
+                        sl = (entry_price - offset) if signal == 'BUY' \
+                             else (entry_price + offset)
+                    elif not trailing:
+                        sl = None
+                    if tp_points > 0 and not trailing:
+                        offset = tp_points * point
+                        tp = (entry_price + offset) if signal == 'BUY' \
+                             else (entry_price - offset)
+                    elif tp_points <= 0 and not trailing:
+                        tp = None
 
                 if fixed_volume > 0:
                     volume = fixed_volume

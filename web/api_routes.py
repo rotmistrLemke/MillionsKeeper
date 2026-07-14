@@ -685,11 +685,11 @@ class StreamCreateRequest(BaseModel):
     symbol: str
     timeframe: str = "H1"
     volume: float = 0.0
-    sl_atr: float = 0.0
-    tp_atr: float = 0.0
+    sl_points: float = 0.0
+    tp_points: float = 0.0
     deposit: float = 0.0
-    breakeven_atr: float = 0.0
-    trail_atr: float = 0.0
+    breakeven_points: float = 0.0
+    trail_points: float = 0.0
     enabled: bool = True
 
 
@@ -699,11 +699,11 @@ class StreamUpdateRequest(BaseModel):
     symbol: Optional[str] = None
     timeframe: Optional[str] = None
     volume: Optional[float] = None
-    sl_atr: Optional[float] = None
-    tp_atr: Optional[float] = None
+    sl_points: Optional[float] = None
+    tp_points: Optional[float] = None
     deposit: Optional[float] = None
-    breakeven_atr: Optional[float] = None
-    trail_atr: Optional[float] = None
+    breakeven_points: Optional[float] = None
+    trail_points: Optional[float] = None
     enabled: Optional[bool] = None
 
 
@@ -740,11 +740,11 @@ async def create_stream(req: StreamCreateRequest,
             symbol=req.symbol,
             timeframe=tf,
             volume=req.volume,
-            sl_atr=req.sl_atr,
-            tp_atr=req.tp_atr,
+            sl_points=req.sl_points,
+            tp_points=req.tp_points,
             deposit=req.deposit,
-            breakeven_atr=req.breakeven_atr,
-            trail_atr=req.trail_atr,
+            breakeven_points=req.breakeven_points,
+            trail_points=req.trail_points,
             enabled=req.enabled,
         )
     except ValueError as e:
@@ -800,10 +800,10 @@ class BacktestRequest(BaseModel):
     spread: int = 0
     risk: float = 80.0
     volume: float = 0.0
-    sl_atr: float = 0.0
-    tp_atr: float = 0.0
-    breakeven_atr: float = 0.0
-    trail_atr: float = 0.0
+    sl_points: float = 0.0
+    tp_points: float = 0.0
+    breakeven_points: float = 0.0
+    trail_points: float = 0.0
     start: Optional[str] = None
     end: Optional[str] = None
 
@@ -822,10 +822,10 @@ async def run_backtest(req: BacktestRequest,
             "spread": req.spread,
             "risk": req.risk,
             "volume": req.volume,
-            "sl_atr": req.sl_atr,
-            "tp_atr": req.tp_atr,
-            "breakeven_atr": req.breakeven_atr,
-            "trail_atr": req.trail_atr,
+            "sl_points": req.sl_points,
+            "tp_points": req.tp_points,
+            "breakeven_points": req.breakeven_points,
+            "trail_points": req.trail_points,
             "start": req.start,
             "end": req.end,
         }

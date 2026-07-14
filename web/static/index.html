@@ -244,20 +244,20 @@
           </label>
 
           <label>
-            SL (×ATR, 0 = выкл)
-            <input id="bt-sl-atr" type="number" value="0" min="0" step="0.1">
+            SL (пункты, 0 = выкл)
+            <input id="bt-sl-points" type="number" value="0" min="0" step="1">
           </label>
           <label>
-            TP (×ATR, 0 = выкл)
-            <input id="bt-tp-atr" type="number" value="0" min="0" step="0.1">
+            TP (пункты, 0 = выкл)
+            <input id="bt-tp-points" type="number" value="0" min="0" step="1">
           </label>
-          <label title="После прохода +N×ATR в нашу сторону двигает SL в точку входа. 0 = выкл.">
-            BE (×ATR, 0 = выкл)
-            <input id="bt-be-atr" type="number" value="0" min="0" step="0.1">
+          <label title="После прохода +N пунктов в нашу сторону двигает SL в точку входа. 0 = выкл.">
+            BE (пункты, 0 = выкл)
+            <input id="bt-be-points" type="number" value="0" min="0" step="1">
           </label>
-          <label title="Трейлинг SL: для BUY не ближе (high − N×ATR), для SELL не дальше (low + N×ATR). SL только ужесточается. 0 = выкл.">
-            Trail (×ATR, 0 = выкл)
-            <input id="bt-trail-atr" type="number" value="0" min="0" step="0.1">
+          <label title="Трейлинг SL: для BUY не ближе (high − N пунктов), для SELL не дальше (low + N пунктов). SL только ужесточается. 0 = выкл.">
+            Trail (пункты, 0 = выкл)
+            <input id="bt-trail-points" type="number" value="0" min="0" step="1">
           </label>
 
           <button class="btn-fab bt-run-btn" id="btn-run-bt" title="Запустить бэктест" aria-label="Запустить бэктест">

@@ -17,6 +17,10 @@ class PositionMonitorAgent(BaseAgent):
     """
     description = "Мониторинг открытых позиций, выход по свече"
 
+    # Минимальный сдвиг SL (в пунктах), при котором вообще шлём modifySL —
+    # антидребезг, чтобы не дёргать order_send на каждую каплю цены.
+    MIN_SL_STEP_POINTS = 10.0
+
     def __init__(self, name: str, bus: EventBus, trading, poll_interval: float = 5.0):
         super().__init__(name, bus)
         self.trading = trading
@@ -53,7 +57,7 @@ class PositionMonitorAgent(BaseAgent):
             self._prev_positions = {p["ticket"]: p for p in positions}
 
             # Breakeven + trailing SL — каждый тик поллинга, для любой позиции потока,
-            # у которой в настройках задан breakeven_atr или trail_atr.
+            # у которой в настройках задан breakeven_points или trail_points.
             for pos in positions:
                 await asyncio.get_event_loop().run_in_executor(
                     None, self._apply_trailing_sl, pos
@@ -135,31 +139,25 @@ class PositionMonitorAgent(BaseAgent):
         Вызывается в executor, чтобы не блокировать event-loop."""
         import streams as streams_mod
         import MetaTrader5 as mt5
+        from market_data_cache import cache
 
         stream = streams_mod.registry.by_magic(pos.get("magic"))
         if stream is None:
             return
-        be_mult   = float(getattr(stream, "breakeven_atr", 0.0) or 0.0)
-        trail_mult = float(getattr(stream, "trail_atr", 0.0) or 0.0)
-        if be_mult <= 0 and trail_mult <= 0:
+        be_points    = float(getattr(stream, "breakeven_points", 0.0) or 0.0)
+        trail_points = float(getattr(stream, "trail_points", 0.0) or 0.0)
+        if be_points <= 0 and trail_points <= 0:
             return
 
         symbol = pos["symbol"]
-        # ATR на рабочем TF потока
-        rates = mt5.copy_rates_from_pos(symbol, stream.timeframe, 0, 30)
-        if rates is None or len(rates) < 15:
+        info = cache.get_symbol_info(symbol)
+        if info is None:
             return
-        try:
-            import talib
-            highs = rates['high'].astype(float)
-            lows  = rates['low'].astype(float)
-            closes = rates['close'].astype(float)
-            atr_series = talib.ATR(highs, lows, closes, timeperiod=14)
-            atr = float(atr_series[-1])
-        except Exception:
+        point = float(getattr(info, "point", 0.0) or 0.0)
+        if point <= 0:
             return
-        if not atr or atr <= 0:
-            return
+        be_offset    = be_points * point
+        trail_offset = trail_points * point
 
         tick = mt5.symbol_info_tick(symbol)
         if tick is None:
@@ -175,31 +173,31 @@ class PositionMonitorAgent(BaseAgent):
         candidate_sl = cur_sl if cur_sl > 0 else None
 
         if side == "BUY":
-            if be_mult > 0 and ticket not in self._be_done:
-                if tick.bid - entry >= be_mult * atr:
+            if be_points > 0 and ticket not in self._be_done:
+                if tick.bid - entry >= be_offset:
                     if candidate_sl is None or entry > candidate_sl:
                         candidate_sl = entry
                     self._be_done.add(ticket)
-            if trail_mult > 0:
-                cand = tick.bid - trail_mult * atr
+            if trail_points > 0:
+                cand = tick.bid - trail_offset
                 if candidate_sl is None or cand > candidate_sl:
                     candidate_sl = cand
         else:  # SELL
-            if be_mult > 0 and ticket not in self._be_done:
-                if entry - tick.ask >= be_mult * atr:
+            if be_points > 0 and ticket not in self._be_done:
+                if entry - tick.ask >= be_offset:
                     if candidate_sl is None or entry < candidate_sl:
                         candidate_sl = entry
                     self._be_done.add(ticket)
-            if trail_mult > 0:
-                cand = tick.ask + trail_mult * atr
+            if trail_points > 0:
+                cand = tick.ask + trail_offset
                 if candidate_sl is None or cand < candidate_sl:
                     candidate_sl = cand
 
         if candidate_sl is None:
             return
-        # Порог «нужно двигать»: отличие от текущего > 0.1×ATR, чтобы
-        # не слать order_send на каждую каплю цены.
-        if cur_sl > 0 and abs(candidate_sl - cur_sl) < 0.1 * atr:
+        # Порог «нужно двигать»: отличие от текущего > MIN_SL_STEP_POINTS пунктов,
+        # чтобы не слать order_send на каждую каплю цены.
+        if cur_sl > 0 and abs(candidate_sl - cur_sl) < self.MIN_SL_STEP_POINTS * point:
             return
         try:
             ok = self.trading.modifySL(ticket, symbol, candidate_sl)

@@ -287,7 +287,7 @@ class ExecutionAgent(BaseAgent):
         if not volume or volume <= 0:
             return None
 
-        # Расчёт SL/TP по множителям ATR из настроек потока (0 = выключено).
+        # Расчёт SL/TP в пунктах из настроек потока (0 = выключено).
         # Для стратегий с трейлинг-выходом принудительно обнуляем TP —
         # закрытие контролирует get_exit_signal через PositionMonitorAgent.
         from strategies import STRATEGIES
@@ -301,19 +301,22 @@ class ExecutionAgent(BaseAgent):
 
         sl_price = 0.0
         tp_price = 0.0
-        sl_mult = float(stream.sl_atr or 0.0)
-        tp_mult = float(stream.tp_atr or 0.0)
+        sl_points = float(stream.sl_points or 0.0)
+        tp_points = float(stream.tp_points or 0.0)
         if trailing:
-            tp_mult = 0.0
-        if (sl_mult > 0 or tp_mult > 0) and atr and atr > 0:
+            tp_points = 0.0
+        if sl_points > 0 or tp_points > 0:
+            point = float(getattr(symbol_info, 'point', 0.0) or 0.0)
             tick = mt5.symbol_info_tick(symbol)
             entry_price = tick.ask if order_type == mt5.ORDER_TYPE_BUY else tick.bid
             digits = int(getattr(symbol_info, 'digits', 5) or 5)
-            if sl_mult > 0:
-                sl_price = entry_price - sl_mult * atr if signal == "BUY" else entry_price + sl_mult * atr
+            if sl_points > 0:
+                offset = sl_points * point
+                sl_price = entry_price - offset if signal == "BUY" else entry_price + offset
                 sl_price = round(sl_price, digits)
-            if tp_mult > 0:
-                tp_price = entry_price + tp_mult * atr if signal == "BUY" else entry_price - tp_mult * atr
+            if tp_points > 0:
+                offset = tp_points * point
+                tp_price = entry_price + offset if signal == "BUY" else entry_price - offset
                 tp_price = round(tp_price, digits)
 
         comment = f"{stream.id}:{stream.strategy}"

@@ -79,7 +79,7 @@ const STRATEGY_META = {
       '<b>Вход</b> (на открытии новой свечи):',
       'BUY: EMA50 выше EMA200',
       'SELL: EMA50 ниже EMA200',
-      '<b>Выход:</b> только по SL/TP (множители ATR в форме — 0 = выкл)',
+      '<b>Выход:</b> только по SL/TP (пункты в форме — 0 = выкл)',
       'После выхода по SL/TP та же сторона не переоткрывается до обратного пересечения EMA.',
       '<b>SL по умолчанию:</b> 2 × ATR &nbsp; <b>TP по умолчанию:</b> 3 × ATR',
       '<b>Таймфрейм:</b> любой (EMA200 требует достаточно истории)',
@@ -137,7 +137,7 @@ const STRATEGY_META = {
       'SELL: Aroon Up &lt; Aroon Down',
       'После выхода по SL/TP та же сторона не переоткрывается до флипа линий.',
       '<b>Выход:</b> только по SL/TP.',
-      '<b>SL:</b> 2 × ATR &nbsp; <b>TP:</b> 3 × ATR (0 = выкл, перекрывается формой)',
+      '<b>Дефолт стратегии:</b> SL 2 × ATR &nbsp; TP 3 × ATR (перекрывается пунктами из формы)',
       '<b>Таймфрейм:</b> любой (по выбору в бэктесте)',
     ],
     indicators: [
@@ -1283,10 +1283,10 @@ function showStreamInfo(stream_id) {
           ${row('Таймфрейм', s.timeframe)}
           ${row('Объём', vol > 0 ? vol.toFixed(2) + ' лот' : 'авто')}
           ${row('Депозит', dep > 0 ? '$' + dep.toLocaleString('ru-RU') : '—')}
-          ${row('SL ATR', Number(s.sl_atr||0) > 0 ? `${s.sl_atr}×` : '—')}
-          ${row('TP ATR', Number(s.tp_atr||0) > 0 ? `${s.tp_atr}×` : '—')}
-          ${row('Breakeven ATR', Number(s.breakeven_atr||0) > 0 ? `${s.breakeven_atr}×` : '—')}
-          ${row('Trailing ATR', Number(s.trail_atr||0) > 0 ? `${s.trail_atr}×` : '—')}
+          ${row('SL', Number(s.sl_points||0) > 0 ? `${s.sl_points} п.` : '—')}
+          ${row('TP', Number(s.tp_points||0) > 0 ? `${s.tp_points} п.` : '—')}
+          ${row('Breakeven', Number(s.breakeven_points||0) > 0 ? `${s.breakeven_points} п.` : '—')}
+          ${row('Trailing', Number(s.trail_points||0) > 0 ? `${s.trail_points} п.` : '—')}
         </div>
       </div>
     </div>
@@ -1388,19 +1388,19 @@ async function openStreamForm(stream_id) {
           <input id="sf-deposit" type="number" value="${editing ? (editing.deposit || 0) : 0}" min="0" step="100">
         </label>
 
-        <label>SL (×ATR)
-          <input id="sf-sl-atr" type="number" value="${editing ? editing.sl_atr : 0}" min="0" step="0.1">
+        <label>SL (пункты)
+          <input id="sf-sl-points" type="number" value="${editing ? editing.sl_points : 0}" min="0" step="1">
         </label>
-        <label>TP (×ATR)
-          <input id="sf-tp-atr" type="number" value="${editing ? editing.tp_atr : 0}" min="0" step="0.1">
+        <label>TP (пункты)
+          <input id="sf-tp-points" type="number" value="${editing ? editing.tp_points : 0}" min="0" step="1">
         </label>
-        <label title="После прохода +N×ATR в нашу сторону двигает SL в точку входа. 0 = выкл.">
-          BE (×ATR)
-          <input id="sf-be-atr" type="number" value="${editing ? (editing.breakeven_atr || 0) : 0}" min="0" step="0.1">
+        <label title="После прохода +N пунктов в нашу сторону двигает SL в точку входа. 0 = выкл.">
+          BE (пункты)
+          <input id="sf-be-points" type="number" value="${editing ? (editing.breakeven_points || 0) : 0}" min="0" step="1">
         </label>
-        <label title="Трейлинг SL по ATR. SL только ужесточается. 0 = выкл.">
-          Trail (×ATR)
-          <input id="sf-trail-atr" type="number" value="${editing ? (editing.trail_atr || 0) : 0}" min="0" step="0.1">
+        <label title="Трейлинг SL в пунктах. SL только ужесточается. 0 = выкл.">
+          Trail (пункты)
+          <input id="sf-trail-points" type="number" value="${editing ? (editing.trail_points || 0) : 0}" min="0" step="1">
         </label>
 
         <div class="sf-bottom">
@@ -1434,11 +1434,11 @@ async function submitStreamForm(stream_id) {
     symbol:    document.getElementById('sf-symbol').value,
     timeframe: document.getElementById('sf-timeframe').value,
     volume:        parseFloat(document.getElementById('sf-volume').value   || '0') || 0,
-    sl_atr:        parseFloat(document.getElementById('sf-sl-atr').value   || '0') || 0,
-    tp_atr:        parseFloat(document.getElementById('sf-tp-atr').value   || '0') || 0,
+    sl_points:     parseFloat(document.getElementById('sf-sl-points').value   || '0') || 0,
+    tp_points:     parseFloat(document.getElementById('sf-tp-points').value   || '0') || 0,
     deposit:       parseFloat(document.getElementById('sf-deposit').value  || '0') || 0,
-    breakeven_atr: parseFloat(document.getElementById('sf-be-atr').value   || '0') || 0,
-    trail_atr:     parseFloat(document.getElementById('sf-trail-atr').value|| '0') || 0,
+    breakeven_points: parseFloat(document.getElementById('sf-be-points').value   || '0') || 0,
+    trail_points:     parseFloat(document.getElementById('sf-trail-points').value|| '0') || 0,
     enabled:       document.getElementById('sf-enabled').checked,
   };
   const errEl = document.getElementById('sf-error');
@@ -1561,14 +1561,14 @@ function runBacktest() {
   const bars      = parseInt(document.getElementById('bt-bars').value);
   const deposit   = parseFloat(document.getElementById('bt-deposit').value);
   const volume    = parseFloat(document.getElementById('bt-volume').value);
-  const sl_atr    = parseFloat(document.getElementById('bt-sl-atr')?.value || '0') || 0;
-  const tp_atr    = parseFloat(document.getElementById('bt-tp-atr')?.value || '0') || 0;
+  const sl_points = parseFloat(document.getElementById('bt-sl-points')?.value || '0') || 0;
+  const tp_points = parseFloat(document.getElementById('bt-tp-points')?.value || '0') || 0;
   const spread    = parseInt(document.getElementById('bt-spread')?.value || '0', 10) || 0;
-  const breakeven_atr = parseFloat(document.getElementById('bt-be-atr')?.value    || '0') || 0;
-  const trail_atr     = parseFloat(document.getElementById('bt-trail-atr')?.value || '0') || 0;
+  const breakeven_points = parseFloat(document.getElementById('bt-be-points')?.value    || '0') || 0;
+  const trail_points     = parseFloat(document.getElementById('bt-trail-points')?.value || '0') || 0;
   const start     = document.getElementById('bt-start').value || null;
   const end       = document.getElementById('bt-end').value || null;
-  sendCmd({ cmd: 'run_backtest', strategy, symbol, timeframe, bars, deposit, spread, volume, sl_atr, tp_atr, breakeven_atr, trail_atr, start, end });
+  sendCmd({ cmd: 'run_backtest', strategy, symbol, timeframe, bars, deposit, spread, volume, sl_points, tp_points, breakeven_points, trail_points, start, end });
   document.getElementById('bt-result').innerHTML = '<div style="color:var(--text-muted)">Выполняется...</div>';
 }
 

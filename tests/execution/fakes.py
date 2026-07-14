@@ -153,14 +153,15 @@ def make_deal(*, magic=777, profit=0.0, commission=0.0, swap=0.0, comment=""):
 
 
 def make_stream(*, id="s1", name="Stream-1", strategy="default", symbol="XAUUSD",
-                volume=0.1, sl_atr=0.0, tp_atr=0.0, magic=777, deposit=0.0,
-                enabled=True, breakeven_atr=0.0, trail_atr=0.0, timeframe=16385):
-    """TradingStream-подобный объект для тестов агентов."""
+                volume=0.1, sl_points=0.0, tp_points=0.0, magic=777, deposit=0.0,
+                enabled=True, breakeven_points=0.0, trail_points=0.0, timeframe=16385):
+    """TradingStream-подобный объект для тестов агентов.
+    SL/TP/BE/trail — в пунктах (symbol_info.point)."""
     return SimpleNamespace(
         id=id, name=name, strategy=strategy, symbol=symbol,
-        volume=volume, sl_atr=sl_atr, tp_atr=tp_atr, magic=magic,
+        volume=volume, sl_points=sl_points, tp_points=tp_points, magic=magic,
         deposit=deposit, enabled=enabled,
-        breakeven_atr=breakeven_atr, trail_atr=trail_atr, timeframe=timeframe,
+        breakeven_points=breakeven_points, trail_points=trail_points, timeframe=timeframe,
     )
 
 

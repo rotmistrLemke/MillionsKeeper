@@ -87,7 +87,7 @@ class Account:
 
 ## Приложение B — `streams.json` по тарифам
 
-Структура потока (см. `streams.py` / `TradingStream`): `id, name, strategy, symbol, timeframe, volume, sl_atr, tp_atr, magic, enabled`. `magic` назначается реестром автоматически.
+Структура потока (см. `streams.py` / `TradingStream`): `id, name, strategy, symbol, timeframe, volume, sl_points, tp_points, magic, enabled`. SL/TP (а также `breakeven_points`/`trail_points`) задаются в пунктах (`symbol_info.point`), 0 = выкл. `magic` назначается реестром автоматически.
 
 - **Entry ($59):** до **2 потоков**, выбор из **5 стратегий** (подмножество `STRATEGIES`).
 - **Pro ($99):** до **10 потоков**, **все** стратегии.
