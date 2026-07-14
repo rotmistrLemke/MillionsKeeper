@@ -1338,18 +1338,16 @@ async function openStreamForm(stream_id) {
   if (!wrap) return;
   const editing = stream_id ? (state.streams || []).find(s => s.id === stream_id) : null;
 
-  // Список пар: всё из /api/symbols минус уже занятые (кроме редактируемого).
+  // Список пар: всё из /api/symbols. Одна пара может обслуживаться несколькими
+  // потоками (разные стратегии/ТФ) — OPEN-статус отслеживается per-stream,
+  // поэтому занятые символы НЕ исключаем.
   let symbols = [];
   try {
     const r = await fetch('/api/symbols');
     const d = await r.json();
     symbols = d.symbols || [];
   } catch {}
-  const takenSymbols = new Set((state.streams || [])
-    .filter(s => !editing || s.id !== editing.id)
-    .map(s => s.symbol));
   const symOptions = symbols
-    .filter(sym => !takenSymbols.has(sym) || (editing && editing.symbol === sym))
     .map(sym => `<option value="${sym}" ${editing && editing.symbol === sym ? 'selected' : ''}>${sym}</option>`)
     .join('');
 

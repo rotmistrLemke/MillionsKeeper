@@ -1,8 +1,10 @@
 """
 Торговые потоки (TradingStream).
-Один поток = уникальная пара (strategy, symbol) с собственным TF, объёмом, SL/TP и magic.
+Поток = связка (strategy, symbol) с собственным TF, объёмом, SL/TP и magic.
 SL/TP/breakeven/trail задаются в пунктах (symbol_info.point), 0 = выкл.
-Правила: максимум MAX_STREAMS потоков, одна пара может быть закреплена только за одним потоком.
+Правила: максимум MAX_STREAMS потоков. Одну пару могут обслуживать несколько
+потоков (разные стратегии/ТФ) — OPEN-статус отслеживается per-stream
+(is_stream_open / mark_stream_open), а не по символу.
 
 Magic выдаётся из диапазона [MAGIC_BASE .. MAGIC_BASE + MAX_STREAMS - 1] и привязывает
 открытую позицию MT5 к потоку-владельцу.
