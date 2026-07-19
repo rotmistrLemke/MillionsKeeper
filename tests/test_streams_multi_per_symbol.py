@@ -56,3 +56,43 @@ def test_open_status_is_per_stream_not_per_symbol(clean_registry):
     # Открытие одного потока не должно блокировать второй по тому же символу.
     assert streams.registry.is_stream_open(a.id) is True
     assert streams.registry.is_stream_open(b.id) is False
+
+
+def test_can_create_up_to_max_streams_with_unique_magic(clean_registry):
+    streams = clean_registry
+    for i in range(streams.MAX_STREAMS):
+        streams.registry.create(name=f"S{i}", strategy="aroon",
+                                symbol="XAUUSDrfd", timeframe=16385)
+    all_streams = streams.registry.all()
+    assert len(all_streams) == streams.MAX_STREAMS
+    # magic привязывает позицию MT5 к потоку — пул должен покрывать весь лимит.
+    magics = [s.magic for s in all_streams]
+    assert len(set(magics)) == streams.MAX_STREAMS
+    assert min(magics) == streams.MAGIC_BASE
+    assert max(magics) == streams.MAGIC_BASE + streams.MAX_STREAMS - 1
+
+
+def test_creating_beyond_max_streams_raises(clean_registry):
+    streams = clean_registry
+    for i in range(streams.MAX_STREAMS):
+        streams.registry.create(name=f"S{i}", strategy="aroon",
+                                symbol="XAUUSDrfd", timeframe=16385)
+    with pytest.raises(ValueError, match="лимит"):
+        streams.registry.create(name="overflow", strategy="aroon",
+                                symbol="XAUUSDrfd", timeframe=16385)
+
+
+def test_existing_magic_preserved_on_load(clean_registry):
+    """Расширение лимита не должно переназначать magic уже существующим потокам
+    (иначе порвётся привязка открытых позиций MT5 к потоку-владельцу)."""
+    streams = clean_registry
+    saved = [
+        {"id": "s1", "name": "A", "strategy": "aroon", "symbol": "XAUUSDrfd",
+         "timeframe": "H1", "magic": streams.MAGIC_BASE},
+        {"id": "s2", "name": "B", "strategy": "macd_hist", "symbol": "EURUSDrfd",
+         "timeframe": "H4", "magic": streams.MAGIC_BASE + 9},
+    ]
+    with streams.registry._lock:
+        streams.registry._load_raw_locked(saved)
+    by_id = {s.id: s.magic for s in streams.registry.all()}
+    assert by_id == {"s1": streams.MAGIC_BASE, "s2": streams.MAGIC_BASE + 9}

@@ -18,7 +18,7 @@ from typing import Optional
 
 logger = logging.getLogger("Streams")
 
-MAX_STREAMS = 10
+MAX_STREAMS = 20
 MAGIC_BASE  = 100000
 
 _STREAMS_FILE = Path(__file__).parent / "streams.json"

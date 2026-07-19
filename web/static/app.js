@@ -371,7 +371,7 @@ const state = {
   backtest_result: null,
   bt_strategy: 'default',
   streams: [],
-  streams_max: 10,
+  streams_max: 20,   // фолбэк; реальный лимит приходит из /api/streams (streams.MAX_STREAMS)
   log_lines: [],
   MAX_LOG: 200,
 };
@@ -1183,7 +1183,7 @@ async function loadStreams() {
     const r = await fetch('/api/streams');
     const d = await r.json();
     state.streams = d.streams || [];
-    state.streams_max = d.max || 10;
+    state.streams_max = d.max || 20;
     renderStreams();
   } catch (e) {
     console.error('loadStreams failed', e);
@@ -1200,10 +1200,10 @@ function renderStreams() {
   if (!box) return;
   const streams = state.streams || [];
   const badge = document.getElementById('streams-count-badge');
-  if (badge) badge.textContent = `${streams.length} / ${state.streams_max || 10}`;
+  if (badge) badge.textContent = `${streams.length} / ${state.streams_max || 20}`;
 
   const addBtn = document.getElementById('btn-add-stream');
-  if (addBtn) addBtn.disabled = streams.length >= (state.streams_max || 10);
+  if (addBtn) addBtn.disabled = streams.length >= (state.streams_max || 20);
 
   if (!streams.length) {
     box.innerHTML = '<div class="streams-empty">Потоков пока нет — нажмите «+ Добавить поток», чтобы создать первый.</div>';
