@@ -10,7 +10,11 @@ settings*
 # трекаться; реальные секреты — в account.py (остаётся под ignore).
 !settings.py
 active_state.json
+# streams.json — рабочий конфиг потоков, его перезаписывает бот.
+# Боевые параметры версионируются как эталон: config/streams.reference.json
+# (streams.load() поднимается из него, если рабочий файл потерян или битый).
 streams.json
+streams.backup/
 users.json
 .jwt_secret
 .env

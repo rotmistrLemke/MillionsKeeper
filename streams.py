@@ -11,8 +11,10 @@ Magic выдаётся из диапазона [MAGIC_BASE .. MAGIC_BASE + MAX_S
 """
 import json
 import logging
+import os
 import threading
 from dataclasses import dataclass, asdict
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -22,6 +24,11 @@ MAX_STREAMS = 20
 MAGIC_BASE  = 100000
 
 _STREAMS_FILE = Path(__file__).parent / "streams.json"
+# Эталон боевых потоков: трекается в git, рабочий streams.json — нет.
+# Нужен как источник восстановления, если рабочий файл потерян или испорчен.
+_REFERENCE_FILE = Path(__file__).parent / "config" / "streams.reference.json"
+_BACKUP_DIR = Path(__file__).parent / "streams.backup"
+_BACKUP_KEEP = 10
 
 
 @dataclass
@@ -238,31 +245,90 @@ registry = StreamRegistry()
 
 
 # ── Module-level API ─────────────────────────────────────────────────
-def load() -> None:
-    """Загружает потоки из streams.json. Если файла нет — стартуем с пустым реестром."""
-    if not _STREAMS_FILE.exists():
-        return
+def _read_items(path: Path) -> Optional[list]:
+    """Список потоков из файла. None — файла нет либо он нечитаем/битый."""
+    if not path.exists():
+        return None
     try:
-        data = json.loads(_STREAMS_FILE.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as e:
-        logger.warning(f"Не удалось прочитать {_STREAMS_FILE.name}: {e}")
-        return
+        logger.warning(f"Не удалось прочитать {path.name}: {e}")
+        return None
     items = data.get("streams", []) if isinstance(data, dict) else data
+    return items if isinstance(items, list) else None
+
+
+def load() -> None:
+    """Загружает потоки из streams.json.
+
+    Если рабочий файл отсутствует, пуст или битый — поднимаемся из эталона
+    config/streams.reference.json. Боевой конфиг однажды уже был потерян
+    молча (файл остался как {"streams": []}, потоки продолжали торговать
+    по magic), поэтому пустой старт при наличии эталона — всегда WARNING.
+    """
+    items = _read_items(_STREAMS_FILE)
+    if not items:
+        reference = _read_items(_REFERENCE_FILE)
+        if reference:
+            logger.warning(
+                f"{_STREAMS_FILE.name} пуст или недоступен — "
+                f"восстанавливаем {len(reference)} потоков из {_REFERENCE_FILE.name}"
+            )
+            items = reference
+        elif items is None:
+            return
     with registry._lock:
         registry._load_raw_locked(items)
     _sync_trading_status()
     logger.info(f"Загружено потоков: {len(registry.all())}")
 
 
-def save() -> None:
-    items = [s.to_dict() for s in registry.all()]
+def _backup_current() -> None:
+    """Копия текущего streams.json в streams.backup/ с ротацией до _BACKUP_KEEP."""
+    if not _STREAMS_FILE.exists():
+        return
     try:
-        _STREAMS_FILE.write_text(
+        _BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        (_BACKUP_DIR / f"streams-{stamp}.json").write_bytes(_STREAMS_FILE.read_bytes())
+        old = sorted(_BACKUP_DIR.glob("streams-*.json"))[:-_BACKUP_KEEP]
+        for f in old:
+            f.unlink(missing_ok=True)
+    except OSError as e:
+        logger.warning(f"Не удалось сделать бэкап {_STREAMS_FILE.name}: {e}")
+
+
+def save() -> None:
+    """Атомарно пишет streams.json, сохранив предыдущую версию в бэкап.
+
+    Пустой реестр поверх непустого конфига не пишется: это признак того,
+    что процесс стартовал без потоков (битый файл, сбой загрузки), а не
+    того, что пользователь удалил последний поток из UI.
+    """
+    items = [s.to_dict() for s in registry.all()]
+    if not items:
+        existing = _read_items(_STREAMS_FILE)
+        if existing:
+            logger.error(
+                f"Отказ записать пустой реестр поверх {_STREAMS_FILE.name} "
+                f"({len(existing)} потоков). Конфиг сохранён без изменений."
+            )
+            return
+
+    _backup_current()
+    tmp = _STREAMS_FILE.with_suffix(".json.tmp")
+    try:
+        tmp.write_text(
             json.dumps({"streams": items}, indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
+        os.replace(tmp, _STREAMS_FILE)
     except OSError as e:
         logger.warning(f"Не удалось сохранить {_STREAMS_FILE.name}: {e}")
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def _sync_trading_status() -> None:

@@ -1,0 +1,30 @@
+{
+  "_comment": [
+    "Эталон боевых торговых потоков. Трекается в git; рабочий streams.json — нет.",
+    "streams.load() поднимает этот файл, если рабочий streams.json отсутствует, пуст или битый.",
+    "Восстановлен 2026-09-03 из истории MT5 счёта 2000099548 после потери streams.json:",
+    "id/strategy — из comment сделок (sN:strategy), magic — из deal.magic,",
+    "sl_points/tp_points — медиана |order.sl - entry_price| по 577 ордерам за 60 дней,",
+    "timeframe — H1 у всех потоков (все входы приходятся на минуту 0 часового бара).",
+    "name/deposit/breakeven_points/trail_points из истории не восстанавливаются:",
+    "name = имя стратегии, остальные = 0 (трейлинга в истории не видно — SL не двигался).",
+    "Поток s1 (magic 100000, активен до 15.07.2026) и s8 (magic 100007) не восстановлены:",
+    "s1 менял стратегию и объём, s8 не оставил ни одной сделки."
+  ],
+  "streams": [
+    {"id": "s2",  "name": "ema_pullback",      "strategy": "ema_pullback",      "symbol": "XAUUSDrfd", "timeframe": "H1", "volume": 0.05, "sl_points": 6000.0, "tp_points": 18000.0, "magic": 100001, "deposit": 0.0, "breakeven_points": 0.0, "trail_points": 0.0, "enabled": true},
+    {"id": "s3",  "name": "ema_cross",         "strategy": "ema_cross",         "symbol": "XAUUSDrfd", "timeframe": "H1", "volume": 0.05, "sl_points": 3000.0, "tp_points": 9000.0,  "magic": 100002, "deposit": 0.0, "breakeven_points": 0.0, "trail_points": 0.0, "enabled": true},
+    {"id": "s4",  "name": "cci_rsi",           "strategy": "cci_rsi",           "symbol": "XAUUSDrfd", "timeframe": "H1", "volume": 0.05, "sl_points": 3000.0, "tp_points": 9000.0,  "magic": 100003, "deposit": 0.0, "breakeven_points": 0.0, "trail_points": 0.0, "enabled": true},
+    {"id": "s5",  "name": "macd_hist",         "strategy": "macd_hist",         "symbol": "XAUUSDrfd", "timeframe": "H1", "volume": 0.05, "sl_points": 3000.0, "tp_points": 9000.0,  "magic": 100004, "deposit": 0.0, "breakeven_points": 0.0, "trail_points": 0.0, "enabled": true},
+    {"id": "s6",  "name": "aroon",             "strategy": "aroon",             "symbol": "XAUUSDrfd", "timeframe": "H1", "volume": 0.05, "sl_points": 3000.0, "tp_points": 9000.0,  "magic": 100005, "deposit": 0.0, "breakeven_points": 0.0, "trail_points": 0.0, "enabled": true},
+    {"id": "s7",  "name": "default_hedge",     "strategy": "default_hedge",     "symbol": "XAUUSDrfd", "timeframe": "H1", "volume": 0.05, "sl_points": 3000.0, "tp_points": 9000.0,  "magic": 100006, "deposit": 0.0, "breakeven_points": 0.0, "trail_points": 0.0, "enabled": true},
+    {"id": "s9",  "name": "triple_ema",        "strategy": "triple_ema",        "symbol": "XAUUSDrfd", "timeframe": "H1", "volume": 0.05, "sl_points": 3000.0, "tp_points": 9000.0,  "magic": 100008, "deposit": 0.0, "breakeven_points": 0.0, "trail_points": 0.0, "enabled": true},
+    {"id": "s10", "name": "mean_revert_ema",   "strategy": "mean_revert_ema",   "symbol": "XAUUSDrfd", "timeframe": "H1", "volume": 0.05, "sl_points": 3000.0, "tp_points": 0.0,     "magic": 100009, "deposit": 0.0, "breakeven_points": 0.0, "trail_points": 0.0, "enabled": true},
+    {"id": "s11", "name": "ema50_pullback",    "strategy": "ema50_pullback",    "symbol": "XAUUSDrfd", "timeframe": "H1", "volume": 0.05, "sl_points": 3000.0, "tp_points": 0.0,     "magic": 100010, "deposit": 0.0, "breakeven_points": 0.0, "trail_points": 0.0, "enabled": true},
+    {"id": "s12", "name": "ema_triple_touch",  "strategy": "ema_triple_touch",  "symbol": "XAUUSDrfd", "timeframe": "H1", "volume": 0.05, "sl_points": 3000.0, "tp_points": 0.0,     "magic": 100011, "deposit": 0.0, "breakeven_points": 0.0, "trail_points": 0.0, "enabled": true},
+    {"id": "s13", "name": "market_phase",      "strategy": "market_phase",      "symbol": "XAUUSDrfd", "timeframe": "H1", "volume": 0.05, "sl_points": 3000.0, "tp_points": 0.0,     "magic": 100012, "deposit": 0.0, "breakeven_points": 0.0, "trail_points": 0.0, "enabled": true},
+    {"id": "s14", "name": "combined_a_plus",   "strategy": "combined_a_plus",   "symbol": "XAUUSDrfd", "timeframe": "H1", "volume": 0.05, "sl_points": 3000.0, "tp_points": 0.0,     "magic": 100013, "deposit": 0.0, "breakeven_points": 0.0, "trail_points": 0.0, "enabled": true},
+    {"id": "s15", "name": "ema50_rejection",   "strategy": "ema50_rejection",   "symbol": "XAUUSDrfd", "timeframe": "H1", "volume": 0.05, "sl_points": 3000.0, "tp_points": 9000.0,  "magic": 100014, "deposit": 0.0, "breakeven_points": 0.0, "trail_points": 0.0, "enabled": true},
+    {"id": "s16", "name": "ema50_overstretch", "strategy": "ema50_overstretch", "symbol": "XAUUSDrfd", "timeframe": "H1", "volume": 0.05, "sl_points": 3000.0, "tp_points": 9000.0,  "magic": 100015, "deposit": 0.0, "breakeven_points": 0.0, "trail_points": 0.0, "enabled": true}
+  ]
+}
