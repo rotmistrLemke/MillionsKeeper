@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, time as dtime
 from agents.base_agent import BaseAgent, AgentStatus
 from core.event_bus import EventBus
 from core.events import EventType, Event
+from signals import journal
 from trading_status import status
 
 
@@ -122,6 +123,19 @@ class ExecutionAgent(BaseAgent):
                 )
         return True, ""
 
+    def _reject(self, symbol, reason, *, signal=None, stream=None, detail=None) -> None:
+        """Пишет отказ в журнал сигналов. Журнал — диагностика: его поломка
+        не должна мешать торговле, поэтому ошибки гасим здесь же."""
+        self.metrics["rejected_today"] = self.metrics.get("rejected_today", 0) + 1
+        try:
+            journal.record(
+                symbol=symbol, reason=reason, signal=signal, detail=detail,
+                stream_id=getattr(stream, "id", None),
+                strategy=getattr(stream, "strategy", None),
+            )
+        except Exception as e:
+            self._logger.warning(f"Не удалось записать отказ {reason}: {e}")
+
     async def _on_signal(self, event: Event):
         await self._queue.put(("signal", event))
 
@@ -147,6 +161,8 @@ class ExecutionAgent(BaseAgent):
             await self.emit_status(AgentStatus.IDLE, f"{symbol}: NO_SIGNAL")
             return
         if status.is_disabled(symbol):
+            self._reject(symbol, journal.Reason.SYMBOL_DISABLED, signal=signal,
+                         detail="торговля по символу выключена")
             await self.emit_status(
                 AgentStatus.IDLE,
                 f"{symbol}: сигнал {signal} отброшен (символ выключен)"
@@ -155,11 +171,20 @@ class ExecutionAgent(BaseAgent):
 
         stream_id = p.get("stream_id")
         stream = streams_mod.registry.get(stream_id) if stream_id else streams_mod.registry.by_symbol_first(symbol)
-        if stream is None or not stream.enabled:
+        if stream is None:
+            self._reject(symbol, journal.Reason.NO_STREAM, signal=signal,
+                         detail=f"stream_id={stream_id or '—'}")
+            await self.emit_status(AgentStatus.IDLE, f"{symbol}: нет активного потока")
+            return
+        if not stream.enabled:
+            self._reject(symbol, journal.Reason.STREAM_DISABLED, signal=signal, stream=stream,
+                         detail=f"поток «{stream.name}» выключен")
             await self.emit_status(AgentStatus.IDLE, f"{symbol}: нет активного потока")
             return
 
         if streams_mod.registry.is_stream_open(stream.id):
+            self._reject(symbol, journal.Reason.STREAM_BUSY, signal=signal, stream=stream,
+                         detail=f"поток «{stream.name}» уже держит позицию")
             await self.emit_status(
                 AgentStatus.IDLE,
                 f"{symbol}: сигнал {signal} отброшен (поток «{stream.name}» уже открыт)"
@@ -168,11 +193,15 @@ class ExecutionAgent(BaseAgent):
 
         night_blocked, night_reason = self._is_night_block()
         if night_blocked:
+            self._reject(symbol, journal.Reason.NIGHT_BLOCK, signal=signal, stream=stream,
+                         detail=night_reason)
             await self.emit_status(AgentStatus.IDLE, f"{symbol}: {night_reason}")
             return
 
         allowed, reason = self._check_stream_drawdown(stream)
         if not allowed:
+            self._reject(symbol, journal.Reason.DRAWDOWN_BLOCK, signal=signal, stream=stream,
+                         detail=reason)
             await self.emit_status(AgentStatus.IDLE, f"{symbol} [{stream.name}]: {reason}")
             return
 
@@ -214,10 +243,15 @@ class ExecutionAgent(BaseAgent):
                                 "role": "H",
                             })
                         else:
+                            self._reject(symbol, journal.Reason.HEDGE_FAILED, signal=hedge_signal,
+                                         stream=stream,
+                                         detail=f"main {result.get('ticket')} остался без пары")
                             self._logger.error(
                                 f"Hedge leg failed {symbol} [{stream.name}] — main {result.get('ticket')} остался без пары"
                             )
                     except Exception as he:
+                        self._reject(symbol, journal.Reason.HEDGE_FAILED, signal=hedge_signal,
+                                     stream=stream, detail=str(he))
                         self._logger.error(f"Open hedge failed {symbol}: {he}")
                         await self.emit(EventType.ORDER_ERROR, {"symbol": symbol, "error": f"hedge:{he}"})
 
@@ -228,7 +262,12 @@ class ExecutionAgent(BaseAgent):
                     "reason": "order_opened",
                     "stream_id": stream.id,
                 })
+            else:
+                self._reject(symbol, journal.Reason.ORDER_FAILED, signal=signal, stream=stream,
+                             detail="ордер не открыт (отказ брокера или нет объёма)")
         except Exception as e:
+            self._reject(symbol, journal.Reason.ORDER_ERROR, signal=signal, stream=stream,
+                         detail=str(e))
             self._logger.error(f"Open order failed {symbol}: {e}")
             await self.emit(EventType.ORDER_ERROR, {"symbol": symbol, "error": str(e)})
 

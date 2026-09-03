@@ -7,6 +7,8 @@
 import sys
 import types
 
+import pytest
+
 
 def _install_mt5_stub() -> None:
     try:
@@ -47,3 +49,14 @@ def pytest_addoption(parser):
         default=False,
         help="Перезаписать golden-снимки текущим поведением вместо сравнения.",
     )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_signal_journal(tmp_path, monkeypatch):
+    """Журнал отказов в тестах пишется в tmp, а не в боевую signals/signals.db.
+
+    ExecutionAgent/IndicatorAgent пишут отказы прямо в ходе обычных тестов —
+    без этой изоляции прогон засорял рабочую БД строками вроде strategy='mystrat'.
+    """
+    from signals import journal
+    monkeypatch.setattr(journal, "_DEFAULT_DB", tmp_path / "signals.db")

@@ -25,6 +25,11 @@ task.out.log
 # Игнорировать кэш Python
 __pycache__/
 
+# Журнал отклонённых сигналов (создаётся локально)
+signals/signals.db
+signals/signals.db-wal
+signals/signals.db-shm
+
 # БД аномалий (создаётся локально)
 data/anomalies.db
 data/anomalies.db-wal

@@ -29,7 +29,7 @@ def _statuses(h):
 
 def _stub_calcs(h, recorder):
     """Подменяет оба calc-метода; пишет, какой позван, и возвращает маркер-dict."""
-    def strat(symbol, name, tf):
+    def strat(symbol, name, tf, stream_id=None):
         recorder.append(("strategy", symbol, name, tf))
         return {"symbol": symbol, "via": "strategy"}
     def default(symbol, tf):
@@ -357,3 +357,38 @@ async def test_calc_indicators_result_has_symbol_and_keys(indicator_agent_factor
     for k in ("signal_ma", "signal_critical_angle", "macd_signal", "rsi_signal",
               "rsi_value", "atr_value", "adx_value", "ema8", "ema21"):
         assert k in res
+
+
+# ── журнал отказов: флэт-фильтр ───────────────────────────────────────
+
+async def test_flat_bar_is_journaled(indicator_agent_factory, monkeypatch):
+    """Флэт-фильтр гасит 44% баров у cci_rsi/triple_ema/ema_pullback —
+    в бэктесте этого фильтра нет вовсе, поэтому отказ надо копить."""
+    import agents.indicator_agent as ia_mod
+    from signals.journal import Reason
+    calls = []
+    monkeypatch.setattr(ia_mod.journal, "record", lambda **kw: calls.append(kw))
+
+    h = indicator_agent_factory(
+        rates_df=make_bars_df(time=1_700_000_000, n=60),
+        runtime_strategy=make_indicator_strategy(flat=True, entry_signal="BUY"),
+    )
+    h.agent._calc_strategy("XAUUSD", "cci_rsi", 16385, "s4")
+
+    assert [c["reason"] for c in calls] == [Reason.FLAT]
+    assert calls[0]["strategy"] == "cci_rsi"
+    assert calls[0]["symbol"] == "XAUUSD"
+    assert calls[0]["stream_id"] == "s4"
+
+
+async def test_non_flat_bar_is_not_journaled(indicator_agent_factory, monkeypatch):
+    import agents.indicator_agent as ia_mod
+    calls = []
+    monkeypatch.setattr(ia_mod.journal, "record", lambda **kw: calls.append(kw))
+
+    h = indicator_agent_factory(
+        rates_df=make_bars_df(time=1_700_000_000, n=60),
+        runtime_strategy=make_indicator_strategy(flat=False, entry_signal="BUY"),
+    )
+    h.agent._calc_strategy("XAUUSD", "cci_rsi", 16385)
+    assert calls == []

@@ -2,6 +2,7 @@ import asyncio
 import pandas as pd
 
 from agents.base_agent import BaseAgent, AgentStatus
+from signals import journal
 from core.event_bus import EventBus
 from core.events import EventType, Event
 
@@ -53,7 +54,8 @@ class IndicatorAgent(BaseAgent):
             try:
                 if use_strategy:
                     result = await asyncio.get_event_loop().run_in_executor(
-                        None, self._calc_strategy, symbol, stream.strategy, int(stream.timeframe)
+                        None, self._calc_strategy, symbol, stream.strategy,
+                        int(stream.timeframe), stream.id
                     )
                 else:
                     result = await asyncio.get_event_loop().run_in_executor(
@@ -70,7 +72,8 @@ class IndicatorAgent(BaseAgent):
         if not had_error:
             await self.emit_status(AgentStatus.IDLE, f"Готово: {symbol}")
 
-    def _calc_strategy(self, symbol: str, strategy_name: str, tf: int) -> dict:
+    def _calc_strategy(self, symbol: str, strategy_name: str, tf: int,
+                       stream_id: str = None) -> dict:
         from market_data_cache import cache
         from strategies.runtime import get_runtime_strategy
 
@@ -90,6 +93,17 @@ class IndicatorAgent(BaseAgent):
 
         flat = bool(strategy.is_flat(row))
         signal = None if flat else strategy.get_entry_signal(row)
+        if flat:
+            # Флэт гасит бар до того, как сигнал вообще посчитан (сам сигнал
+            # не запрашиваем — get_entry_signal меняет состояние стратегии).
+            # Движок бэктеста этот фильтр не применяет, поэтому модельных
+            # входов заметно больше живых — копим отказ, чтобы разрыв был виден.
+            try:
+                journal.record(symbol=symbol, reason=journal.Reason.FLAT,
+                               strategy=strategy_name, stream_id=stream_id,
+                               detail="флэт-фильтр стратегии")
+            except Exception as e:
+                self._logger.warning(f"Не удалось записать отказ FLAT: {e}")
 
         # Собираем значения индикаторов последнего бара для UI
         ind_cols = list(strategy.indicator_columns()) + list(strategy.flat_indicator_columns())
