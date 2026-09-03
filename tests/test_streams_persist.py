@@ -154,20 +154,26 @@ def test_reference_config_is_loadable_and_consistent():
 
 # ── зафиксированные решения по потокам ────────────────────────────────
 
-def test_losing_strategies_stay_disabled_in_reference():
-    """Три потока отключены 03.09.2026: убыточны и на счёте, и в годовой модели.
+def test_active_portfolio_stays_seven_streams():
+    """Состав из 7 потоков зафиксирован 03.09.2026 портфельным отбором.
 
-    ema50_rejection: август −1121 (0 побед из 7), год PF 0.79.
-    ema50_overstretch: август −900 (WR 14%), год PF 0.98.
-    ema_triple_touch: август −251 (0 побед из 3), год PF 0.47.
+    Шесть стратегий с плюсом в каждом из пяти кварталов (ema_cross, cci_rsi,
+    aroon, triple_ema, market_phase, combined_a_plus) плюс контртрендовая
+    ema50_overstretch: сама убыточна (−198 за год), но отрицательно
+    коррелирует с остальными и срезает просадку портфеля с 6579 до 5814.
 
-    Тест не запрещает менять решение — он требует делать это осознанно,
+    Отбор по величине прибыли отвергнут: walk-forward по кварталам дал
+    15259 против 28082 у «держать всё», корреляция прибыли между половинами
+    года −0.20. Тест не запрещает менять состав — он требует делать это
     вместе с обоснованием в шапке эталона.
     """
     import streams
     data = json.loads(streams._REFERENCE_FILE.read_text(encoding="utf-8"))
-    disabled = {s["strategy"] for s in data["streams"] if not s["enabled"]}
-    assert disabled == {"ema50_rejection", "ema50_overstretch", "ema_triple_touch"}
+    active = {s["strategy"] for s in data["streams"] if s["enabled"]}
+    assert active == {
+        "ema_cross", "cci_rsi", "aroon", "triple_ema",
+        "market_phase", "combined_a_plus", "ema50_overstretch",
+    }
 
 
 def test_disabled_streams_are_excluded_from_trading():
@@ -178,7 +184,7 @@ def test_disabled_streams_are_excluded_from_trading():
         json.loads(streams._REFERENCE_FILE.read_text(encoding="utf-8"))["streams"])
 
     enabled_ids = {s.id for s in registry.enabled()}
-    assert {"s12", "s15", "s16"}.isdisjoint(enabled_ids)
-    assert len(enabled_ids) == len(registry.all()) - 3
+    assert enabled_ids == {"s3", "s4", "s6", "s9", "s13", "s14", "s16"}
+    assert len(enabled_ids) == len(registry.all()) - 7
     # Символ остаётся в работе — на нём есть другие включённые потоки.
     assert {s.symbol for s in registry.enabled()} == {"XAUUSDrfd"}
