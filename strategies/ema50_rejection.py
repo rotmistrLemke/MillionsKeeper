@@ -128,6 +128,9 @@ class Ema50RejectionStrategy(BaseStrategy):
                  else (price - self.tp_atr_mult * atr)
         return sl, tp
 
+    def state_fields(self) -> list:
+        return ['_waiting_side']
+
     def on_trade_closed(self, position: dict, reason: str) -> None:
         # После закрытия позиции ждём новый цикл откат-ретест с нуля.
         self._waiting_side = None

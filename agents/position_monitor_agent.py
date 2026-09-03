@@ -84,12 +84,16 @@ class PositionMonitorAgent(BaseAgent):
         """
         import streams as streams_mod
         from strategies import STRATEGIES
-        from strategies.runtime import get_runtime_strategy
+        from strategies.runtime import get_runtime_strategy, save_runtime_state
 
         symbol = prev_pos["symbol"]
         stream = streams_mod.registry.by_magic(prev_pos.get("magic"))
         if stream is None:
-            stream = streams_mod.registry.by_symbol_first(symbol)
+            # Фолбэк по символу допустим, только пока поток на символе один
+            # (legacy-позиции без magic). При нескольких потоках угадывание
+            # ставит блокировку и сбрасывает OPEN чужой стратегии.
+            same_symbol = streams_mod.registry.by_symbol(symbol)
+            stream = same_symbol[0] if len(same_symbol) == 1 else None
 
         reason = await asyncio.get_event_loop().run_in_executor(
             None, self._classify_close_reason, prev_pos["ticket"]
@@ -123,15 +127,51 @@ class PositionMonitorAgent(BaseAgent):
                 "stream_id": stream.id,
             })
 
-        if stream is not None and stream.strategy in STRATEGIES:
+        # Журнал закрытия: без него молчаливо ломающаяся блокировка
+        # переоткрытия не видна вообще (август 2026 — серии из 6–9 стопов).
+        if stream is None:
+            self._logger.warning(
+                f"Закрытие #{prev_pos['ticket']} {symbol} {prev_pos['type']} "
+                f"reason={reason}: поток по magic={prev_pos.get('magic')} не найден — "
+                f"хук стратегии не вызван, блокировка переоткрытия не выставлена"
+            )
+        elif stream.strategy in STRATEGIES:
+            strategy = None
             try:
                 strategy = get_runtime_strategy(stream.strategy, symbol)
+                before = self._safe_state(strategy)
                 strategy.on_trade_closed(
                     {"type": prev_pos["type"], "entry_price": prev_pos["open_price"]},
                     reason,
                 )
+                after = self._safe_state(strategy)
+                self._logger.info(
+                    f"Закрытие #{prev_pos['ticket']} {symbol} {prev_pos['type']} "
+                    f"[{stream.id}/{stream.strategy}] reason={reason}: "
+                    f"состояние {before} → {after}"
+                )
             except Exception as e:
                 self._logger.warning(f"on_trade_closed hook failed: {e}")
+            # Сохраняем даже после падения хука: состояние могло измениться
+            # частично, и лучше записать его, чем потерять при рестарте.
+            if strategy is not None:
+                try:
+                    save_runtime_state(stream.strategy, symbol)
+                except Exception as e:
+                    self._logger.warning(f"save_runtime_state failed: {e}")
+        else:
+            self._logger.info(
+                f"Закрытие #{prev_pos['ticket']} {symbol} {prev_pos['type']} "
+                f"[{stream.id}/{stream.strategy}] reason={reason}: legacy-стратегия, состояния нет"
+            )
+
+    @staticmethod
+    def _safe_state(strategy) -> dict:
+        """Состояние стратегии для журнала. Диагностика не должна ронять хук."""
+        try:
+            return strategy.state_dict()
+        except Exception:
+            return {}
 
     def _apply_trailing_sl(self, pos: dict) -> None:
         """Синхронно пересчитывает breakeven + trailing SL для позиции потока
@@ -208,6 +248,15 @@ class PositionMonitorAgent(BaseAgent):
         except Exception as e:
             self._logger.warning(f"modifySL failed {symbol}/{ticket}: {e}")
 
+    # DEAL_REASON_* → причина закрытия. Код сделки надёжнее комментария:
+    # текст брокера может смениться, а «sl» встречается прямо в комментариях
+    # потоков (s16:ema50_overstretch).
+    _DEAL_REASON_MAP = {
+        3: "SIGNAL",   # DEAL_REASON_EXPERT — закрыл советник
+        4: "SL",       # DEAL_REASON_SL
+        5: "TP",       # DEAL_REASON_TP
+    }
+
     def _classify_close_reason(self, ticket: int) -> str:
         """Определяет причину закрытия по MT5 history_deals.
         Возвращает 'SL' | 'TP' | 'SIGNAL' | 'MANUAL'.
@@ -222,6 +271,10 @@ class PositionMonitorAgent(BaseAgent):
                 return "MANUAL"
             # Последняя сделка по позиции — закрывающая
             closing = deals[-1]
+            code = getattr(closing, "reason", None)
+            if code is not None:
+                return self._DEAL_REASON_MAP.get(int(code), "MANUAL")
+            # Фолбэк для сборок MT5-пакета без deal.reason.
             comment = (closing.comment or "").lower()
             if "sl" in comment or "stop loss" in comment:
                 return "SL"

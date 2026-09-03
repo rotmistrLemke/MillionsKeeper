@@ -165,6 +165,9 @@ class EmaTripleTouchStrategy(BaseStrategy):
     def uses_trailing_exit(self) -> bool:
         return True
 
+    def state_fields(self) -> list:
+        return ['_cross_side', '_touch_count', '_counted_dip']
+
     def on_trade_closed(self, position: dict, reason: str) -> None:
         # После выхода по EMA50 зона уже «обслужена» — ждём нового пересечения,
         # прежде чем снова накапливать тесты.

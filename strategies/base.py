@@ -130,6 +130,30 @@ class BaseStrategy(ABC):
         """
         pass
 
+    # ── Состояние между барами (переживает рестарт) ──────────────────
+    # Внутреннее состояние стратегии (блокировка стороны после стопа,
+    # счётчик касаний зоны) живёт в singleton-экземпляре из
+    # strategies.runtime и до слайса «персист состояния» терялось при
+    # каждом рестарте — стратегия заходила в ту же сторону сразу после
+    # SL. Поля, перечисленные здесь, сохраняются на диск и поднимаются
+    # при следующем старте.
+
+    def state_fields(self) -> list:
+        """Имена атрибутов, составляющих состояние стратегии. По умолчанию — нет."""
+        return []
+
+    def state_dict(self) -> dict:
+        """Состояние для персиста. Только JSON-совместимые значения."""
+        return {f: getattr(self, f) for f in self.state_fields() if hasattr(self, f)}
+
+    def load_state(self, state: dict) -> None:
+        """Восстанавливает состояние. Незнакомые поля игнорируются."""
+        if not isinstance(state, dict):
+            return
+        for f in self.state_fields():
+            if f in state:
+                setattr(self, f, state[f])
+
     def indicator_columns(self) -> list:
         """Список колонок индикаторов для сохранения в результатах."""
         return []

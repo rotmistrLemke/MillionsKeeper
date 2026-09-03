@@ -65,6 +65,9 @@ class EmaCrossStrategy(BaseStrategy):
         self._blocked_side = None
         return desired
 
+    def state_fields(self) -> list:
+        return ['_blocked_side']
+
     def on_trade_closed(self, position: dict, reason: str) -> None:
         if reason in ('TP', 'SL'):
             self._blocked_side = position.get('type')

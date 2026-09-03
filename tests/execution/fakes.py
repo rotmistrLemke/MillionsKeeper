@@ -146,10 +146,17 @@ def make_position(fm, *, ticket=555, type=None, volume=0.1, magic=777, tp=1950.0
     )
 
 
-def make_deal(*, magic=777, profit=0.0, commission=0.0, swap=0.0, comment=""):
-    """Фейковый закрытый deal MT5 (для history_deals_get)."""
-    return SimpleNamespace(magic=magic, profit=profit, commission=commission,
+def make_deal(*, magic=777, profit=0.0, commission=0.0, swap=0.0, comment="",
+              reason=None):
+    """Фейковый закрытый deal MT5 (для history_deals_get).
+
+    reason — код DEAL_REASON_* (4=SL, 5=TP, 3=EXPERT). None имитирует сборку
+    MT5-пакета без этого поля: тогда причина определяется по комментарию."""
+    deal = SimpleNamespace(magic=magic, profit=profit, commission=commission,
                            swap=swap, comment=comment)
+    if reason is not None:
+        deal.reason = reason
+    return deal
 
 
 def make_stream(*, id="s1", name="Stream-1", strategy="default", symbol="XAUUSD",
