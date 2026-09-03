@@ -150,3 +150,35 @@ def test_reference_config_is_loadable_and_consistent():
 
     from strategies import STRATEGIES
     assert {s.strategy for s in loaded} <= set(STRATEGIES), "неизвестная стратегия в эталоне"
+
+
+# ── зафиксированные решения по потокам ────────────────────────────────
+
+def test_losing_strategies_stay_disabled_in_reference():
+    """Три потока отключены 03.09.2026: убыточны и на счёте, и в годовой модели.
+
+    ema50_rejection: август −1121 (0 побед из 7), год PF 0.79.
+    ema50_overstretch: август −900 (WR 14%), год PF 0.98.
+    ema_triple_touch: август −251 (0 побед из 3), год PF 0.47.
+
+    Тест не запрещает менять решение — он требует делать это осознанно,
+    вместе с обоснованием в шапке эталона.
+    """
+    import streams
+    data = json.loads(streams._REFERENCE_FILE.read_text(encoding="utf-8"))
+    disabled = {s["strategy"] for s in data["streams"] if not s["enabled"]}
+    assert disabled == {"ema50_rejection", "ema50_overstretch", "ema_triple_touch"}
+
+
+def test_disabled_streams_are_excluded_from_trading():
+    """Выключенный поток не попадает ни в enabled(), ни в подписку на бары."""
+    import streams
+    registry = streams.StreamRegistry()
+    registry._load_raw_locked(
+        json.loads(streams._REFERENCE_FILE.read_text(encoding="utf-8"))["streams"])
+
+    enabled_ids = {s.id for s in registry.enabled()}
+    assert {"s12", "s15", "s16"}.isdisjoint(enabled_ids)
+    assert len(enabled_ids) == len(registry.all()) - 3
+    # Символ остаётся в работе — на нём есть другие включённые потоки.
+    assert {s.symbol for s in registry.enabled()} == {"XAUUSDrfd"}
