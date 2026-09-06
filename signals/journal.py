@@ -48,6 +48,8 @@ class Reason:
     STREAM_BUSY     = "STREAM_BUSY"      # у потока уже есть открытая позиция
     NIGHT_BLOCK     = "NIGHT_BLOCK"      # ночное окно 23:50–05:00
     DRAWDOWN_BLOCK  = "DRAWDOWN_BLOCK"   # просадка потока > порога
+    PORTFOLIO_LIMIT = "PORTFOLIO_LIMIT"  # достигнут лимит одновременных позиций
+    PORTFOLIO_DRAWDOWN = "PORTFOLIO_DRAWDOWN"  # портфельный стоп по просадке счёта
     ORDER_FAILED    = "ORDER_FAILED"     # ордер не открылся (брокер отказал)
     ORDER_ERROR     = "ORDER_ERROR"      # исключение при отправке ордера
     HEDGE_FAILED    = "HEDGE_FAILED"     # основная нога открыта, хедж — нет

@@ -60,3 +60,22 @@ def _isolate_signal_journal(tmp_path, monkeypatch):
     """
     from signals import journal
     monkeypatch.setattr(journal, "_DEFAULT_DB", tmp_path / "signals.db")
+
+
+@pytest.fixture(autouse=True)
+def _isolate_portfolio_guard(tmp_path, monkeypatch):
+    """Портфельный страж в тестах — свой, с выключенными лимитами и состоянием
+    в tmp.
+
+    Боевой `portfolio.guard` создаётся на импорте модуля и читает
+    config/portfolio.json. Без изоляции любой тест ExecutionAgent начинал
+    писать пик equity в portfolio_state.json репозитория, а боевые лимиты
+    молча меняли поведение чужих тестов. Тесты самого стража подменяют
+    guard своим экземпляром поверх этой фикстуры.
+    """
+    import portfolio
+    monkeypatch.setattr(
+        portfolio, "guard",
+        portfolio.PortfolioGuard(portfolio.PortfolioLimits(),
+                                 state_path=tmp_path / "portfolio_state.json"),
+    )

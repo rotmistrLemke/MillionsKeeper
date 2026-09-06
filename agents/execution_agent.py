@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta, time as dtime
 
+import portfolio
 from agents.base_agent import BaseAgent, AgentStatus
 from core.event_bus import EventBus
 from core.events import EventType, Event
@@ -123,6 +124,30 @@ class ExecutionAgent(BaseAgent):
                 )
         return True, ""
 
+    @staticmethod
+    def _account_equity():
+        """Equity счёта целиком. None, если терминал не ответил, — портфельный
+        стоп трактует это как «нет данных», а не как просадку."""
+        import MetaTrader5 as mt5
+        try:
+            info = mt5.account_info()
+        except Exception:
+            return None
+        return getattr(info, "equity", None) if info is not None else None
+
+    def _check_portfolio(self, open_count: int) -> tuple[bool, str, str]:
+        """Портфельные ограничения. (allowed, reason_code, detail).
+
+        Стоп по просадке проверяется первым: он говорит «система в убытке
+        и остановлена», и это важнее, чем «слот занят»."""
+        allowed, detail = portfolio.guard.check_drawdown(self._account_equity())
+        if not allowed:
+            return False, journal.Reason.PORTFOLIO_DRAWDOWN, detail
+        allowed, detail = portfolio.guard.check_positions(open_count)
+        if not allowed:
+            return False, journal.Reason.PORTFOLIO_LIMIT, detail
+        return True, "", ""
+
     def _reject(self, symbol, reason, *, signal=None, stream=None, detail=None) -> None:
         """Пишет отказ в журнал сигналов. Журнал — диагностика: его поломка
         не должна мешать торговле, поэтому ошибки гасим здесь же."""
@@ -189,6 +214,13 @@ class ExecutionAgent(BaseAgent):
                 AgentStatus.IDLE,
                 f"{symbol}: сигнал {signal} отброшен (поток «{stream.name}» уже открыт)"
             )
+            return
+
+        allowed, reason_code, detail = self._check_portfolio(
+            streams_mod.registry.open_count())
+        if not allowed:
+            self._reject(symbol, reason_code, signal=signal, stream=stream, detail=detail)
+            await self.emit_status(AgentStatus.IDLE, f"{symbol} [{stream.name}]: {detail}")
             return
 
         night_blocked, night_reason = self._is_night_block()

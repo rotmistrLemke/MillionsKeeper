@@ -74,6 +74,11 @@ class StreamRegistry:
         with self._lock:
             self._open_streams.discard(stream_id)
 
+    def open_count(self) -> int:
+        """Сколько потоков сейчас держат позицию — основа портфельного лимита."""
+        with self._lock:
+            return len(self._open_streams)
+
     # ── Read ──────────────────────────────────────────────────────────
     def all(self) -> list[TradingStream]:
         with self._lock:

@@ -96,3 +96,31 @@ def test_existing_magic_preserved_on_load(clean_registry):
         streams.registry._load_raw_locked(saved)
     by_id = {s.id: s.magic for s in streams.registry.all()}
     assert by_id == {"s1": streams.MAGIC_BASE, "s2": streams.MAGIC_BASE + 9}
+
+
+# ── open_count: основа портфельного лимита позиций ───────────────────
+# Лимит «не более N одновременных позиций» считает открытые ПОТОКИ, а не
+# позиции MT5: хедж-нога живёт под тем же magic и не должна удваивать счёт.
+
+def test_open_count_is_zero_when_nothing_open(clean_registry):
+    streams = clean_registry
+    _make_two_on_same_symbol(streams)
+    assert streams.registry.open_count() == 0
+
+
+def test_open_count_counts_each_open_stream(clean_registry):
+    streams = clean_registry
+    a, b = _make_two_on_same_symbol(streams)
+    streams.registry.mark_stream_open(a.id)
+    assert streams.registry.open_count() == 1
+    streams.registry.mark_stream_open(b.id)
+    assert streams.registry.open_count() == 2
+
+
+def test_open_count_drops_when_stream_closes(clean_registry):
+    streams = clean_registry
+    a, b = _make_two_on_same_symbol(streams)
+    streams.registry.mark_stream_open(a.id)
+    streams.registry.mark_stream_open(b.id)
+    streams.registry.mark_stream_closed(a.id)
+    assert streams.registry.open_count() == 1

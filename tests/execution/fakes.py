@@ -31,6 +31,7 @@ class FakeMT5:
         self._result = "default"             # "default" → построить успешный результат
         self._error = (1, "fake error")
         self.terminal = SimpleNamespace(connected=True)   # terminal_info(); None → disconnected
+        self.equity = 10_000.0               # account_info().equity; None → терминал не ответил
 
     # --- настройка из тестов ---
     def set_result(self, retcode=None, order=12345, price=0.0):
@@ -75,6 +76,11 @@ class FakeMT5:
 
     def terminal_info(self):
         return self.terminal
+
+    def account_info(self):
+        if self.equity is None:
+            return None
+        return SimpleNamespace(equity=self.equity)
 
     def symbol_select(self, symbol, enable=True):
         self.selected.append((symbol, enable))
@@ -247,6 +253,9 @@ class FakeRegistry:
 
     def mark_stream_closed(self, stream_id):
         self._open_streams.discard(stream_id)
+
+    def open_count(self):
+        return len(self._open_streams)
 
 
 class FakeTrading:
