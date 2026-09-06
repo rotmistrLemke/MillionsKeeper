@@ -1,7 +1,7 @@
 # Второй контур — семь потоков на отдельном VPS
 
 **Дата:** 2026-09-06
-**Ветка:** `test/seven-streams-vps`
+**Ветка:** `contour/seven-streams-vps`
 **Статус:** конфиг готов, счёт не заведён
 
 ## Зачем
@@ -18,7 +18,7 @@
 
 | | основной | второй |
 |---|---|---|
-| ветка | `fix/streams-config-and-execution` | `test/seven-streams-vps` |
+| ветка | `fix/streams-config-and-execution` | `contour/seven-streams-vps` |
 | счёт | 1100137867, 1964 $ | отдельный, от 5000 $ |
 | потоков активно | 3 | 7 |
 | лот | 0.01 | 0.01 |
