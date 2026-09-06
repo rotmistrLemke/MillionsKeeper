@@ -226,3 +226,63 @@ def test_default_guard_in_tests_has_limits_off():
     """Иначе боевой config/portfolio.json начинает влиять на чужие тесты."""
     assert portfolio.guard.limits.max_open_positions == 0
     assert portfolio.guard.limits.max_drawdown == 0.0
+
+
+# ── Предполётная сверка депозита ─────────────────────────────────────
+# Контуров теперь два: три потока под 1964 $ и семь под 5000 $, каждый в
+# своей ветке со своим config/. Перепутанная ветка на счёте — ошибка того же
+# рода, что перепутанный счёт в терминале: тихая и дорогая. Проверка счёта
+# в authenticator ловит не тот счёт, эта — не тот конфиг на правильном счёте.
+
+def test_matching_deposit_passes(tmp_path):
+    g = _guard(tmp_path, deposit=2000.0)
+    ok, detail = g.check_deposit(1964.02)
+    assert ok is True and detail == ""
+
+
+def test_deposit_far_above_equity_is_refused(tmp_path):
+    # Конфиг семи потоков (5000) на счёте основного контура (1964).
+    g = _guard(tmp_path, deposit=5000.0)
+    ok, detail = g.check_deposit(1964.02)
+    assert ok is False
+    assert "5000" in detail and "1964" in detail
+
+
+def test_equity_above_deposit_is_fine(tmp_path):
+    # Счёт вырос или пополнен — это не повод отказываться стартовать.
+    g = _guard(tmp_path, deposit=2000.0)
+    assert g.check_deposit(9000.0)[0] is True
+
+
+def test_modest_shortfall_is_tolerated(tmp_path):
+    # Часть депозита уже потеряна в просадке — это рабочая ситуация,
+    # а не признак перепутанного конфига.
+    g = _guard(tmp_path, deposit=2000.0)
+    assert g.check_deposit(1450.0)[0] is True
+
+
+def test_check_is_skipped_when_deposit_not_configured(tmp_path):
+    g = _guard(tmp_path, deposit=0.0)
+    assert g.check_deposit(50.0)[0] is True
+
+
+def test_unknown_equity_does_not_block_startup(tmp_path):
+    g = _guard(tmp_path, deposit=5000.0)
+    assert g.check_deposit(None)[0] is True
+
+
+def test_startup_refuses_a_foreign_contour_config(tmp_path, monkeypatch):
+    """Старт с чужим конфигом останавливается, а не логируется и продолжается:
+    торговать неверными размерами хуже, чем не торговать вовсе. Чинится
+    правкой одной строки в config/portfolio.json."""
+    g = _guard(tmp_path, deposit=5000.0)
+    monkeypatch.setattr(portfolio, "guard", g)
+    with pytest.raises(SystemExit) as e:
+        portfolio.assert_deposit_matches(1964.02)
+    assert "5000" in str(e.value)
+
+
+def test_startup_proceeds_on_a_matching_account(tmp_path, monkeypatch):
+    g = _guard(tmp_path, deposit=5000.0)
+    monkeypatch.setattr(portfolio, "guard", g)
+    portfolio.assert_deposit_matches(5200.0)   # не бросает

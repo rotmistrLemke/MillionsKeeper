@@ -46,6 +46,11 @@ async def main():
     mt5_auth = MT5Auth(acc_module.Account.account)
     mt5_auth.login()
 
+    # Счёт подтверждён — теперь сверяем, тот ли конфиг контура на нём запущен.
+    import portfolio
+    info = mt5.account_info()
+    portfolio.assert_deposit_matches(getattr(info, "equity", None) if info else None)
+
     # ── EventBus ─────────────────────────────────────────────────
     from core.event_bus import bus
 
