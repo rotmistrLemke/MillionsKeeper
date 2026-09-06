@@ -85,6 +85,21 @@
   <!-- ── Main ── -->
   <div class="main">
 
+    <!-- Портфельный стоп по просадке. Скрыт, пока просадка далека от порога;
+         жёлтый на подходе, красный после остановки торговли. -->
+    <div id="pf-banner" class="pf-banner" hidden>
+      <svg class="pf-banner-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 3l9 16H3l9-16z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M12 10v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="12" cy="17" r="1.1" fill="currentColor"/>
+      </svg>
+      <div class="pf-banner-body">
+        <div class="pf-banner-title" id="pf-banner-title"></div>
+        <div class="pf-banner-text" id="pf-banner-text"></div>
+      </div>
+      <code class="pf-banner-cmd" id="pf-banner-cmd" hidden>python -m portfolio resume</code>
+    </div>
+
     <!-- Tabs -->
     <div class="tabs">
       <div class="tab active" data-tab="positions"><svg class="tab-icon"><use href="#i-trade"/></svg><span>Торговля</span></div>

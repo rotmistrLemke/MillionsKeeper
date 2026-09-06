@@ -82,6 +82,49 @@ async def get_account(user: auth.UserRecord = Depends(get_current_user)):
         return {"error": str(e)}
 
 
+# ──────────────────────────── Portfolio ───────────────────────────
+
+@router.get("/portfolio")
+async def get_portfolio(user: auth.UserRecord = Depends(get_current_user)):
+    """Портфельные ограничения и текущая просадка — для баннера на дашборде.
+
+    Только чтение: просмотр страницы не должен двигать пик equity и тем
+    более включать стоп. Считаем просадку здесь, а не через guard.
+    """
+    import portfolio
+    import streams as streams_mod
+    from market_data_cache import cache
+
+    guard = portfolio.guard
+    try:
+        info = cache.get_account_info()
+        equity = float(info.equity) if info is not None else None
+    except Exception:
+        equity = None
+
+    drawdown = None
+    if equity is not None and guard.peak > 0:
+        drawdown = max(0.0, (guard.peak - equity) / guard.peak)
+
+    try:
+        open_count = streams_mod.registry.open_count()
+    except Exception:
+        open_count = 0
+
+    return {
+        "max_open_positions": guard.limits.max_open_positions,
+        "max_drawdown": guard.limits.max_drawdown,
+        "deposit": guard.limits.deposit,
+        "peak": guard.peak,
+        "equity": equity,
+        "drawdown": drawdown,
+        "open_count": open_count,
+        "blocked": guard.blocked,
+        "blocked_at": guard.blocked_at,
+        "detail": guard.blocked_detail,
+    }
+
+
 # ──────────────────────────── Positions ───────────────────────────
 
 @router.get("/positions")

@@ -3604,6 +3604,10 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch {}
   }, 15000);
 
+  // Портфельный стоп: состояние на баннере
+  loadPortfolio();
+  setInterval(loadPortfolio, 15000);
+
   // Fetch positions periodically
   setInterval(async () => {
     try {
@@ -3620,6 +3624,57 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initial tab
   switchTab('positions');
 });
+
+// ─── Портфельный стоп по просадке ─────────────────────────────────
+// Стоп не снимается сам и никуда не пишет, кроме лога и журнала: без
+// баннера остановленная торговля выглядит как торговля без сигналов.
+// Жёлтый показываем заранее — на трёх четвертях пути до порога.
+const PF_WARN_SHARE = 0.75;
+
+// Имя с префиксом: в файле уже шесть локальных `const pct` в других функциях.
+function pfPct(x) { return (x * 100).toFixed(1).replace('.', ',') + ' %'; }
+
+function renderPortfolio(d) {
+  const el = document.getElementById('pf-banner');
+  if (!el) return;
+  const title = document.getElementById('pf-banner-title');
+  const text  = document.getElementById('pf-banner-text');
+  const cmd   = document.getElementById('pf-banner-cmd');
+
+  el.classList.remove('pf-banner--stop', 'pf-banner--warn');
+
+  if (d && d.blocked) {
+    el.classList.add('pf-banner--stop');
+    title.textContent = 'Торговля остановлена' + (d.blocked_at ? ' · ' + d.blocked_at : '');
+    text.textContent = d.detail || 'Портфельный стоп по просадке сработал.';
+    cmd.hidden = false;
+    el.hidden = false;
+    return;
+  }
+
+  const near = d && d.max_drawdown > 0 && d.drawdown !== null
+    && d.drawdown >= d.max_drawdown * PF_WARN_SHARE;
+  if (near) {
+    el.classList.add('pf-banner--warn');
+    title.textContent = 'Просадка подходит к стопу';
+    text.textContent =
+      'Сейчас ' + pfPct(d.drawdown) + ' от пика ' + Math.round(d.peak) +
+      ' $. На ' + pfPct(d.max_drawdown) + ' новые входы остановятся.';
+    cmd.hidden = true;
+    el.hidden = false;
+    return;
+  }
+
+  cmd.hidden = true;
+  el.hidden = true;
+}
+
+async function loadPortfolio() {
+  try {
+    const r = await fetch('/api/portfolio');
+    renderPortfolio(await r.json());
+  } catch {}
+}
 
 // ─── Anomalies module ─────────────────────────────────────────────
 const Anomalies = (() => {
