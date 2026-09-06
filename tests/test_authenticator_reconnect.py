@@ -3,12 +3,14 @@ import types
 from types import SimpleNamespace
 
 
-def _fake_mt5(*, init_ok=True, login_ok=True):
+def _fake_mt5(*, init_ok=True, login_ok=True, connected_login=1):
     m = types.ModuleType("MetaTrader5")
     m.initialize = lambda **kw: init_ok
     m.login = lambda **kw: login_ok
     m.last_error = lambda: "fake error"
     m.shutdown = lambda: None
+    # login() сверяет фактически подключённый счёт с конфигом.
+    m.account_info = lambda: SimpleNamespace(login=connected_login)
     return m
 
 
@@ -38,4 +40,15 @@ def test_reconnect_initialize_fails_no_raise(monkeypatch):
     import authenticator
     bad = _fake_mt5(init_ok=False, login_ok=True)
     monkeypatch.setattr(authenticator, "mt5", bad)
+    assert auth.reconnect() is False
+
+
+def test_reconnect_refuses_a_different_account(monkeypatch):
+    """Реконнект, попавший в чужой счёт, — это неудачный реконнект,
+    а не «подключились и торгуем»."""
+    fake = _fake_mt5(init_ok=True, login_ok=True, connected_login=1)
+    auth = _make_auth(monkeypatch, fake)
+    import authenticator
+    monkeypatch.setattr(authenticator, "mt5",
+                        _fake_mt5(init_ok=True, login_ok=True, connected_login=999))
     assert auth.reconnect() is False

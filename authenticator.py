@@ -32,11 +32,14 @@ class MT5Auth:
         kwargs = {}
         if path:
             kwargs["path"] = path
-            # Передаём креды в initialize — initialize сам залогинит.
-            if self.account.get("login"):
-                kwargs["login"]    = self.account["login"]
-                kwargs["password"] = self.account["password"]
-                kwargs["server"]   = self.account["server"]
+        # Креды передаём ВСЕГДА, а не только вместе с path. Без них
+        # initialize() подключается к тому счёту, который открыт в терминале,
+        # — то есть к произвольному. Пустой login означает «подключиться к
+        # текущей сессии терминала» и используется бэктест-утилитами.
+        if self.account.get("login"):
+            kwargs["login"]    = self.account["login"]
+            kwargs["password"] = self.account["password"]
+            kwargs["server"]   = self.account["server"]
 
         if not mt5.initialize(**kwargs):
             error_msg = f"Ошибка инициализации MT5: {mt5.last_error()}"
@@ -46,28 +49,61 @@ class MT5Auth:
         # Если креды передали в initialize — login() ниже всё равно
         # отработает (это no-op при уже активной сессии), полезно для логов.
 
+    def _verify_account(self) -> None:
+        """Сверяет фактически подключённый счёт с указанным в конфиге.
+
+        Несовпадение означает торговлю чужим депозитом чужими параметрами —
+        ошибка, которую нельзя ни залогировать и продолжить, ни повторить.
+        """
+        expected = self.account.get("login")
+        if not expected:
+            return  # подключение к текущей сессии терминала — сверять не с чем
+        info = mt5.account_info()
+        if info is None:
+            raise ConnectionError(
+                "Не удалось прочитать account_info — подключённый счёт "
+                "не подтверждён. Торговля вслепую не начинается."
+            )
+        actual = getattr(info, "login", None)
+        if actual != expected:
+            raise ConnectionError(
+                f"Подключён счёт {actual}, а в конфиге {expected}. "
+                f"Проверьте MT5_LOGIN в .env и счёт, открытый в терминале."
+            )
+
     def login(self):
-        """Выполнение авторизации."""
+        """Выполнение авторизации.
+
+        Кидает ConnectionError, если подключение ушло не в тот счёт: вызов
+        в main.py результат не проверяет, поэтому «вернуть False» здесь
+        означало бы молча торговать чужим счётом.
+        """
         try:
             # Если initialize уже залогинил — повторный login() это просто
             # подтверждение текущей сессии, безопасно.
-            self.authorized = mt5.login(
+            authorized = mt5.login(
                 login=self.account["login"],
                 password=self.account["password"],
                 server=self.account["server"]
             )
 
-            if self.authorized:
-                print("Успешная авторизация в MT5")
-            else:
-                error_msg = f"Ошибка авторизации: {mt5.last_error()}"
-                print(error_msg)
+            if not authorized:
+                self.authorized = False
+                print(f"Ошибка авторизации: {mt5.last_error()}")
+                return False
 
-            return self.authorized
+            self._verify_account()
+            self.authorized = True
+            print(f"Успешная авторизация в MT5, счёт {self.account['login']}")
+            return True
 
+        except ConnectionError:
+            self.authorized = False
+            raise
         except Exception as e:
-            error_msg = f"Ошибка при авторизации: {str(e)}"
-            print(error_msg)
+            self.authorized = False
+            print(f"Ошибка при авторизации: {str(e)}")
+            return False
 
     def reconnect(self) -> bool:
         """Повторная инициализация + логин (для ConnectionAgent). Не кидает; True при успехе."""
