@@ -207,6 +207,32 @@ class PortfolioGuard:
             return False, self.blocked_detail
         return True, ""
 
+    # ── Предполётная сверка депозита ─────────────────────────────────
+    # Ниже этой доли от заявленного депозита конфиг считается чужим:
+    # просадка такой глубины сама включила бы стоп задолго до неё.
+    DEPOSIT_MISMATCH_SHARE = 0.5
+
+    def check_deposit(self, equity) -> tuple[bool, str]:
+        """Сверяет заявленный депозит с фактическим equity счёта.
+
+        Контуров несколько, у каждого свой config/ в своей ветке. Конфиг
+        семи потоков под 5000 $, попавший на счёт в 1964 $, — ошибка того же
+        рода, что чужой счёт в терминале: торговля пойдёт, просто размеры
+        и лимиты будут рассчитаны не на этот депозит.
+        """
+        if self.limits.deposit <= 0:
+            return True, ""
+        if isinstance(equity, bool) or not isinstance(equity, (int, float)):
+            return True, ""   # equity не прочитан — это не повод не стартовать
+        equity = float(equity)
+        if equity >= self.limits.deposit * self.DEPOSIT_MISMATCH_SHARE:
+            return True, ""
+        return False, (
+            f"конфиг рассчитан на депозит {self.limits.deposit:.0f}, "
+            f"а на счёте {equity:.0f} — похоже, запущен конфиг другого контура. "
+            f"Проверьте ветку, config/portfolio.json и config/streams.reference.json."
+        )
+
     def resume(self) -> None:
         """Снимает стоп и обнуляет точку отсчёта: пик будет взят заново
         от того equity, которое реально на счёте в момент следующей проверки."""
@@ -226,6 +252,19 @@ guard = PortfolioGuard(load_limits())
 
 def reload() -> None:
     guard.limits = load_limits()
+
+
+def assert_deposit_matches(equity) -> None:
+    """Останавливает старт, если конфиг рассчитан на другой депозит.
+
+    Торговать неверными размерами хуже, чем не торговать: лимиты, лот и порог
+    просадки перестают соответствовать счёту, а обнаружится это по факту
+    убытка. Чинится правкой одной строки в config/portfolio.json.
+    """
+    ok, detail = guard.check_deposit(equity)
+    if not ok:
+        logger.error(detail)
+        raise SystemExit(f"Старт остановлен: {detail}")
 
 
 def _status_text() -> str:
