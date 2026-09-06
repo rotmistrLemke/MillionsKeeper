@@ -154,43 +154,49 @@ def test_reference_config_is_loadable_and_consistent():
 
 # ── зафиксированные решения по потокам ────────────────────────────────
 
-def test_active_portfolio_is_the_small_deposit_composition():
-    """Состав под депозит 2000 $ зафиксирован 06.09.2026.
+def test_active_portfolio_is_the_seven_stream_contour():
+    """Второй контур: шестёрка + ema50_overstretch, отдельный VPS.
 
-    Семь потоков подобраны под счёт 108 000 и на 2000 не помещаются: минимальный
-    лот 0.01 даёт риск 30 $ на сделку, семь одновременных позиций резервируют
-    1565 $ маржи (78 % депозита) и в пик исторической просадки роняют уровень
-    маржи ниже margin call.
+    Ветка существует ради одного вопроса: работает ли состав из семи потоков
+    живьём. На основном контуре его проверить нельзя — депозит 1964 $ его не
+    вмещает, и урезание до трёх было вынужденным, а не выводом о качестве.
 
-    Оставлены три стратегии с наибольшим вкладом в перебор конфигураций
-    (cci_rsi +275, combined_a_plus +269, aroon +239) — при лимите в одну
-    открытую позицию 72 % конфигураций из 3–4 потоков прибыльны вне выборки,
-    медиана +164 $ за 4 месяца.
-
-    Тест не запрещает менять состав — он требует делать это вместе
-    с обоснованием в шапке эталона.
+    Шесть с плюсом в каждом из пяти кварталов (ema_cross, cci_rsi, aroon,
+    triple_ema, market_phase, combined_a_plus) плюс контртрендовая
+    ema50_overstretch: сама убыточна (−198 за год), но единственная
+    отрицательно коррелированная (−0.25 с cci_rsi) и срезает просадку
+    портфеля с 6579 до 5814.
     """
     import streams
     data = json.loads(streams._REFERENCE_FILE.read_text(encoding="utf-8"))
     active = {s["strategy"] for s in data["streams"] if s["enabled"]}
-    assert active == {"cci_rsi", "aroon", "combined_a_plus"}
+    assert active == {
+        "ema_cross", "cci_rsi", "aroon", "triple_ema",
+        "market_phase", "combined_a_plus", "ema50_overstretch",
+    }
 
 
 def test_active_streams_use_minimum_lot():
-    """0.01 — минимум брокера и единственный размер, посильный для 2000 $:
-    0.02 удвоило бы историческую просадку с 34 % до 67 % депозита."""
+    """0.01 против 0.05 у прежнего состава: контур тестовый, а размер счёта
+    под него ещё не зафиксирован. Минимальный лот — единственное значение,
+    безопасное при любом депозите от 5000 $."""
     import streams
     data = json.loads(streams._REFERENCE_FILE.read_text(encoding="utf-8"))
-    volumes = {s["volume"] for s in data["streams"] if s["enabled"]}
-    assert volumes == {0.01}
+    assert {s["volume"] for s in data["streams"] if s["enabled"]} == {0.01}
 
 
-def test_portfolio_limits_match_the_active_composition():
-    """Конфиг риска и конфиг потоков — одна настройка, разнесённая по двум
-    файлам. Рассинхрон здесь означает торговлю без защиты, ради которой
-    состав и урезался."""
+def test_seven_streams_run_without_a_position_limit():
+    """Лимит одной позиции здесь выключен намеренно: одновременная работа семи
+    потоков и есть предмет эксперимента. С лимитом 1 контур повторял бы
+    основной и отвечал бы на уже отвеченный вопрос."""
+    import portfolio
+    assert portfolio.load_limits().max_open_positions == 0
+
+
+def test_drawdown_stop_stays_on_for_the_test_contour():
+    """Тестовый — не значит бесконтрольный: портфельный стоп обязателен,
+    иначе контур молча сольёт счёт вместо того, чтобы дать ответ."""
     import portfolio
     limits = portfolio.load_limits()
-    assert limits.max_open_positions == 1
-    assert limits.deposit == 2000.0
     assert 0 < limits.max_drawdown < 1
+    assert limits.deposit >= 5000.0
