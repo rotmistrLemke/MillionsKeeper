@@ -154,37 +154,43 @@ def test_reference_config_is_loadable_and_consistent():
 
 # ── зафиксированные решения по потокам ────────────────────────────────
 
-def test_active_portfolio_stays_seven_streams():
-    """Состав из 7 потоков зафиксирован 03.09.2026 портфельным отбором.
+def test_active_portfolio_is_the_small_deposit_composition():
+    """Состав под депозит 2000 $ зафиксирован 06.09.2026.
 
-    Шесть стратегий с плюсом в каждом из пяти кварталов (ema_cross, cci_rsi,
-    aroon, triple_ema, market_phase, combined_a_plus) плюс контртрендовая
-    ema50_overstretch: сама убыточна (−198 за год), но отрицательно
-    коррелирует с остальными и срезает просадку портфеля с 6579 до 5814.
+    Семь потоков подобраны под счёт 108 000 и на 2000 не помещаются: минимальный
+    лот 0.01 даёт риск 30 $ на сделку, семь одновременных позиций резервируют
+    1565 $ маржи (78 % депозита) и в пик исторической просадки роняют уровень
+    маржи ниже margin call.
 
-    Отбор по величине прибыли отвергнут: walk-forward по кварталам дал
-    15259 против 28082 у «держать всё», корреляция прибыли между половинами
-    года −0.20. Тест не запрещает менять состав — он требует делать это
-    вместе с обоснованием в шапке эталона.
+    Оставлены три стратегии с наибольшим вкладом в перебор конфигураций
+    (cci_rsi +275, combined_a_plus +269, aroon +239) — при лимите в одну
+    открытую позицию 72 % конфигураций из 3–4 потоков прибыльны вне выборки,
+    медиана +164 $ за 4 месяца.
+
+    Тест не запрещает менять состав — он требует делать это вместе
+    с обоснованием в шапке эталона.
     """
     import streams
     data = json.loads(streams._REFERENCE_FILE.read_text(encoding="utf-8"))
     active = {s["strategy"] for s in data["streams"] if s["enabled"]}
-    assert active == {
-        "ema_cross", "cci_rsi", "aroon", "triple_ema",
-        "market_phase", "combined_a_plus", "ema50_overstretch",
-    }
+    assert active == {"cci_rsi", "aroon", "combined_a_plus"}
 
 
-def test_disabled_streams_are_excluded_from_trading():
-    """Выключенный поток не попадает ни в enabled(), ни в подписку на бары."""
+def test_active_streams_use_minimum_lot():
+    """0.01 — минимум брокера и единственный размер, посильный для 2000 $:
+    0.02 удвоило бы историческую просадку с 34 % до 67 % депозита."""
     import streams
-    registry = streams.StreamRegistry()
-    registry._load_raw_locked(
-        json.loads(streams._REFERENCE_FILE.read_text(encoding="utf-8"))["streams"])
+    data = json.loads(streams._REFERENCE_FILE.read_text(encoding="utf-8"))
+    volumes = {s["volume"] for s in data["streams"] if s["enabled"]}
+    assert volumes == {0.01}
 
-    enabled_ids = {s.id for s in registry.enabled()}
-    assert enabled_ids == {"s3", "s4", "s6", "s9", "s13", "s14", "s16"}
-    assert len(enabled_ids) == len(registry.all()) - 7
-    # Символ остаётся в работе — на нём есть другие включённые потоки.
-    assert {s.symbol for s in registry.enabled()} == {"XAUUSDrfd"}
+
+def test_portfolio_limits_match_the_active_composition():
+    """Конфиг риска и конфиг потоков — одна настройка, разнесённая по двум
+    файлам. Рассинхрон здесь означает торговлю без защиты, ради которой
+    состав и урезался."""
+    import portfolio
+    limits = portfolio.load_limits()
+    assert limits.max_open_positions == 1
+    assert limits.deposit == 2000.0
+    assert 0 < limits.max_drawdown < 1
