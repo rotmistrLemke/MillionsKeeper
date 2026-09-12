@@ -213,6 +213,11 @@ def _run_strategy_on_df(strategy, df, *, point, symbol_info, skip_weekend_filter
                         sl_points=0.0, tp_points=0.0,
                         breakeven_points=0.0, trail_points=0.0):
     df = strategy.compute_indicators(df)
+    # Флэт-фильтр считается и здесь: живой путь (IndicatorAgent) гасит им бар
+    # до вычисления сигнала, а движок раньше не вызывал его вовсе. У четырёх
+    # стратегий фильтр не заглушён и гасит порядка 44 % баров — без этого
+    # модельные входы не сопоставимы с живыми.
+    df = strategy.compute_flat_indicators(df)
 
     # SL/TP/breakeven/trail задаются в пунктах — ATR движку не нужен.
     # Дефолты стратегии (get_sl_tp) используют свой 'atr' из compute_indicators.
@@ -391,7 +396,10 @@ def _run_strategy_on_df(strategy, df, *, point, symbol_info, skip_weekend_filter
 
         if (position is None and dd_block_until is None
                 and (skip_weekend_filter or not _is_night_bar(bar_time))):
-            signal = strategy.get_entry_signal(row)
+            # Сигнал на флэтовом баре НЕ запрашиваем: get_entry_signal меняет
+            # состояние стратегии (_blocked_side, счётчики касаний), и вызов
+            # вхолостую разошёлся бы с живым путём не только числом сделок.
+            signal = None if strategy.is_flat(row) else strategy.get_entry_signal(row)
             if signal:
                 entry_price = row['close']
                 if signal == 'BUY':
