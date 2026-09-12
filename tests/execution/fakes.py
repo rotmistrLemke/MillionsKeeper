@@ -160,14 +160,21 @@ class FakeStatus:
         return symbol in self._disabled
 
 
-def make_position(fm, *, ticket=555, type=None, volume=0.1, magic=777, tp=1950.0,
-                  profit=0.0, swap=0.0, commission=0.0):
-    """Удобный конструктор фейковой позиции MT5."""
+def make_position(fm=None, *, ticket=555, type=None, volume=0.1, magic=777, tp=1950.0,
+                  profit=0.0, swap=0.0, commission=0.0,
+                  symbol="XAUUSD", price_open=1899.0, sl=0.0, time=0, comment=""):
+    """Удобный конструктор фейковой позиции MT5.
+
+    fm нужен только чтобы взять ORDER_TYPE_BUY; можно не передавать и указать
+    type числом. symbol/price_open/sl/time требуются, когда позиция проходит
+    через _get_positions_with_pnl, а не используется как голый namespace."""
+    if type is None:
+        type = fm.ORDER_TYPE_BUY if fm is not None else 0
     return SimpleNamespace(
-        ticket=ticket,
-        type=fm.ORDER_TYPE_BUY if type is None else type,
+        ticket=ticket, type=type,
         volume=volume, magic=magic, tp=tp,
         profit=profit, swap=swap, commission=commission,
+        symbol=symbol, price_open=price_open, sl=sl, time=time, comment=comment,
     )
 
 

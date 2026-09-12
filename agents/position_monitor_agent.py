@@ -40,6 +40,7 @@ class PositionMonitorAgent(BaseAgent):
             self._pending_exit_symbols.add(sym)
 
     async def run(self):
+        import streams as streams_mod
         await self.emit_status(AgentStatus.RUNNING, "Проверка позиций")
         try:
             positions = await asyncio.get_event_loop().run_in_executor(
@@ -55,6 +56,21 @@ class PositionMonitorAgent(BaseAgent):
                     await self._on_position_disappeared(prev_pos)
                     self._be_done.discard(ticket)
             self._prev_positions = {p["ticket"]: p for p in positions}
+
+            # Сверка реестра с реальностью. mark_stream_open вызывается только
+            # при открытии ордера, поэтому после рестарта реестр пуст, а позиции
+            # на счёте живы: перезапущенный бот считал поток свободным и
+            # открывал ВТОРУЮ позицию тем же magic. Монитор видит реальные
+            # позиции каждый поллинг — он и восстанавливает OPEN-статус.
+            # Идемпотентно: mark_stream_open работает на множестве.
+            for pos in positions:
+                sid = pos.get("stream_id")
+                if sid and not streams_mod.registry.is_stream_open(sid):
+                    self._logger.info(
+                        f"Позиция #{pos['ticket']} {pos['symbol']} "
+                        f"[{sid}] уже на счёте — поток помечен занятым"
+                    )
+                    streams_mod.registry.mark_stream_open(sid)
 
             # Breakeven + trailing SL — каждый тик поллинга, для любой позиции потока,
             # у которой в настройках задан breakeven_points или trail_points.

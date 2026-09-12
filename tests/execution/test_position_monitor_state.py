@@ -14,7 +14,8 @@ import logging
 
 import pytest
 
-from tests.execution.fakes import make_deal, make_stream, make_runtime_strategy
+from tests.execution.fakes import (make_deal, make_position, make_stream,
+                                   make_runtime_strategy)
 
 
 def _prev(ticket=1001, symbol="XAUUSD", magic=777, type_="BUY"):
@@ -215,3 +216,34 @@ async def test_single_stream_symbol_still_falls_back_by_symbol(
     )
     await h.agent._on_position_disappeared(_prev(magic=0))
     assert [r for _, r in strat.closed_calls] == ["SL"]
+
+
+# ── 5. сверка реестра с реальными позициями ──────────────────────────
+
+async def test_existing_position_marks_its_stream_open(position_monitor_agent_factory):
+    """После рестарта реестр пуст, а позиция на счёте жива.
+
+    mark_stream_open вызывается только в момент открытия ордера, поэтому
+    перезапущенный бот считал поток свободным и открывал ВТОРУЮ позицию тем
+    же magic. Монитор видит реальные позиции каждые 5 с — он и должен
+    восстанавливать OPEN-статус.
+    """
+    h = position_monitor_agent_factory(
+        streams={"s6": make_stream(id="s6", strategy="aroon", symbol="XAUUSD", magic=100005)},
+        positions=[make_position(None, magic=100005, symbol="XAUUSD")],
+    )
+    assert h.registry.is_stream_open("s6") is False   # реестр пуст после старта
+    await h.agent.run()
+    assert h.registry.is_stream_open("s6") is True
+    assert h.registry.open_count() == 1
+
+
+async def test_position_without_known_stream_does_not_mark_anything(
+        position_monitor_agent_factory):
+    """Ручная позиция (magic=0) потоком не владеет и слот занимать не должна."""
+    h = position_monitor_agent_factory(
+        streams={"s6": make_stream(id="s6", strategy="aroon", symbol="XAUUSD", magic=100005)},
+        positions=[make_position(None, magic=0, symbol="XAUUSD")],
+    )
+    await h.agent.run()
+    assert h.registry.open_count() == 0
