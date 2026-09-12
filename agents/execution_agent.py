@@ -58,7 +58,11 @@ class ExecutionAgent(BaseAgent):
         """stream.deposit + realized(magic,с начала недели) + unrealized(magic,открытые)."""
         import MetaTrader5 as mt5
         realized = 0.0
-        deals = mt5.history_deals_get(week_start, datetime.now())
+        # Верхнюю границу берём с запасом в сутки: MT5 отдаёт время сделки по
+        # часовому поясу сервера брокера (+3 ч у AlfaForex), упакованным как
+        # epoch. Окно до datetime.now() локальной машины отсекало последние
+        # часы сделок — как раз те, ради которых расчёт и делается.
+        deals = mt5.history_deals_get(week_start, datetime.now() + timedelta(days=1))
         if deals:
             for d in deals:
                 if getattr(d, "magic", 0) == stream.magic:

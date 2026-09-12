@@ -263,14 +263,27 @@ class PositionMonitorAgent(BaseAgent):
         """
         try:
             import MetaTrader5 as mt5
-            from datetime import datetime, timedelta
-            end = datetime.now() + timedelta(minutes=1)
-            start = end - timedelta(days=7)
-            deals = mt5.history_deals_get(start, end, position=ticket)
+            # ВАЖНО: position и диапазон дат — взаимоисключающие формы вызова.
+            # Передав оба, мы получали не сделки позиции, а ВСЕ сделки окна:
+            # фильтр position MT5 молча игнорирует. Вдобавок окно строилось по
+            # datetime.now() локальной машины, а время сделок MT5 отдаёт по
+            # часовому поясу сервера брокера (+3 ч у AlfaForex) — свежие сделки
+            # оказывались «в будущем» и в окно не попадали вовсе.
+            # Итог: закрывающая сделка не читалась никогда, брался последний
+            # доступный deal — открытие позиции с reason=EXPERT. Все стоп-лоссы
+            # 07–11.09.2026 классифицированы как SIGNAL, из-за чего блокировка
+            # переоткрытия не ставилась, а снималась: 10 стопов подряд.
+            deals = mt5.history_deals_get(position=ticket)
             if not deals:
                 return "MANUAL"
-            # Последняя сделка по позиции — закрывающая
-            closing = deals[-1]
+            # Закрывающая сделка — та, что выходит из позиции (entry=1).
+            # Полагаться на порядок нельзя: в списке есть и вход, и выход.
+            closing = None
+            for d in deals:
+                if getattr(d, "entry", None) == 1:
+                    closing = d
+            if closing is None:
+                closing = deals[-1]
             code = getattr(closing, "reason", None)
             if code is not None:
                 return self._DEAL_REASON_MAP.get(int(code), "MANUAL")

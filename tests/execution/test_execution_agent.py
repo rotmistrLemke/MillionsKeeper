@@ -119,11 +119,18 @@ async def test_daytime_allows_open(execution_agent_factory):
     assert h.trading.open_calls   # дошли до открытия
 
 
+# Сделки недели: время сделки MT5 отдаёт по часовому поясу сервера брокера,
+# и фейк теперь фильтрует окно так же, как настоящий API. Без явного времени
+# сделка проваливается мимо окна, и тест проходит вхолостую.
+_WEEK_DEAL_TS = datetime(2026, 6, 2, 10, 0).timestamp()
+
+
 def test_equity_realized_own_magic_only(execution_agent_factory):
     stream = make_stream(magic=777, deposit=1000.0)
     deals = [
-        make_deal(magic=777, profit=50.0, commission=-2.0, swap=-1.0),  # +47
-        make_deal(magic=999, profit=100.0),                             # чужой — игнор
+        make_deal(magic=777, profit=50.0, commission=-2.0, swap=-1.0,
+                  time=_WEEK_DEAL_TS),                                  # +47
+        make_deal(magic=999, profit=100.0, time=_WEEK_DEAL_TS),         # чужой — игнор
     ]
     h = execution_agent_factory(deals=deals)
     eq = h.agent._compute_stream_equity(stream, datetime(2026, 6, 1))
@@ -141,6 +148,24 @@ def test_equity_unrealized_own_magic_only(execution_agent_factory):
     assert eq == pytest.approx(1000.0 + 25.0)
 
 
+def test_equity_counts_deals_stamped_ahead_of_local_clock(execution_agent_factory):
+    """Сделка «из будущего» по локальным часам всё равно наша.
+
+    MT5 отдаёт время сделки по часовому поясу сервера брокера (у AlfaForex
+    +3 ч к машине), упакованным как epoch. Окно, построенное от
+    datetime.now() локальной машины, отсекало последние три часа сделок —
+    а это ровно те сделки, ради которых расчёт и делается.
+    """
+    stream = make_stream(magic=777, deposit=1000.0)
+    ahead = datetime(2026, 6, 3, 15, 0).timestamp()   # +3 ч к now() теста
+    h = execution_agent_factory(
+        deals=[make_deal(magic=777, profit=-250.0, time=ahead)],
+        now=datetime(2026, 6, 3, 12, 0),
+    )
+    eq = h.agent._compute_stream_equity(stream, datetime(2026, 6, 1))
+    assert eq == pytest.approx(750.0)
+
+
 def test_equity_empty_is_deposit(execution_agent_factory):
     stream = make_stream(magic=777, deposit=1500.0)
     h = execution_agent_factory(deals=[])
@@ -150,7 +175,7 @@ def test_equity_empty_is_deposit(execution_agent_factory):
 
 def test_equity_realized_plus_unrealized(execution_agent_factory):
     stream = make_stream(magic=777, symbol="XAUUSD", deposit=1000.0)
-    h = execution_agent_factory(deals=[make_deal(magic=777, profit=10.0)])
+    h = execution_agent_factory(deals=[make_deal(magic=777, profit=10.0, time=_WEEK_DEAL_TS)])
     h.mt5.positions = [make_position(h.mt5, magic=777, profit=5.0, swap=2.0)]
     eq = h.agent._compute_stream_equity(stream, datetime(2026, 6, 1))
     assert eq == pytest.approx(1000.0 + 10.0 + 7.0)
@@ -194,7 +219,8 @@ def test_dd_block_when_drawdown_over_threshold(execution_agent_factory):
     # dd = (1000-600)/1000 = 0.40 > 0.35 → блок.
     stream = make_stream(magic=777, deposit=1000.0)
     h = execution_agent_factory(
-        deals=[make_deal(magic=777, profit=-400.0)], now=datetime(2026, 6, 3, 12, 0),
+        deals=[make_deal(magic=777, profit=-400.0, time=_WEEK_DEAL_TS)],
+        now=datetime(2026, 6, 3, 12, 0),
     )
     allowed, reason = h.agent._check_stream_drawdown(stream)
     assert allowed is False
@@ -207,7 +233,8 @@ def test_dd_allows_when_within_threshold(execution_agent_factory):
     # equity = 1000 - 100 = 900; dd = 0.10 ≤ 0.35 → allowed; peak обновляется при росте.
     stream = make_stream(magic=777, deposit=1000.0)
     h = execution_agent_factory(
-        deals=[make_deal(magic=777, profit=-100.0)], now=datetime(2026, 6, 3, 12, 0),
+        deals=[make_deal(magic=777, profit=-100.0, time=_WEEK_DEAL_TS)],
+        now=datetime(2026, 6, 3, 12, 0),
     )
     allowed, reason = h.agent._check_stream_drawdown(stream)
     assert allowed is True and reason == ""

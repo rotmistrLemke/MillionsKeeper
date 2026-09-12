@@ -53,6 +53,32 @@ def test_classify_uses_deal_reason(position_monitor_agent_factory, reason_code, 
     assert h.agent._classify_close_reason(1001) == expected
 
 
+def test_stop_loss_is_not_read_as_signal_when_history_holds_the_entry(
+        position_monitor_agent_factory):
+    """Регрессия 07–11.09.2026: десять стопов подряд, определённых как SIGNAL.
+
+    В истории лежат обе сделки позиции — вход (reason=EXPERT) и выход по
+    стопу (reason=SL). Код брал последний доступный deal и попадал во вход,
+    потому что запрос смешивал position с диапазоном дат: фильтр позиции MT5
+    игнорирует, а окно по локальным часам отсекало свежий выход. Результат —
+    on_trade_closed('SIGNAL') не ставил блокировку переоткрытия, а снимал её.
+    """
+    h = position_monitor_agent_factory(deals=[
+        make_deal(reason=3, comment="s6:aroon", entry=0, position_id=1001, time=100),
+        make_deal(reason=4, comment="[sl 4407.63]", entry=1, position_id=1001, time=200),
+    ])
+    assert h.agent._classify_close_reason(1001) == "SL"
+
+
+def test_closing_deal_of_another_position_is_not_used(position_monitor_agent_factory):
+    """Свежая сделка соседнего потока не должна определять нашу причину."""
+    h = position_monitor_agent_factory(deals=[
+        make_deal(reason=4, comment="[sl 1.0]", entry=1, position_id=1001, time=100),
+        make_deal(reason=5, comment="[tp 2.0]", entry=1, position_id=2002, time=300),
+    ])
+    assert h.agent._classify_close_reason(1001) == "SL"
+
+
 def test_deal_reason_wins_over_misleading_comment(position_monitor_agent_factory):
     # Комментарий потока «s16:ema50_overstretch» содержит подстроку sl — раньше
     # такой текст мог быть прочитан как стоп. Код причины важнее текста.

@@ -69,7 +69,26 @@ class FakeMT5:
         return self.rates if self.rates is not None else make_rates(30)
 
     def history_deals_get(self, date_from=None, date_to=None, position=None):
-        return list(self.deals)
+        """Повторяет семантику настоящего MT5, а не удобную для тестов.
+
+        Ключевое: `position` и диапазон дат — ВЗАИМОИСКЛЮЧАЮЩИЕ формы вызова.
+        Если передан диапазон, реальный MT5 молча игнорирует position и отдаёт
+        все сделки окна. Прежний фейк отдавал `self.deals` при любом вызове и
+        поэтому не мог поймать ошибку, из-за которой все стоп-лоссы недели
+        07–11.09.2026 были определены как SIGNAL.
+
+        Время сделок MT5 отдаёт в часовом поясе сервера брокера, упакованным
+        как epoch, — оно опережает локальное время машины. Границы диапазона
+        сравниваем как есть: именно это расхождение и отсекало свежие сделки.
+        """
+        deals = list(self.deals)
+        if date_from is not None or date_to is not None:
+            lo = date_from.timestamp() if date_from is not None else float("-inf")
+            hi = date_to.timestamp() if date_to is not None else float("inf")
+            return [d for d in deals if lo <= getattr(d, "time", 0) <= hi]
+        if position is not None:
+            return [d for d in deals if getattr(d, "position_id", None) == position]
+        return deals
 
     def last_error(self):
         return self._error
@@ -153,13 +172,16 @@ def make_position(fm, *, ticket=555, type=None, volume=0.1, magic=777, tp=1950.0
 
 
 def make_deal(*, magic=777, profit=0.0, commission=0.0, swap=0.0, comment="",
-              reason=None):
-    """Фейковый закрытый deal MT5 (для history_deals_get).
+              reason=None, position_id=1001, entry=1, time=0):
+    """Фейковый deal MT5 (для history_deals_get).
 
     reason — код DEAL_REASON_* (4=SL, 5=TP, 3=EXPERT). None имитирует сборку
-    MT5-пакета без этого поля: тогда причина определяется по комментарию."""
+    MT5-пакета без этого поля: тогда причина определяется по комментарию.
+    entry — 0 (вход в позицию) или 1 (выход); position_id связывает сделки
+    одной позиции. time — серверное время сделки (epoch)."""
     deal = SimpleNamespace(magic=magic, profit=profit, commission=commission,
-                           swap=swap, comment=comment)
+                           swap=swap, comment=comment,
+                           position_id=position_id, entry=entry, time=time)
     if reason is not None:
         deal.reason = reason
     return deal
